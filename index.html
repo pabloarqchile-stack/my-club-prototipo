@@ -211,7 +211,8 @@ textarea.input{min-height:96px;resize:vertical}
 .pact button.on{color:var(--danger)}
 svg.fill path{fill:currentColor}
 /* Chat */
-.msgs{display:flex;flex-direction:column;gap:6px;padding-bottom:8px}
+.chatw{display:flex;flex-direction:column;min-height:100%}
+.msgs{display:flex;flex-direction:column;gap:6px;padding-bottom:8px;flex:1}
 .bub{max-width:78%;padding:9px 13px;border-radius:18px;font-size:15px;background:var(--card);box-shadow:var(--shadow);align-self:flex-start}
 .bub.me{align-self:flex-end;background:var(--primary2);color:#fff}
 .bub .who{font-size:12px;font-weight:700;color:var(--ptext);margin-bottom:2px}
@@ -600,7 +601,7 @@ function seedSocial(s, D, T, teamPlayers) {
     const m0 = addMonths(T, k); const day = n => { const d = addDays(m0, n - 1); return d > T ? null : d; };
     const add = (type, cat, concept, amount, n) => { const d = day(n); if (d) mv(type, cat, concept, amount, d); };
     const mn = monthName(m0);
-    add('ingreso', 'Cuotas mensuales', 'Cuotas mensuales ' + mn, 980000 + rnd() * 260000, 10);
+    add('ingreso', 'Cuotas mensuales', 'Cuotas mensuales ' + mn, 1650000 + rnd() * 350000, 10);
     add('ingreso', 'Auspicios', 'Auspicio Seguros del Pacífico Sur', 450000, 5);
     if (rnd() > 0.4) add('ingreso', 'Matrículas', 'Matrículas nuevos socios', 120000 + rnd() * 200000, 15);
     if (rnd() > 0.5) add('ingreso', 'Eventos', pick(['Bingo familiar', 'Rifa de camisetas', 'Cena aniversario', 'Venta en cantina']), 180000 + rnd() * 320000, 22);
@@ -750,7 +751,7 @@ function seedMarket(s, D, T) {
   ];
   s.fedStats = {};
   SPORT_LIST.forEach(sp => {
-    const reg = {}; REGIONES.forEach(r => { const big = r === 'Metropolitana' ? 4 : ['Valparaíso', 'Biobío'].includes(r) ? 2.2 : 1; const c = Math.round((2 + rnd() * 9) * big); reg[r] = { clubs: c, fed: Math.round(c * (18 + rnd() * 14)), nofed: Math.round(c * (6 + rnd() * 10)) }; });
+    const reg = {}; REGIONES.forEach(r => { const big = r === 'Metropolitana' ? 4 : ['Valparaíso', 'Biobío'].includes(r) ? 2.2 : 1; const c = Math.round((6 + rnd() * 4) * big); reg[r] = { clubs: c, fed: Math.round(c * (18 + rnd() * 14)), nofed: Math.round(c * (6 + rnd() * 10)) }; });
     const cat = {}; CATEGORIAS.forEach(c => cat[c] = Math.round(120 + rnd() * 900));
     s.fedStats[sp] = { reg, cat };
   });
@@ -1403,7 +1404,7 @@ route('/chat/:id', {
   render: p => {
     const c = S.chats.find(x => x.id === p.id); if (!c) return empty('chat', 'Chat no encontrado', '');
     const id = me().id;
-    return `${c.type === 'directo' ? '' : note('Chat simulado: los mensajes se guardan solo en este dispositivo.')}<div class="msgs">${c.msgs.map(m => `<div class="bub ${m.from === id ? 'me' : ''}">${m.from === id ? '' : `<div class="who">${esc(m.name)}</div>`}${esc(m.text)}<div class="tm">${m.date === today() ? '' : fDate(m.date) + ' · '}${m.time}</div></div>`).join('') || '<div class="center muted small">Escribe el primer mensaje</div>'}</div><div class="composer"><input class="input" id="ch-in" placeholder="Escribe un mensaje" aria-label="Mensaje" onkeydown="if(event.key==='Enter')A.send('${c.id}')" autocomplete="off"><button class="ibtn" onclick="A.send('${c.id}')" aria-label="Enviar">${icon('send', 20)}</button></div>`;
+    return `<div class="chatw">${c.type === 'directo' ? '' : note('Chat simulado: los mensajes se guardan solo en este dispositivo.')}<div class="msgs">${c.msgs.map(m => `<div class="bub ${m.from === id ? 'me' : ''}">${m.from === id ? '' : `<div class="who">${esc(m.name)}</div>`}${esc(m.text)}<div class="tm">${m.date === today() ? '' : fDate(m.date) + ' · '}${m.time}</div></div>`).join('') || '<div class="center muted small">Escribe el primer mensaje</div>'}</div><div class="composer"><input class="input" id="ch-in" placeholder="Escribe un mensaje" aria-label="Mensaje" onkeydown="if(event.key==='Enter')A.send('${c.id}')" autocomplete="off"><button class="ibtn" onclick="A.send('${c.id}')" aria-label="Enviar">${icon('send', 20)}</button></div></div>`;
   }, after: () => { const v = $('#view'); v.scrollTop = v.scrollHeight; }
 });
 
@@ -1672,7 +1673,6 @@ route('/rutinas', {
 // --- Base de datos de torneos ---
 const ORG = { club: 'Club', federacion: 'Federación', asociacion: 'Asociación' };
 const tStatus = t => t.start > today() ? ['Inscripciones abiertas', 'ok'] : t.end >= today() ? ['En curso', 'warn'] : ['Finalizado', 'mute'];
-A.tf = (k, v) => { S.ui.tf = { ...(S.ui.tf || {}), [k]: v }; save(); rerender(); };
 A.tfSheet = () => {
   const f = S.ui.tf || {}, o = (l, id, arr) => select('tfs-' + id, l, [['', 'Todos'], ...arr], f[id] || '');
   sheet('Filtrar torneos', `${o('Tipo', 'fed', [['si', 'Federado'], ['no', 'No federado']])}${o('Deporte', 'sport', SPORT_LIST)}${o('Sexo', 'sex', ['Masculino', 'Femenino', 'Mixto'])}${o('Categoría', 'cat', CATEGORIAS)}${inp('tfs-age', 'Edad del jugador', `type="number" inputmode="numeric" value="${f.age || ''}"`)}${o('Región', 'region', REGIONES)}${o('País', 'country', ['Chile', 'Argentina', 'Perú'])}${inp('tfs-price', 'Precio máximo', `type="number" inputmode="numeric" value="${f.price || ''}"`)}${btn('Aplicar filtros', 'A.tfApply()')}<div class="mt8">${btn('Limpiar', "S.ui.tf={};closeSheet();commit()", 'ghost')}</div>`);
@@ -2133,12 +2133,12 @@ route('/f/dashboard', {
   }
 });
 route('/f/clubes', {
-  title: 'Clubes', roles: ['federacion'], render: () => { const l = fClubs(); return scopeNote() + (l.length ? list(l.map(c => li({ ic: 'building', color: 'green', title: esc(c.name), sub: `${esc(c.city)}, ${esc(c.region)} · RUT ${c.rut}`, right: c.main ? badge('Federado', 'ok') : badge('Federado', 'ok') }))) : empty('building', 'Sin clubes', 'No hay clubes de ejemplo de este deporte en este ámbito.')); }
+  title: 'Clubes', roles: ['federacion'], render: () => { const l = fClubs(); return scopeNote() + note(`${sum(fRegions(), ([, v]) => v.clubs)} clubes federados en total. Aquí se listan solo los clubes de ejemplo del prototipo.`) + (l.length ? list(l.map(c => li({ ic: 'building', color: 'green', title: esc(c.name), sub: `${esc(c.city)}, ${esc(c.region)} · RUT ${c.rut}`, right: badge('Federado', 'ok') }))) : empty('building', 'Sin clubes', 'No hay clubes de ejemplo de este deporte en este ámbito.')); }
 });
 A.addCom = () => {
   const t = val('co-t'), b = val('co-b'); if (!t || !b) return toast('Completa título y contenido', 'warn');
   const sc = fedScope(), c = { id: uid('fc'), sport: fSp(), scope: sc ? sc.region : 'nacional', title: t, body: b, date: today() }; S.communiques.unshift(c);
-  const n = fClubs().length; notify(['directivo', 'entrenador', 'jugador', 'apoderado'], `Comunicado de ${scopeLabel()}: ${t}`, '/inicio'); closeSheet(); commit(`Comunicado enviado automáticamente a ${n} clubes`);
+  const n = sum(fRegions(), ([, v]) => v.clubs); notify(['directivo', 'entrenador', 'jugador', 'apoderado'], `Comunicado de ${scopeLabel()}: ${t}`, '/inicio'); closeSheet(); commit(`Comunicado enviado automáticamente a ${n} clubes`);
 };
 A.comSheet = () => sheet('Nuevo comunicado', `${inp('co-t', 'Título', 'autocomplete="off"')}${area('co-b', 'Contenido')}${note(`Llegará automáticamente a todos los clubes de: ${esc(scopeLabel())}.`)}${btn('Enviar a todos los clubes', 'A.addCom()', 'ok', 'megaphone')}`);
 route('/f/comunicados', {

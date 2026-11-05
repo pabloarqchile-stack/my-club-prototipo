@@ -85,4 +85,7 @@ Una federación por deporte, 2 asociaciones regionales (Biobío, Valparaíso), ~
 - Offline tras la primera carga. Recorrido de cada rol con Playwright (390×844 @3x), sin errores de consola; capturas en `/screenshots`.
 
 ## Verificación
-Script Playwright en `tools/recorrido.py` (requiere `pip install playwright`). Servir con `python3 -m http.server 8080`.
+Servir con `python3 -m http.server 8123` y, con `pip install playwright`:
+- `python tools/recorrido.py`: abre cada pantalla por rol a 390 × 844 @3x, revisa consola y desbordes, y guarda capturas en `/screenshots`.
+- `python tools/flujos.py`: prueba con clics las reglas de negocio (44 comprobaciones) y el modo sin conexión.
+Al cambiar archivos, subir `CACHE` en `sw.js`.

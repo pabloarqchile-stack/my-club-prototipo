@@ -22,13 +22,13 @@ with sync_playwright() as p:
     pg.on('console', lambda m: errs.append((cur, m.text)) if m.type == 'error' else None)
     pg.on('pageerror', lambda e: errs.append((cur, str(e))))
     cur = 'login'
-    pg.goto(URL); pg.wait_for_selector('.login'); pg.screenshot(path=f'{OUT}/00-login.png')
+    pg.goto(URL); pg.wait_for_selector('.login'); pg.wait_for_timeout(400); pg.screenshot(path=f'{OUT}/00-login.png')
     for rol, rutas in RUTAS.items():
         if ONLY and rol not in ONLY: continue
         pg.evaluate("r=>{S.session.loggedIn=true;S.session.role=r;save()}", rol)
         for i, r in enumerate(rutas):
             cur = f'{rol} {r}'
-            pg.evaluate("h=>{location.hash='#'+h}", r); pg.wait_for_timeout(120)
+            pg.evaluate("h=>{location.hash='#'+h}", r); pg.wait_for_timeout(350)
             t = pg.evaluate("""()=>({h:location.hash,bad:!!document.querySelector('#view .empty h3')&&document.querySelector('#view .empty h3').textContent.startsWith('No pudimos'),over:document.documentElement.scrollWidth>innerWidth||document.querySelector('#view').scrollWidth>document.querySelector('#view').clientWidth+1,undef:/undefined|NaN|\\[object/.test(document.querySelector('#view').innerText)})""")
             if not t['h'].endswith(r): errs.append((cur, 'redirigido a ' + t['h']))
             if t['bad']: errs.append((cur, 'pantalla con error: ' + pg.inner_text('#view .empty')))
