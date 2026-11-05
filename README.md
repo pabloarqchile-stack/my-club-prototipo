@@ -1,6 +1,8 @@
 # My Club – prototipo MVP
 
 Prototipo navegable para administrar clubes deportivos, asociaciones y federaciones de Chile.
+**Versión publicada:** https://pabloarqchile-stack.github.io/my-club-prototipo/
+
 No tiene servidor: los datos son de ejemplo y los cambios se guardan en el navegador (localStorage).
 Pagos, QR, chats, carga de archivos y escaneo son simulados.
 
