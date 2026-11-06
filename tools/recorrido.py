@@ -25,7 +25,7 @@ with sync_playwright() as p:
     pg.goto(URL); pg.wait_for_selector('.login'); pg.wait_for_timeout(400); pg.screenshot(path=f'{OUT}/00-login.png')
     for rol, rutas in RUTAS.items():
         if ONLY and rol not in ONLY: continue
-        pg.evaluate("r=>{S.session.loggedIn=true;S.session.role=r;save()}", rol)
+        pg.evaluate("r=>{S.session.loggedIn=true;applyAccount(demoAccount(r));save()}", rol)
         for i, r in enumerate(rutas):
             cur = f'{rol} {r}'
             pg.evaluate("h=>{location.hash='#'+h}", r); pg.wait_for_timeout(350)

@@ -6,6 +6,21 @@ Prototipo navegable para administrar clubes deportivos, asociaciones y federacio
 No tiene servidor: los datos son de ejemplo y los cambios se guardan en el navegador (localStorage).
 Pagos, QR, chats, carga de archivos y escaneo son simulados.
 
+## Cuentas de demostración
+
+Clave `demo` para todas. La pantalla de ingreso ya trae la primera.
+
+| Rol | Email |
+|---|---|
+| Deportista | `demo@myclub.cl` |
+| Apoderado | `apoderado@myclub.cl` |
+| Entrenador | `entrenador@myclub.cl` |
+| Directivo | `directivo@myclub.cl` |
+| Federación | `federacion@myclub.cl` |
+| Proveedor | `proveedor@myclub.cl` |
+
+Dentro de la app, **Perfil → Cambiar de rol** cambia entre estas cuentas. Para probar una vinculación, Club Deportivo Los Halcones tiene el ID `C00000001`.
+
 ## Probarla en el computador
 
 Desde esta carpeta, con cualquiera de estos comandos:

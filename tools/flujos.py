@@ -13,7 +13,7 @@ with sync_playwright() as p:
     def nav(r): g.evaluate("h=>{location.hash='#'+h}",r); g.wait_for_timeout(120)
     def setrole(r): g.evaluate("r=>{A.setRole(r)}",r); g.wait_for_timeout(420)
     # Login con clic real
-    g.click('button.role:has-text("Jugador")'); g.get_by_role('button',name='Entrar').click(); g.wait_for_selector('.grid')
+    g.get_by_role('button',name='INGRESAR').click(); g.wait_for_selector('.grid')
     ok(g.inner_text('.ttl')=='Hola, Matías','login jugador')
     # Editar inicio persiste tras recarga
     tap('Editar inicio'); g.wait_for_selector('.edrow'); g.click('.edrow:nth-child(3) button[aria-label^="Fijar"]'); g.click('.edrow:nth-child(2) button[aria-label^="Ocultar"]'); tap('Listo')
@@ -69,9 +69,60 @@ with sync_playwright() as p:
     setrole('proveedor'); nav('/p/cotizacion/q1'); g.wait_for_timeout(120); ok('Comisión My Club' in g.inner_text('#view'),'proveedor ve neto con comisión')
     # Federación ámbito y comunicado
     setrole('federacion'); ev("A.ui('fedScope','as-bio')"); nav('/f/dashboard'); g.wait_for_timeout(120); ok('Biobío' in g.inner_text('#view'),'vista asociación limitada'); nav('/f/comunicados'); g.wait_for_timeout(100); tap('Nuevo comunicado'); g.wait_for_timeout(420); g.fill('#co-t','Aviso'); g.fill('#co-b','Texto'); tap('Enviar a todos los clubes'); g.wait_for_timeout(420); ok(ev("S.notifs.filter(n=>n.text.includes('Aviso')).length")==4,'comunicado llega a todos los roles')
-    # Registro: menor bloqueado, adulto mensaje exacto
-    ev("A.logout()"); g.wait_for_timeout(200); nav('/registro'); g.wait_for_timeout(100); g.fill('#rg-name','Test Menor'); g.fill('#rg-rut','11.111.111-1'); g.fill('#rg-birth','2015-01-01'); tap('65.123.456'); tap('Enviar solicitud'); ok('menores de edad' in g.inner_text('#rg-err'),'menor bloqueado en registro')
-    g.fill('#rg-birth','1995-01-01'); tap('Enviar solicitud'); g.wait_for_timeout(900); ok('El club ha recibido su solicitud de incorporación. Cuando el club la acepte, aparecerá como jugador hábil.' in g.inner_text('.sheet'),'mensaje exacto incorporación'); g.screenshot(path='/tmp/myclub-registro.png')
+    # Ingreso: solo email, clave y dos botones
+    ev("A.logout()"); g.wait_for_timeout(300)
+    ok(g.locator('.login input').count()==2 and g.locator('.login button').count()==2,'ingreso solo con email, clave y 2 botones'); ok('INGRESAR' in g.inner_text('.login') and 'REGISTRARSE' in g.inner_text('.login'),'botones INGRESAR y REGISTRARSE')
+    g.fill('#lg-pw','mala'); g.get_by_role('button',name='INGRESAR').click(); g.wait_for_timeout(100); ok('incorrectos' in g.inner_text('#lg-err'),'clave incorrecta rechazada')
+    def rut(n): return ev(f"fmtRut({n})")
+    def abrir(tipo):
+        ev("A.logout()"); g.wait_for_timeout(200); nav('/registro'); g.wait_for_timeout(120)
+        if ev("S.ui.regType")!=None: ev("S.ui.regType=null;rerender()")
+        g.locator(f'#rg-{tipo} button.li').click(); g.wait_for_timeout(200)
+    def base(nombre,r,email,clave='prueba123'):
+        g.fill('#rg-name',nombre); g.fill('#rg-rut',r); g.fill('#rg-email',email); g.fill('#rg-phone','+56 9 1111 2222'); g.fill('#rg-pass',clave)
+    def completar(): g.get_by_role('button',name='Completar Registro').click(); g.wait_for_timeout(120)
+    def nuevoid():
+        g.wait_for_selector('#new-id',timeout=3000); v=g.inner_text('#new-id'); g.wait_for_timeout(350); return v
+    nav('/registro'); g.wait_for_timeout(150); ok(g.locator('#view .list').count()==7,'registro muestra 7 tipos de usuario'); ok('Deportista' in g.inner_text('#view') and 'Jugador' not in g.inner_text('#view'),'Jugador renombrado a Deportista')
+    # Club: mínimo 3 cargos
+    abrir('club'); base('Club Deportivo Prueba',rut(66111222),'club@prueba.cl'); g.fill('#rg-date','2010-03-15'); g.fill('#rg-num','RD-4471')
+    n=g.locator('.dir-n'); n.nth(0).fill('Ana Presidenta'); n.nth(1).fill('Beto Vice'); completar(); ok('mínimo 3 cargos' in g.inner_text('#rg-err'),'club exige mínimo 3 cargos')
+    g.get_by_role('button',name='Agregar cargo').click(); ok(g.locator('.dir-row').count()==6,'botón agregar cargo'); g.locator('.dir-c').nth(5).fill('Delegado'); g.locator('.dir-n').nth(5).fill('Carla Delegada'); completar()
+    cid_new=nuevoid(); ok(cid_new=='C00000008','club recibe C00000008 correlativo: '+cid_new)
+    nav('/perfil'); g.wait_for_timeout(150); t=g.inner_text('#view'); ok(cid_new in t and 'Carla Delegada' in t and 'RD-4471' in t,'perfil del club muestra ID y directorio')
+    # Deportista: menor, ID erróneo, vinculación y mensaje exacto
+    abrir('jugador'); base('Paula Atleta',rut(19888777),'paula@prueba.cl'); g.fill('#rg-birth','2015-01-01'); completar(); ok('menores de edad' in g.inner_text('#rg-err'),'menor bloqueado')
+    g.fill('#rg-birth','1995-01-01'); g.fill('#rg-height','172'); g.fill('#lk-id','C99999999'); g.get_by_role('button',name='VINCULAR AL CLUB').click(); g.wait_for_timeout(100); ok('No encontramos' in g.inner_text('#lk-res'),'ID de club inexistente')
+    completar(); ok('VINCULAR AL CLUB' in g.inner_text('#rg-err'),'exige confirmar el ID')
+    g.fill('#lk-id','c00000001'); g.get_by_role('button',name='VINCULAR AL CLUB').click(); g.wait_for_timeout(100); ok('Los Halcones' in g.inner_text('#lk-res'),'VINCULAR encuentra el club'); g.select_option('#lk-sport','Vóleibol'); completar()
+    v=nuevoid(); ok(v=='D00000003','deportista correlativo: '+v); ok('El club ha recibido su solicitud de incorporación. Cuando el club la acepte, aparecerá como jugador hábil.' in g.inner_text('.sheet'),'mensaje exacto de incorporación')
+    ok(ev("S.players.at(-1).height")==172,'estatura guardada'); ok(ev("S.memberships.at(-1).status")=='pendiente' and ev("S.memberships.at(-1).sport")=='Vóleibol','membresía pendiente con deporte elegido')
+    # Sin vincular: entrenador, directivo, apoderado, federación, proveedor
+    abrir('entrenador'); base('Eva Coach',rut(16222333),'eva@prueba.cl'); g.fill('#lk-id',cid_new); g.get_by_role('button',name='VINCULAR AL CLUB').click(); g.wait_for_timeout(100); completar(); v=nuevoid(); ok(v=='E00000002','entrenador correlativo: '+v); ok('Vincúlate' in g.inner_text('#view') or 'pendiente' in g.inner_text('#view').lower(),'entrenador sin aprobar ve pantalla de vinculación')
+    abrir('directivo'); base('Dani Directiva',rut(15444555),'dani@prueba.cl'); completar(); v=nuevoid(); ok(v=='D00000004','directivo comparte correlativo D: '+v)
+    abrir('apoderado'); base('Ale Apoderada',rut(14666777),'ale@prueba.cl'); completar(); v=nuevoid(); ok(v=='A00000002','apoderado correlativo: '+v)
+    ok('pupilos' in g.inner_text('#view').lower(),'apoderado sin pupilos ve aviso'); nav('/a/registrar-hijo'); g.wait_for_timeout(120); g.fill('#rh-name','Lola Hija'); g.fill('#rh-rut',rut(24555666)); g.fill('#rh-birth','2014-06-06'); tap('Registrar y solicitar'); g.wait_for_timeout(800); ok(ev("myKids().length")==1,'apoderado registra hijo'); ev("closeSheet()"); g.wait_for_timeout(350)
+    abrir('federacion'); base('Fede Remo',rut(13888999),'fede@prueba.cl'); g.select_option('#rg-sport','Remo'); completar(); v=nuevoid(); ok(v=='F00000002','federación correlativo: '+v); ok(ev("S.ui.fedSport")=='Remo','federación usa su deporte')
+    abrir('proveedor'); base('Tienda Prueba',rut(77222333),'tienda@prueba.cl'); completar(); v=nuevoid(); ok(v=='P00000002','proveedor correlativo: '+v)
+    # Email repetido y reingreso con cuenta creada
+    abrir('directivo'); base('Otro',rut(12333444),'dani@prueba.cl'); completar(); ok('ya está registrado' in g.inner_text('#rg-err'),'email duplicado rechazado')
+    def login(e,c):
+        ev("A.logout()"); g.wait_for_timeout(250); g.fill('#lg-em',e); g.fill('#lg-pw',c); g.get_by_role('button',name='INGRESAR').click(); g.wait_for_timeout(250)
+    # Club aprueba la vinculación del entrenador y este queda con acceso cuando hay equipo
+    login('club@prueba.cl','prueba123'); nav('/d/solicitudes'); g.wait_for_timeout(120); ok('Eva Coach' in g.inner_text('#view'),'club ve la vinculación pendiente'); g.locator('button:has-text("Aceptar")').first.click(); g.wait_for_timeout(150)
+    ev("S.clubs.at(-1).sports.push('Fútbol');S.teams.push({id:'t_new',clubId:S.clubs.at(-1).id,sport:'Fútbol',name:'Fútbol Prueba',category:'Adulto',sex:'Mixto',coach:'Eva'});save()")
+    login('eva@prueba.cl','prueba123'); ok(ev("!needsClub()"),'entrenador vinculado entra a su club'); ok(ev("coach().clubId")==ev("S.clubs.at(-1).id"),'entrenador en club nuevo')
+    # Cuentas nuevas recorren sus pantallas sin errores ni datos del demo
+    rutas={'club@prueba.cl':'/inicio /d/finanzas /d/deportes /d/aprobaciones /d/asambleas /d/solicitudes /d/bajas /d/reclamos /d/prestamos /d/jugadores /d/masivo /marketplace /mensajes /perfil /notificaciones','eva@prueba.cl':'/inicio /e/eventos /e/nuevo-evento /e/plantel /torneos /e/proponer /encuestas /e/encuesta-nueva /e/masivo /rutinas /e/staff /e/carga /marketplace /mensajes /perfil','paula@prueba.cl':'/inicio /calendario /asistencia /pagos /muro /mensajes /encuestas /j/cv /j/cv-imprimir /j/certificado /j/credencial /unirme /cambio-club /renuncia /rutinas /tramites /perfil','ale@prueba.cl':'/inicio /a/pupilos /pagos /asistencia /calendario /mensajes /a/reportes /cambio-club /renuncia /tramites /perfil /vincular','dani@prueba.cl':'/inicio /d/finanzas /d/aprobaciones /mensajes /perfil /vincular','fede@prueba.cl':'/inicio /f/dashboard /f/clubes /f/comunicados /f/valores /f/ficha /f/estadisticas /perfil','tienda@prueba.cl':'/inicio /p/perfil /p/catalogo /p/categorias /p/recintos /p/cotizaciones /p/torneos /p/pagos /perfil'}
+    malas=[]
+    for mail,rs in rutas.items():
+        login(mail,'prueba123')
+        for r in rs.split():
+            nav(r); g.wait_for_timeout(90)
+            t=g.inner_text('#view')
+            if 'No pudimos' in t or 'undefined' in t or 'NaN' in t: malas.append(mail+' '+r)
+    ok(not malas,'cuentas nuevas sin pantallas rotas: '+str(malas))
+    login('club@prueba.cl','prueba123'); nav('/d/aprobaciones'); g.wait_for_timeout(120); ok('Copa Primavera' not in g.inner_text('#view'),'club nuevo no ve propuestas de otro club'); ok(ev("unread()")<=2,'club nuevo sin notificaciones del demo')
     # Restablecer demo
     ev("A.doReset()"); g.wait_for_timeout(300); ok(ev("S.session.loggedIn")==False and g.locator('.login').count()==1,'restablecer demo')
     # Offline con SW

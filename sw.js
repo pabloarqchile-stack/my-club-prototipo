@@ -1,7 +1,7 @@
 // Service worker de My Club: guarda todo en caché para funcionar sin conexión.
 // Sube la versión al cambiar archivos para que los teléfonos reciban la actualización.
-const CACHE = 'myclub-v1';
-const FILES = ['./', './index.html', './manifest.webmanifest', './icons/icon-180.png', './icons/icon-192.png', './icons/icon-512.png'];
+const CACHE = 'myclub-v2';
+const FILES = ['./', './index.html', './manifest.webmanifest', './icons/logo.png', './icons/escudo.png', './icons/icon-180.png', './icons/icon-192.png', './icons/icon-512.png'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(FILES)).then(() => self.skipWaiting()));
