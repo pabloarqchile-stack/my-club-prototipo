@@ -95,6 +95,8 @@ Luego `npm run ios` o `npm run android` abre el proyecto nativo.
 5. Copia la Project URL y la Publishable key en `config.js`, y sube `CACHE` en `sw.js`. **Nunca** pongas ahí la clave secreta.
 6. Antes de abrir el registro al público, configura un correo propio en **Authentication → SMTP**. El correo incluido en Supabase solo llega a miembros del proyecto, con un máximo de 2 mensajes por hora.
 
+La app ya está conectada a su proyecto de Supabase. Las pruebas del demo usan una copia sin conexión y no tocan la base real.
+
 Pruebas: `python tools/probar_base.py` (permisos en Postgres local) y `python tools/flujos_real.py` (navegador con API emulada).
 
 ## Cómo está organizada

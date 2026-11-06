@@ -45,7 +45,7 @@ Las acciones de la UI viven en el objeto global `A` (`onclick="A.algo('id')"`).
 Eliminar cuenta (`A.deleteAsk`), páginas públicas `#/legal/privacidad`, `terminos`, `eliminar-cuenta` y `contacto` (borradores, con correo de soporte pendiente), filtro de lenguaje, reportar y bloquear en muro y chat, y bandeja de reportes en Reclamos. `capacitor.config.json` y `package.json` preparan iOS y Android, pero aún no se han compilado.
 
 ## Modo real (Supabase, región São Paulo)
-- `config.js` trae la URL del proyecto y la clave pública. Vacío, la app es solo demo. Nunca poner ahí una clave secreta.
+- `config.js` trae la URL del proyecto (`lggjonkbcyayizdbeuim`) y la clave publicable, ambas públicas por diseño. Vacío, la app es solo demo. Nunca poner ahí una clave secreta.
 - Las cuentas demo funcionan siempre con datos locales; cualquier otro email usa la base. En modo real `S` es una copia en memoria, no se guarda en localStorage (`S.session.real`).
 - `supabase/migrations/`: esquema, RLS y funciones. El navegador solo lee por RLS; **toda escritura pasa por funciones SQL**, sin INSERT/UPDATE/DELETE directos. Nombre, RUT y fechas los bloquea un trigger.
 - Sección 15 de `index.html`: cliente `SB` (fetch, sin SDK ni dependencias), `hydrate()` y `real(nombre, fn)`, que reemplaza una acción de `A` solo en modo real sin tocar la versión demo.
@@ -110,7 +110,7 @@ Una federación por deporte, 2 asociaciones regionales (Biobío, Valparaíso), ~
 - Offline tras la primera carga. Recorrido de cada rol con Playwright (390×844 @3x), sin errores de consola; capturas en `/screenshots`.
 
 ## Verificación
-Servir con `python3 -m http.server 8123` y, con `pip install playwright`:
+Con `pip install playwright`, las pruebas del demo levantan solas una copia con `config.js` vacío (`tools/servidor_demo.py`). **Nunca correr `flujos.py` contra el sitio público**: registraría usuarios en la base real.
 - `python tools/recorrido.py`: abre cada pantalla por rol a 390 × 844 @3x, revisa consola y desbordes, y guarda capturas en `/screenshots`.
 - `python tools/flujos.py`: prueba con clics las reglas de negocio, cuentas, logo, moderación y modo sin conexión (105 comprobaciones) y el modo sin conexión.
 - `python tools/probar_base.py`: aplica las migraciones en un Postgres local y prueba permisos por rol (102 comprobaciones).

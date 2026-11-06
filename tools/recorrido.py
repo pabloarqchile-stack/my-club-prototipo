@@ -1,3 +1,5 @@
+import servidor_demo
+servidor_demo.servir()
 #!/usr/bin/env python3
 """Recorre la app por rol con Playwright (390x844 @3x). Uso: python tools/recorrido.py [url] [roles,coma]"""
 import sys, os

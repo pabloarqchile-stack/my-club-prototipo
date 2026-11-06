@@ -1,3 +1,5 @@
+import servidor_demo
+servidor_demo.servir()
 from playwright.sync_api import sync_playwright
 URL='http://localhost:8123/'
 errs=[]; log=[]
