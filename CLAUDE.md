@@ -3,7 +3,7 @@
 ## Objetivo
 Prototipo navegable e interactivo de **My Club**, app para administrar clubes deportivos, asociaciones y
 federaciones de Chile (todos los deportes). Sirve para visualizar y validar el producto. **Sin backend**:
-datos de ejemplo y persistencia en `localStorage` (clave `myclub-demo-v1`).
+datos de ejemplo y persistencia en `localStorage` (clave `myclub-demo-v1`, con versión de estado 3).
 
 ## Formato (obligatorio)
 - Logo: `tools/logo-original.png`; `tools/generar_iconos.py` genera `icons/logo.png`, `icons/escudo.png` y los íconos de instalación.
@@ -31,15 +31,21 @@ datos de ejemplo y persistencia en `localStorage` (clave `myclub-demo-v1`).
 Las acciones de la UI viven en el objeto global `A` (`onclick="A.algo('id')"`).
 
 ## Cuentas e ingreso
-- **Ingreso:** solo email, clave y los botones INGRESAR y REGISTRARSE. Cuentas demo con clave `demo`: `demo@myclub.cl` (deportista), `apoderado@`, `entrenador@`, `directivo@`, `federacion@` y `proveedor@myclub.cl`.
-- **Registro:** `#/registro` lista 7 tipos (Club, Deportista, Apoderado, Entrenador, Directivo, Federación, Proveedor); al tocar uno se despliega su formulario y termina en "Completar Registro".
-- **Datos base de todos:** nombre, RUT, email y teléfono, más una clave de prueba para poder ingresar.
-- **Club:** fecha de constitución, registro deportivo número y directorio (presidente, vicepresidente, tesorero, secretario, director, botón "Agregar cargo"; mínimo 3 cargos con nombre). Opera con las pantallas de Directivo sobre su club.
-- **Deportista:** fecha de nacimiento (por la regla de menores), estatura y talla opcionales, ID del club y botón VINCULAR AL CLUB, que además pide el deporte.
-- **Apoderado, Entrenador y Directivo:** botón VINCULAR AL CLUB, en el registro y en Perfil (`#/vincular`). El club aprueba en Solicitudes.
-- **Federación y Proveedor:** eligen deporte y categoría, porque sus pantallas dependen de ese dato.
-- **ID único correlativo:** letra del perfil + 8 dígitos (`C00000008`). Letras: C, D, A, E, F, P. Deportista y Directivo comparten la letra D y su correlativo, para que el ID nunca se repita. `S.idSeq` guarda los contadores.
+- **Ingreso:** solo email, clave, INGRESAR (naranjo) y REGISTRARSE (calipso). Cuentas demo con clave `demo`: `demo@myclub.cl` (deportista), `apoderado@`, `entrenador@`, `club@`, `federacion@` y `proveedor@myclub.cl`.
+- **Registro:** `#/registro` lista 6 tipos (Club, Deportista, Apoderado, Entrenador, Federación, Proveedor); al tocar uno se despliega su formulario y termina en "Completar Registro".
+- **Club reemplazó a Directivo en toda la interfaz.** El identificador interno del rol sigue siendo `directivo` (rutas `/d/...`, `S.users.directivo`); el tipo de cuenta es `club`.
+- **Datos base:** nombre, RUT, email y teléfono, más una clave de prueba para poder ingresar.
+- **ID único correlativo:** letra del perfil + 8 dígitos (C, D, A, E, F, P). `S.idSeq` guarda los contadores. El ID de una cuenta Club es el ID del club.
+- **Vinculación:** Deportista por `#/unirme` (pide deporte); Apoderado y Entrenador por `#/vincular`. El club aprueba en Solicitudes.
+- **Perfil:** `#/perfil/editar` permite foto (logo en Club) y editar datos, salvo nombre, RUT y fecha de nacimiento o constitución.
+- **Ficha del club:** `#/club/:id`, una sola por club (`S.clubs`), vista por todas las cuentas vinculadas.
 - Cuenta sin club o sin pupilos: `gated()` y `gateScreen()` reemplazan las pantallas que dependen de esos datos.
+
+## Requisitos de tiendas ya en la app
+Eliminar cuenta (`A.deleteAsk`), páginas públicas `#/legal/privacidad`, `terminos`, `eliminar-cuenta` y `contacto` (borradores, con correo de soporte pendiente), filtro de lenguaje, reportar y bloquear en muro y chat, y bandeja de reportes en Reclamos. `capacitor.config.json` y `package.json` preparan iOS y Android, pero aún no se han compilado.
+
+## Límite actual importante
+No hay servidor: todo vive en localStorage del dispositivo, incluso logos y fotos. Lo que se comparte entre cuentas solo se comparte en ese dispositivo. Para operar falta la base de datos real. `../MyClub_Guia_Publicacion_Tiendas.pdf` trae las check lists de publicación.
 
 ## Roles y usuarios demo
 | Rol | Usuario demo | Pestañas |
@@ -47,7 +53,7 @@ Las acciones de la UI viven en el objeto global `A` (`onclick="A.algo('id')"`).
 | Deportista | Matías Rojas Fuentes – Los Halcones, Fútbol Adulto | Inicio, Calendario, Muro, Mensajes, Perfil |
 | Apoderado | Carolina Muñoz Pérez – Tomás (Fútbol Sub-15, Los Halcones) y Sofía (Natación, Náutico Valparaíso) | Inicio, Pupilos, Pagos, Mensajes, Perfil |
 | Entrenador | Rodrigo Saavedra – Head coach Fútbol, Los Halcones | Inicio, Partidos, Torneos, Mensajes, Perfil |
-| Directivo | Patricia Lagos – Presidenta Club Deportivo Los Halcones | Inicio, Finanzas, Aprobaciones, Mensajes, Perfil |
+| Club | Club Deportivo Los Halcones (C00000001), a cargo de Patricia Lagos | Inicio, Finanzas, Aprobaciones, Mensajes, Perfil |
 | Federación | Jorge Contreras – Federación de Fútbol (selector: nacional / asociaciones regionales) | Inicio, Dashboard, Comunicados, Estadísticas, Perfil |
 | Proveedor | Deportes Andes SpA (selector de empresa demo) | Inicio, Catálogo, Cotizaciones, Torneos, Perfil |
 
@@ -63,7 +69,7 @@ Se cambia de rol desde **Perfil → Cambiar de rol** sin cerrar sesión.
 - Apoderado: `#/a/pupilos`, `#/a/registrar-hijo`, `#/a/reportes`.
 - Entrenador: `#/e/eventos`, `#/e/evento/:id`, `#/e/nuevo-evento`, `#/torneos`, `#/e/proponer`, `#/e/encuesta-nueva`,
   `#/e/masivo`, `#/e/rutinas`, `#/e/staff`, `#/e/carga`, `#/e/plantel`.
-- Directivo: `#/d/deportes`, `#/d/finanzas`, `#/d/aprobaciones`, `#/d/asambleas`, `#/d/solicitudes`, `#/d/bajas`,
+- Club: `#/d/deportes`, `#/d/finanzas`, `#/d/aprobaciones`, `#/d/asambleas`, `#/d/solicitudes`, `#/d/bajas`,
   `#/d/reclamos`, `#/d/prestamos`, `#/d/prestamo/:id`, `#/d/jugadores`, `#/d/masivo`.
 - Federación: `#/f/dashboard`, `#/f/comunicados`, `#/f/valores`, `#/f/ficha`, `#/f/estadisticas`, `#/f/clubes`.
 - Proveedor: `#/p/perfil`, `#/p/catalogo`, `#/p/categorias`, `#/p/recintos`, `#/p/cotizaciones`, `#/p/cotizacion/:id`, `#/p/torneos`.
@@ -99,5 +105,5 @@ Una federación por deporte, 2 asociaciones regionales (Biobío, Valparaíso), ~
 ## Verificación
 Servir con `python3 -m http.server 8123` y, con `pip install playwright`:
 - `python tools/recorrido.py`: abre cada pantalla por rol a 390 × 844 @3x, revisa consola y desbordes, y guarda capturas en `/screenshots`.
-- `python tools/flujos.py`: prueba con clics las reglas de negocio, registro e ingreso (75 comprobaciones) y el modo sin conexión.
+- `python tools/flujos.py`: prueba con clics las reglas de negocio, cuentas, logo, moderación y modo sin conexión (105 comprobaciones) y el modo sin conexión.
 Al cambiar archivos, subir `CACHE` en `sw.js`.

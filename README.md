@@ -15,7 +15,7 @@ Clave `demo` para todas. La pantalla de ingreso ya trae la primera.
 | Deportista | `demo@myclub.cl` |
 | Apoderado | `apoderado@myclub.cl` |
 | Entrenador | `entrenador@myclub.cl` |
-| Directivo | `directivo@myclub.cl` |
+| Club | `club@myclub.cl` |
 | Federación | `federacion@myclub.cl` |
 | Proveedor | `proveedor@myclub.cl` |
 
@@ -65,6 +65,26 @@ La URL queda como `https://TU-USUARIO.github.io/my-club-prototipo/`.
 2. Toca **Compartir** y luego **Agregar a pantalla de inicio**.
 3. Confirma con **Agregar**. Se abrirá a pantalla completa, como una app.
 4. Ábrela una vez con internet: después funciona sin conexión.
+
+## Compilar para iOS y Android
+
+`capacitor.config.json` y `package.json` dejan listo Capacitor 8, pero todavía no se ha compilado. Requiere Node 22+, Xcode 26+ y Android Studio 2025.2.1+:
+
+```bash
+npm install
+```
+
+```bash
+npx cap add ios
+```
+
+```bash
+npx cap add android
+```
+
+Luego `npm run ios` o `npm run android` abre el proyecto nativo.
+
+**Importante:** esta app aún no tiene servidor. Los datos viven en cada dispositivo, así que no está lista para operar con clubes reales ni para enviarse a las tiendas.
 
 ## Cómo está organizada
 

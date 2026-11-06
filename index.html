@@ -93,6 +93,7 @@ h1,h2,h3{margin:0}h2{font-size:22px;font-weight:750;letter-spacing:-.01em}h3{fon
 .btn:active{transform:scale(.98);opacity:.88}
 .btn.s2{background:var(--psoft);color:var(--ptext)}
 .btn.ok{background:var(--accent)}.btn.danger{background:var(--danger)}
+.btn.naranjo{background:#F47A1F;color:#0E2A44}.btn.calipso{background:#1CD1BF;color:#0E2A44}
 .btn.dsoft{background:var(--dsoft);color:var(--dtext)}
 .btn.ghost{background:transparent;color:var(--ptext)}
 .btn.sm{min-height:44px;font-size:14px;padding:0 14px;width:auto;border-radius:12px}
@@ -154,6 +155,7 @@ textarea.input{min-height:96px;resize:vertical}
 .note.warn{background:var(--wsoft);color:var(--wtext)}.note.bad{background:var(--dsoft);color:var(--dtext)}.note.ok{background:var(--asoft);color:var(--atext)}
 .note svg{flex-shrink:0;margin-top:1px}
 /* Avatares */
+.clog{object-fit:contain;border-radius:22%;background:#fff;flex-shrink:0;display:block}
 .av{border-radius:50%;display:grid;place-items:center;color:#fff;font-weight:700;flex-shrink:0;letter-spacing:.02em}
 /* Toasts */
 .toasts{position:absolute;left:12px;right:12px;top:calc(env(safe-area-inset-top) + 58px);z-index:60;pointer-events:none;display:flex;flex-direction:column;align-items:center;gap:8px}
@@ -225,7 +227,6 @@ svg.fill path{fill:currentColor}
 .login .brand{display:block;width:min(56vw,216px);height:auto;margin:0 auto 22px;filter:drop-shadow(0 10px 24px rgba(0,0,0,.35))}
 .login .card{color:var(--text)}
 .login .sec{color:rgba(255,255,255,.75)}
-.login .btn.ghost{color:#fff;border:1px solid rgba(255,255,255,.45)}
 /* Documentos imprimibles */
 .docp{background:#fff;color:#1d2433;border-radius:12px;padding:22px 20px;box-shadow:var(--shadow);border:1px solid #e4e7ec;position:relative;overflow:hidden;margin-bottom:12px}
 .docp::before{content:"";position:absolute;inset:0;border:6px double #1F4E79;border-radius:12px;pointer-events:none;opacity:.25}
@@ -360,7 +361,7 @@ const ROLES = {
   jugador: { label: 'Deportista', icon: 'user', desc: 'Matías Rojas · Los Halcones' },
   apoderado: { label: 'Apoderado', icon: 'users', desc: 'Carolina Muñoz · 2 pupilos' },
   entrenador: { label: 'Entrenador', icon: 'clipboard', desc: 'Head coach · Fútbol' },
-  directivo: { label: 'Directivo', icon: 'building', desc: 'Presidenta · Los Halcones' },
+  directivo: { label: 'Club', icon: 'building', desc: 'Club Deportivo Los Halcones' },
   federacion: { label: 'Federación', icon: 'shield', desc: 'Federación y asociaciones' },
   proveedor: { label: 'Proveedor', icon: 'store', desc: 'Marketplace de servicios' }
 };
@@ -370,7 +371,7 @@ function seed() {
   const T = iso(new Date());
   const D = n => addDays(T, n);
   const s = {
-    v: 2, baseDate: T, dayOffset: 0,
+    v: 3, baseDate: T, dayOffset: 0,
     session: { loggedIn: false, role: 'jugador', accountId: 'D00000001', homeId: 'D00000001' },
     ui: { kid: 'p_tomas', coachTeam: 'hal-fut-adu', fedSport: 'Fútbol', fedScope: 'nacional', provId: 'pv1' },
     settings: { autoApprove: false }, home: {}, seq: 1040
@@ -485,17 +486,20 @@ function seed() {
   };
   // --- Cuentas de demostración e ID correlativo (letra del perfil + 8 dígitos) ---
   s.clubs.forEach((c, i) => c.code = 'C' + String(i + 1).padStart(8, '0'));
-  s.idSeq = { C: 7, D: 2, A: 1, E: 1, F: 1, P: 1 };
+  s.idSeq = { C: 7, D: 1, A: 1, E: 1, F: 1, P: 1 };
+  Object.assign(s.clubs[0], { constituted: '1987-04-12', regNumber: '1987-4521', email: 'contacto@loshalcones.cl', phone: '+56 2 2555 0101', address: 'Av. Irarrázaval 3450', web: 'www.loshalcones.cl', ig: '@loshalcones', desc: 'Club de barrio con ramas de fútbol, básquetbol y vóleibol.', board: [{ cargo: 'Presidenta', name: 'Patricia Lagos Moreno' }, { cargo: 'Vicepresidente', name: 'Germán Ibarra Soto' }, { cargo: 'Tesorero', name: 'Sergio Molina Paz' }, { cargo: 'Secretaria', name: 'Rosa Fuentes Díaz' }] });
+  Object.assign(s.clubs[1], { constituted: '1962-08-20', regNumber: '1962-0187', address: 'Av. Collao 1202', web: 'www.atleticobiobio.cl', desc: 'Atletismo y rugby en Concepción.', board: [{ cargo: 'Presidente', name: 'Andrés Vidal Soto' }, { cargo: 'Tesorera', name: 'Paula Riquelme Lara' }, { cargo: 'Secretario', name: 'Tomás Jara Mena' }] });
+  Object.assign(s.clubs[2], { constituted: '1924-03-05', regNumber: '1924-0043', address: 'Muelle Barón s/n', web: 'www.nauticovalparaiso.cl', desc: 'Remo y natación frente a la bahía de Valparaíso.', board: [{ cargo: 'Presidente', name: 'Gonzalo Pérez Vial' }, { cargo: 'Tesorera', name: 'Daniela Fuentes Roa' }, { cargo: 'Secretaria', name: 'Inés Carrasco Mora' }] });
   const demo = (id, type, email, name, rut, extra) => ({ id, type, role: type, email, pass: hash('demo'), name, rut, phone: '+56 9 5555 0000', date: T, demo: true, ...extra });
   s.accounts = [
     demo('D00000001', 'jugador', 'demo@myclub.cl', 'Matías Rojas Fuentes', s.players[0].rut, { refId: 'p_matias' }),
     demo('A00000001', 'apoderado', 'apoderado@myclub.cl', 'Carolina Muñoz Pérez', s.guardians[0].rut, { refId: 'g_carolina', clubId: 'halcones' }),
     demo('E00000001', 'entrenador', 'entrenador@myclub.cl', s.users.entrenador.name, fmtRut(13579246), { profile: { ...s.users.entrenador }, clubId: 'halcones' }),
-    demo('D00000002', 'directivo', 'directivo@myclub.cl', s.users.directivo.name, fmtRut(11223344), { profile: { ...s.users.directivo }, clubId: 'halcones' }),
+    demo('C00000001', 'club', 'club@myclub.cl', s.clubs[0].name, s.clubs[0].rut, { role: 'directivo', profile: { ...s.users.directivo }, clubId: 'halcones' }),
     demo('F00000001', 'federacion', 'federacion@myclub.cl', s.users.federacion.name, fmtRut(10987654), { profile: { ...s.users.federacion }, sport: 'Fútbol' }),
     demo('P00000001', 'proveedor', 'proveedor@myclub.cl', 'Deportes Andes SpA', fmtRut(76111222), { refId: 'pv1' })
   ];
-  s.linkRequests = [];
+  s.linkRequests = []; s.reports = []; s.blocks = {};
   seedMore(s, D, T, teamOf);
   return s;
 }
@@ -726,9 +730,9 @@ function seedMarket(s, D, T) {
   s.customCats = [];
   s.provPrefs = { regions: ['Metropolitana', 'Biobío', 'Valparaíso'], cats: ['Adulto', 'Sub-15', 'Sub-18', 'Todo competidor', 'Sub-13'], alerts: true };
   s.quotes = [
-    { id: 'q1', providerId: 'pv1', clubId: 'halcones', by: 'Patricia Lagos (Directiva)', title: '30 balones N°5 + 2 sets de conos', detail: 'Para escuela formativa 2027. Entrega en Ñuñoa.', date: D(-1), status: 'solicitada', items: [], amount: 0 },
+    { id: 'q1', providerId: 'pv1', clubId: 'halcones', by: 'Patricia Lagos (Club)', title: '30 balones N°5 + 2 sets de conos', detail: 'Para escuela formativa 2027. Entrega en Ñuñoa.', date: D(-1), status: 'solicitada', items: [], amount: 0 },
     { id: 'q2', providerId: 'pv3', clubId: 'halcones', by: 'Rodrigo Saavedra (Entrenador)', title: 'Arriendo cancha sábados de noviembre', detail: '4 sábados, 2 horas cada uno, 10:00 a 12:00.', date: D(-4), status: 'enviada', items: [{ name: 'Arriendo cancha fútbol 11', qty: 8, price: 40000 }], amount: 320000, note: 'Precio preferente para clubes My Club.' },
-    { id: 'q3', providerId: 'pv2', clubId: 'halcones', by: 'Patricia Lagos (Directiva)', title: '36 camisetas sublimadas temporada 2026', detail: 'Con número y escudo.', date: D(-40), status: 'pagada', items: [{ name: 'Camiseta sublimada con número', qty: 36, price: 15000 }], amount: 540000, paidAt: D(-33) },
+    { id: 'q3', providerId: 'pv2', clubId: 'halcones', by: 'Patricia Lagos (Club)', title: '36 camisetas sublimadas temporada 2026', detail: 'Con número y escudo.', date: D(-40), status: 'pagada', items: [{ name: 'Camiseta sublimada con número', qty: 36, price: 15000 }], amount: 540000, paidAt: D(-33) },
     { id: 'q4', providerId: 'pv1', clubId: 'biobio', by: 'Club Atlético Biobío', title: 'Vallas de entrenamiento', detail: '12 vallas regulables.', date: D(-15), status: 'pagada', items: [{ name: 'Valla regulable', qty: 12, price: 21000 }], amount: 252000, paidAt: D(-12) }
   ];
 
@@ -796,10 +800,10 @@ function seedMarket(s, D, T) {
 const STORE_KEY = 'myclub-demo-v1';
 let S;
 function load() {
-  try { const raw = localStorage.getItem(STORE_KEY); if (raw) { const o = JSON.parse(raw); if (o && o.v === 2) return o; } } catch (e) { console.warn('Estado no disponible', e); }
+  try { const raw = localStorage.getItem(STORE_KEY); if (raw) { const o = JSON.parse(raw); if (o && o.v === 3) return o; } } catch (e) { console.warn('Estado no disponible', e); }
   return seed();
 }
-function save() { try { localStorage.setItem(STORE_KEY, JSON.stringify(S)); } catch (e) { console.warn('No se pudo guardar', e); } }
+function save() { try { localStorage.setItem(STORE_KEY, JSON.stringify(S)); return true; } catch (e) { console.warn('No se pudo guardar', e); return false; } }
 function commit(msg, kind) { save(); rerender(); if (msg) toast(msg, kind); }
 
 const player = id => S.players.find(p => p.id === id);
@@ -848,7 +852,7 @@ const nextSeq = () => ++S.seq;
 const REG_TYPES = [
   ['club', 'Club', 'C', 'building', 'blue', 'Crea tu club y su directorio'], ['jugador', 'Deportista', 'D', 'user', 'green', 'Practica un deporte en un club'],
   ['apoderado', 'Apoderado', 'A', 'users', 'orange', 'Administra a tus pupilos menores de edad'], ['entrenador', 'Entrenador', 'E', 'clipboard', 'purple', 'Dirige equipos de un club'],
-  ['directivo', 'Directivo', 'D', 'hall', 'indigo', 'Integra el directorio de un club'], ['federacion', 'Federación', 'F', 'shield', 'teal', 'Representa a una federación o asociación'],
+  ['federacion', 'Federación', 'F', 'shield', 'teal', 'Representa a una federación o asociación'],
   ['proveedor', 'Proveedor', 'P', 'store', 'pink', 'Ofrece productos o servicios a los clubes']
 ];
 const typeLabel = t => REG_TYPES.find(x => x[0] === t)[1];
@@ -870,7 +874,7 @@ function applyAccount(a) {
   if (a.role === 'entrenador' || a.role === 'directivo') S.users[a.role] = { ...a.profile, clubId: a.clubId || null };
   syncCoach();
 }
-const needsClub = () => { const r = role(); if (r === 'entrenador') { syncCoach(); return !coach().clubId || !coach().teams.length; } return r === 'directivo' && !S.users.directivo.clubId; };
+const needsClub = () => { const r = role(); if (r === 'entrenador') { syncCoach(); return !coach().clubId || !coach().teams.length; } return false; };
 const needsKid = () => role() === 'apoderado' && !myGuardian().kids.length;
 const gated = () => needsClub() || needsKid();
 const myLinks = a => S.linkRequests.filter(r => r.accountId === a.id);
@@ -1117,11 +1121,14 @@ const LOGO = s => `<img src="icons/escudo.png" width="${s}" height="${s}" alt=""
 const badge = (t, k = 'info') => `<span class="badge b-${k}">${t}</span>`;
 const ST = { habil: ['Hábil', 'ok'], pendiente: ['Pendiente', 'warn'], suspendido: ['Suspendido', 'bad'], desvinculado: ['Desvinculado', 'mute'] };
 const stBadge = s => badge(ST[s][0], ST[s][1]);
-function avatar(name, size = 40) {
+function avatar(name, size = 40, photo = null) {
+  if (photo) return `<img class="av" src="${esc(photo)}" alt="" style="width:${size}px;height:${size}px;object-fit:cover">`;
   const parts = String(name).split(' '); const ini = (parts[0][0] + (parts[1] ? parts[1][0] : '')).toUpperCase();
   const h = hash(name) % 360;
   return `<span class="av" style="width:${size}px;height:${size}px;font-size:${Math.round(size * .38)}px;background:linear-gradient(135deg,hsl(${h},62%,52%),hsl(${(h + 40) % 360},62%,38%))">${esc(ini)}</span>`;
 }
+const clubLogo = (c, size = 40) => c.logo ? `<img class="clog" src="${esc(c.logo)}" alt="Logo de ${esc(c.short)}" style="width:${size}px;height:${size}px">` : avatar(c.short, size);
+const clubRow = (c, right = '') => li({ av: clubLogo(c, 42), title: esc(c.short), sub: 'ID ' + c.code, right, href: '/club/' + c.id });
 function li({ ic, color = 'blue', title, sub = '', right = '', href, on, chev = true, av }) {
   const act = href ? `onclick="go('${href}')"` : on ? `onclick="${on}"` : '';
   const tag = act ? 'button' : 'div';
@@ -1212,7 +1219,7 @@ function donut(items, center) {
 const hbars = (items, fmt = v => thou(v)) => { const m = Math.max(1, ...items.map(i => i.value)); return items.map(i => `<div class="hbar"><span>${esc(i.label)}</span><div class="bar"><i style="width:${i.value * 100 / m}%"></i></div><b>${fmt(i.value)}</b></div>`).join(''); };
 
 // --- Encabezado de documento imprimible ---
-const docHead = (issuer, sub) => `<div class="dh"><span class="lg">${LOGO(42)}</span><div><div style="font-weight:700">${esc(issuer)}</div><div style="font-size:12px;color:#667085">${esc(sub)}</div></div></div>`;
+const docHead = (issuer, sub, c) => `<div class="dh"><span class="lg">${c ? clubLogo(c, 42) : LOGO(42)}</span><div><div style="font-weight:700">${esc(issuer)}</div><div style="font-size:12px;color:#667085">${esc(sub)}</div></div></div>`;
 const docVer = code => `<div class="ver">${qrLink(code, 84)}<div><b>Documento verificable</b><br>Código: ${code}<br>Escanea el QR o ingresa el código en My Club → Verificar. Prototipo: QR de ejemplo, documento sin validez legal.</div></div>`;
 
 /* ======================================================================
@@ -1287,7 +1294,7 @@ const HOME = {
   proveedor: [['perfil', 'Mi perfil', 'store', 'blue', '/p/perfil'], ['catalogo', 'Catálogo', 'tag', 'green', '/p/catalogo'], ['categorias', 'Categorías', 'grid', 'purple', '/p/categorias'], ['recintos', 'Recintos', 'pin', 'teal', '/p/recintos'], ['cotizaciones', 'Cotizaciones', 'receipt', 'orange', '/p/cotizaciones'], ['torneos', 'Torneos nuevos', 'trophy', 'yellow', '/p/torneos'], ['pagos', 'Pagos recibidos', 'money', 'indigo', '/p/pagos']]
 };
 const clubProps = () => S.proposals.filter(p => team(p.teamId).clubId === S.users.directivo.clubId);
-const HOME_BADGE = { aprobaciones: () => clubProps().filter(p => p.status === 'pendiente').length, solicitudes: () => { const c = S.users.directivo.clubId; return S.requests.filter(r => r.status === 'pendiente' && r.clubId === c).length + S.linkRequests.filter(r => r.status === 'pendiente' && r.clubId === c).length + S.transfers.filter(t => t.status === 'pendiente_autorizacion' && t.fromClub === c).length; }, reclamos: () => S.claims.filter(c => c.status === 'abierto' && c.clubId === S.users.directivo.clubId).length };
+const HOME_BADGE = { aprobaciones: () => clubProps().filter(p => p.status === 'pendiente').length, solicitudes: () => { const c = S.users.directivo.clubId; return S.requests.filter(r => r.status === 'pendiente' && r.clubId === c).length + S.linkRequests.filter(r => r.status === 'pendiente' && r.clubId === c).length + S.transfers.filter(t => t.status === 'pendiente_autorizacion' && t.fromClub === c).length; }, reclamos: () => S.claims.filter(c => c.status === 'abierto' && c.clubId === S.users.directivo.clubId).length + S.reports.filter(r => r.status === 'abierto' && r.clubId === S.users.directivo.clubId).length };
 function homeLayout(r) {
   const defs = HOME[r], saved = S.home[r] || [];
   const out = saved.filter(x => defs.some(d => d[0] === x.id));
@@ -1326,7 +1333,7 @@ A.login = () => {
 route('/login', {
   public: true, bare: true, render: () => `<div class="login"><img class="brand" src="icons/logo.png" alt="My Club">
     <div class="card">${inp('lg-em', 'Email', 'type="email" inputmode="email" value="demo@myclub.cl" autocomplete="off" autocapitalize="off"')}${inp('lg-pw', 'Clave', `type="password" value="demo" autocomplete="off" onkeydown="if(event.key==='Enter')A.login()"`)}<div class="err" id="lg-err"></div></div>
-    ${btn('INGRESAR', 'A.login()', 'ok')}<div class="mt8">${goBtn('REGISTRARSE', '/registro', 'ghost')}</div></div>`
+    ${btn('INGRESAR', 'A.login()', 'naranjo')}<div class="mt8">${goBtn('REGISTRARSE', '/registro', 'calipso')}</div></div>`
 });
 
 // --- Vinculación por ID de club ---
@@ -1340,17 +1347,17 @@ A.linkCheck = (p, sport) => {
 };
 
 // --- Registro por tipo de usuario ---
-const dirRow = (cargo, fixed) => `<div class="row gap8 mb8 dir-row"><input class="input dir-c" style="flex:1;min-width:0" value="${cargo}" ${fixed ? 'readonly' : 'placeholder="Cargo"'} aria-label="Cargo"><input class="input dir-n" style="flex:1.3;min-width:0" placeholder="Nombre" aria-label="Nombre" autocomplete="off"></div>`;
+const dirRow = (cargo, fixed, name = '') => `<div class="row gap8 mb8 dir-row"><input class="input dir-c" style="flex:1;min-width:0" value="${esc(cargo)}" ${fixed ? 'readonly' : 'placeholder="Cargo"'} aria-label="Cargo"><input class="input dir-n" style="flex:1.3;min-width:0" value="${esc(name)}" placeholder="Nombre" aria-label="Nombre" autocomplete="off"></div>`;
 A.addCargo = () => { $('#dir-rows').insertAdjacentHTML('beforeend', dirRow('', false)); };
 function regForm(t) {
   const c = t === 'club';
   let html = inp('rg-name', c ? 'Nombre del club' : t === 'proveedor' ? 'Nombre o razón social' : 'Nombre', 'autocomplete="off"') + inp('rg-rut', c ? 'RUT del club' : 'RUT', 'placeholder="12.345.678-5" autocomplete="off"') + inp('rg-email', 'Email', 'type="email" inputmode="email" autocomplete="off" autocapitalize="off"') + inp('rg-phone', 'Teléfono', 'type="tel" inputmode="tel" placeholder="+56 9 1234 5678" autocomplete="off"') + inp('rg-pass', 'Crear clave', 'type="password" autocomplete="new-password"', 'Prototipo: usa una clave de prueba, nunca una real.');
   if (c) html += inp('rg-date', 'Fecha de constitución', 'type="date"') + inp('rg-num', 'Registro deportivo número', 'autocomplete="off"') + `<div class="field"><label>Directorio (mínimo 3 cargos)</label><div id="dir-rows">${['Presidente', 'Vicepresidente', 'Tesorero', 'Secretario', 'Director'].map(x => dirRow(x, true)).join('')}</div>${btn('Agregar cargo', 'A.addCargo()', 'ghost', 'plus')}</div>`;
   if (t === 'jugador') html += inp('rg-birth', 'Fecha de nacimiento', 'type="date"', 'Los menores de edad solo pueden ser registrados por su apoderado.') + `<div class="row"><div class="sp">${inp('rg-height', 'Estatura en cm (opcional)', 'type="number" inputmode="numeric" min="50" max="250"')}</div><div class="sp">${select('rg-size', 'Talla (opcional)', [['', 'Sin indicar'], 'XS', 'S', 'M', 'L', 'XL', 'XXL'], '')}</div></div>` + linkBox('lk', true);
-  if (['apoderado', 'entrenador', 'directivo'].includes(t)) html += linkBox('lk', false);
+  if (['apoderado', 'entrenador'].includes(t)) html += linkBox('lk', false);
   if (t === 'federacion') html += select('rg-sport', 'Deporte de la federación', SPORT_LIST, SPORT_LIST[0]);
   if (t === 'proveedor') html += select('rg-cat', 'Categoría', allCats(), allCats()[0]);
-  return html + `<div class="err mb8" id="rg-err"></div>` + btn('Completar Registro', 'A.completeReg()', 'ok');
+  return html + `<label class="check"><input type="checkbox" id="rg-legal"><span class="small">Acepto los <a href="#/legal/terminos">Términos de uso</a> y la <a href="#/legal/privacidad">Política de privacidad</a></span></label><div class="err mb8" id="rg-err"></div>` + btn('Completar Registro', 'A.completeReg()', 'ok');
 }
 A.regType = t => { S.ui.regType = S.ui.regType === t ? null : t; _link = null; save(); rerender(); };
 A.completeReg = () => {
@@ -1363,6 +1370,7 @@ A.completeReg = () => {
   if (S.accounts.some(a => a.email === email)) return err('Ese email ya está registrado.');
   if (S.accounts.some(a => a.type === t && cleanRut(a.rut) === cleanRut(rut))) return err('Ya existe una cuenta de este tipo con ese RUT.');
   if (val('lk-id') && !_link) return err('Toca VINCULAR AL CLUB para confirmar el ID, o bórralo.');
+  if (!$('#rg-legal').checked) return err('Debes aceptar los Términos de uso y la Política de privacidad.');
   const acc = { type: t, role: t === 'club' ? 'directivo' : t, email, pass: hash(pass), name, rut: normRut(rut), phone, date: today() };
   let after = '';
   if (t === 'club') {
@@ -1370,7 +1378,7 @@ A.completeReg = () => {
     if (!val('rg-date') || !val('rg-num')) return err('Indica la fecha de constitución y el registro deportivo.');
     if (S.clubs.some(c => cleanRut(c.rut) === cleanRut(rut))) return err('Ya existe un club con ese RUT.');
     if (board.length < 3) return err('El directorio requiere mínimo 3 cargos con nombre.');
-    const cl = { id: uid('club'), code: nextId('C'), name, short: name, rut: acc.rut, city: '', region: '', sports: [], color: '#1F4E79', founded: parse(val('rg-date')).getFullYear(), socios: board.length, constituted: val('rg-date'), regNumber: val('rg-num'), board };
+    const cl = { id: uid('club'), code: nextId('C'), name, short: name, rut: acc.rut, city: '', region: '', sports: [], color: '#1F4E79', founded: parse(val('rg-date')).getFullYear(), socios: board.length, constituted: val('rg-date'), regNumber: val('rg-num'), email, phone, board };
     S.clubs.push(cl); acc.id = cl.code; acc.clubId = cl.id; acc.profile = { name: board[0].name, cargo: 'Cuenta del club' };
   }
   if (t === 'jugador') {
@@ -1384,7 +1392,6 @@ A.completeReg = () => {
   }
   if (t === 'apoderado') { const id = uid('g'); S.guardians.push({ id, name, rut: acc.rut, email, kids: [] }); acc.refId = id; }
   if (t === 'entrenador') acc.profile = { name, by: name, clubId: null, sport: null, teams: [] };
-  if (t === 'directivo') acc.profile = { name, cargo: 'Directivo', clubId: null };
   if (t === 'federacion') { acc.profile = { name, cargo: 'Representante' }; acc.sport = val('rg-sport'); }
   if (t === 'proveedor') { const id = uid('pv'); S.providers.push({ id, name, cat: val('rg-cat'), region: 'Metropolitana', city: 'Chile', rating: 5, web: 'Sin sitio web', ig: 'Sin Instagram', desc: 'Completa tu perfil para aparecer mejor en el marketplace.', items: [] }); acc.refId = id; }
   acc.id = acc.id || nextId(letter); S.accounts.push(acc);
@@ -1412,7 +1419,7 @@ function gateScreen() {
   if (coach && role() === 'entrenador' && coach().clubId) return empty('users', 'Tu club aún no tiene equipos', 'Cuando el directorio cree un equipo podrás usar esta sección.');
   return note('Vincúlate a un club para usar esta sección. El club debe aprobar tu solicitud.') + linkPanel();
 }
-route('/vincular', { title: 'Vincular al club', roles: ['apoderado', 'entrenador', 'directivo'], render: () => { _link = null; return linkPanel(); } });
+route('/vincular', { title: 'Vincular al club', roles: ['apoderado', 'entrenador'], render: () => { _link = null; return linkPanel(); } });
 
 // --- Perfil, cambio de rol y modo demo ---
 function profileSub() {
@@ -1434,19 +1441,19 @@ A.logout = () => { S.session.loggedIn = false; save(); NAV.length = 0; replaceTo
 A.installHelp = () => sheet('Agregar a pantalla de inicio', `<p class="muted" style="margin:0 0 12px">En Safari del iPhone: toca <b>Compartir</b>, elige <b>Agregar a pantalla de inicio</b> y confirma. My Club abrirá a pantalla completa y funcionará sin conexión tras la primera carga.</p>${btn('Entendido', 'closeSheet()')}`);
 route('/perfil', {
   title: 'Perfil', tab: 'perfil', root: true, render: () => {
-    const r = role(), m = me(), acc = acct(); let items = '', clubInfo = '';
-    const cl = (r === 'directivo' || r === 'entrenador') && myClubId() && club(myClubId());
-    if (cl) clubInfo = sec('Mi club') + `<div class="card"><div class="b">${esc(cl.name)}</div><div class="small muted">ID del club: ${cl.code}</div>${cl.regNumber ? `<div class="small muted">Registro deportivo N° ${esc(cl.regNumber)} · constituido el ${fDateY(cl.constituted)}</div>` : ''}${cl.board ? `<table class="tbl mt8">${cl.board.map(b => `<tr><td class="muted">${esc(b.cargo)}</td><td class="b">${esc(b.name)}</td></tr>`).join('')}</table>` : ''}</div>`;
+    const r = role(), m = me(), acc = acct(); let items = '';
+    const clubInfo = linkedClubs().length ? sec('Mi club') + list(linkedClubs().map(c => clubRow(c))) : '', p = acc.type === 'jugador' && player(acc.refId), extra = p ? [p.height && p.height + ' cm', p.size && 'Talla ' + p.size, p.position].filter(Boolean).join(' · ') : '';
     if (r === 'jugador') items = list([li({ ic: 'cv', color: 'teal', title: 'Mi currículum deportivo', href: '/j/cv' }), li({ ic: 'id', color: 'green', title: 'Credencial federada', href: '/j/credencial' }), li({ ic: 'clipboard', color: 'indigo', title: 'Mis trámites', href: '/tramites' })]);
     if (r === 'apoderado') items = list([li({ ic: 'users', title: 'Mis pupilos', href: '/a/pupilos' }), li({ ic: 'userplus', color: 'yellow', title: 'Registrar a un hijo', href: '/a/registrar-hijo' }), li({ ic: 'clipboard', color: 'indigo', title: 'Trámites', href: '/tramites' })]);
-    if (['apoderado', 'entrenador', 'directivo'].includes(r) && acc.type !== 'club') items += list([li({ ic: 'building', color: 'teal', title: 'Vincular al club', href: '/vincular' })]);
+    if (['apoderado', 'entrenador'].includes(r)) items += list([li({ ic: 'building', color: 'teal', title: 'Vincular al club', href: '/vincular' })]);
     if (r === 'federacion') items = sec('Ámbito de la vista') + `<div class="card">${select('f-sp', 'Federación', SPORT_LIST.map(s => [s, FED_NAMES[s]]), S.ui.fedSport, `onchange="A.ui('fedSport',this.value)"`)}${select('f-sc', 'Ver como', [['nacional', 'Federación (nacional)'], ...S.associations.map(a => [a.id, a.name])], S.ui.fedScope, `onchange="A.ui('fedScope',this.value)"`, 'Las asociaciones usan la misma vista, limitada a su región.')}</div>`;
     if (r === 'proveedor') items = sec('Empresa activa (demo)') + `<div class="card">${select('p-em', 'Empresa', S.providers.map(p => [p.id, `${p.name} · ${p.cat}`]), S.ui.provId, `onchange="A.ui('provId',this.value)"`)}</div>`;
     const shown = acc.type === 'club' ? acc.name : m.name;
-    return `<div class="card center">${avatar(shown, 72).replace('class="av"', 'class="av" style="margin:0 auto 8px;"').replace('style="margin:0 auto 8px;" style="', 'style="margin:0 auto 8px;')}<h3>${esc(shown)}</h3><div class="muted small">${esc(profileSub())}</div><div class="mt8 row wrap gap8" style="justify-content:center">${badge(typeLabel(acc.type))}${badge('ID ' + acc.id, 'mute')}</div></div>
+    return `<div class="card center"><div style="display:flex;justify-content:center;margin-bottom:8px">${acc.type === 'club' ? clubLogo(club(acc.clubId), 72) : avatar(shown, 72, myPhoto(acc))}</div><h3>${esc(shown)}</h3><div class="muted small">${esc(profileSub())}</div><div class="mt8 row wrap gap8" style="justify-content:center">${badge(typeLabel(acc.type))}${badge('ID ' + acc.id, 'mute')}</div>${extra ? `<div class="small muted mt8">${esc(extra)}</div>` : ''}</div>
+    ${goBtn('Editar perfil', '/perfil/editar', 's2', 'edit')}<div class="mt8"></div>
     ${btn('Cambiar de rol', 'A.roleSheet()', '', 'swap')}<div class="mt12"></div>${items}${clubInfo}
     ${sec('Modo demo')}<div class="card"><div class="row"><span class="ic c-gray">${icon('fast', 20)}</span><div class="sp"><div class="b">Simular paso del tiempo</div><div class="small muted">Fecha demo: ${fLong(today())}</div></div></div>${timeBtns()}</div>
-    ${list([li({ ic: 'info', color: 'teal', title: 'Agregar a pantalla de inicio', on: 'A.installHelp()' }), li({ ic: 'refresh', color: 'orange', title: 'Restablecer demo', sub: 'Borra localStorage', on: 'A.resetDemo()' }), li({ ic: 'logout', color: 'red', title: 'Cerrar sesión', on: 'A.logout()' })])}<div class="center tiny muted">My Club · prototipo MVP · datos ficticios</div>`;
+    ${list([li({ ic: 'info', color: 'teal', title: 'Agregar a pantalla de inicio', on: 'A.installHelp()' }), li({ ic: 'chat', color: 'green', title: 'Ayuda y contacto', href: '/legal/contacto' }), li({ ic: 'shield', color: 'blue', title: 'Política de privacidad', href: '/legal/privacidad' }), li({ ic: 'doc', color: 'gray', title: 'Términos de uso', href: '/legal/terminos' }), li({ ic: 'refresh', color: 'orange', title: 'Restablecer demo', sub: 'Borra localStorage', on: 'A.resetDemo()' }), li({ ic: 'logout', color: 'gray', title: 'Cerrar sesión', on: 'A.logout()' }), li({ ic: 'trash', color: 'red', title: 'Eliminar mi cuenta', on: 'A.deleteAsk()' })])}<div class="center tiny muted">My Club · prototipo MVP · datos ficticios</div>`;
   }
 });
 
@@ -1492,7 +1499,7 @@ function myChats() {
     const tm = f === 'todos' ? myTeams() : activeMems(f).map(m => m.teamId);
     return S.chats.filter(c => c.type === 'apoderados' && c.members.includes(id) && tm.includes(c.ctx.teamId));
   }
-  return S.chats.filter(c => c.members.includes(id));
+  return S.chats.filter(c => c.members.includes(id) && !(c.type === 'directo' && myBlocks().includes(c.title)));
 }
 const lastMsg = c => c.msgs[c.msgs.length - 1];
 function chatRows(l) {
@@ -1502,7 +1509,7 @@ function chatRows(l) {
 const MSG_ACTION = { entrenador: ['Nuevo mensaje masivo', '/e/masivo'], directivo: ['Nuevo mensaje masivo', '/d/masivo'] };
 A.newChat = () => {
   const mem = activeMems(me().id).find(m => m.teamId); if (!mem) return toast('Únete a un club para chatear con tu equipo', 'warn');
-  sheet('Nuevo chat', list(teamMembers(mem.teamId).filter(m => m.playerId !== me().id).map(m => { const p = player(m.playerId); return li({ av: avatar(p.name, 40), title: esc(p.name), sub: p.position, on: `A.openDirect('${p.id}')` }); })));
+  sheet('Nuevo chat', list(teamMembers(mem.teamId).filter(m => m.playerId !== me().id).map(m => { const p = player(m.playerId); return li({ av: avatar(p.name, 40, p.photo), title: esc(p.name), sub: p.position, on: `A.openDirect('${p.id}')` }); })));
 };
 A.openDirect = pid => {
   const mid = me().id; let c = S.chats.find(x => x.type === 'directo' && x.members.includes(mid) && x.members.includes(pid));
@@ -1523,12 +1530,13 @@ route('/mensajes', {
 });
 const REPLIES = ['¡Dale! 👍', 'Perfecto, nos vemos allá', 'Gracias por avisar', 'Listo 💪', 'Ok, lo reviso y te cuento'];
 A.send = id => {
-  const inp = $('#ch-in'), text = inp.value.trim(); if (!text) return;
+  const inp = $('#ch-in'), text = inp.value.trim(); if (!text || !limpio(text)) return;
   const c = S.chats.find(x => x.id === id), m = me(); c.msgs.push({ from: m.id, name: m.name, text, time: nowTime(), date: today() }); inp.value = ''; save(); rerender();
   if (c.type === 'directo') setTimeout(() => { const other = c.members.find(x => x !== m.id), p = player(other); if (!p) return; c.msgs.push({ from: other, name: p.name, text: REPLIES[Math.floor(Math.random() * REPLIES.length)], time: nowTime(), date: today() }); save(); if (location.hash === '#/chat/' + id) rerender(); }, 1300);
 };
 route('/chat/:id', {
   title: p => { const c = S.chats.find(x => x.id === p.id); return c ? c.title : 'Chat'; }, noTabs: true,
+  action: p => `<button class="hb" onclick="A.chatMenu('${p.id}')" aria-label="Reportar o bloquear">${icon('flag', 22)}</button>`,
   render: p => {
     const c = S.chats.find(x => x.id === p.id); if (!c) return empty('chat', 'Chat no encontrado', '');
     const id = me().id;
@@ -1626,19 +1634,19 @@ route('/asistencia', {
 
 // --- Muro ---
 A.like = id => { const p = S.posts.find(x => x.id === id), m = me().id, i = p.likes.indexOf(m); i >= 0 ? p.likes.splice(i, 1) : p.likes.push(m); commit(); };
-A.comments = id => { const p = S.posts.find(x => x.id === id); sheet('Comentarios', (p.comments.length ? list(p.comments.map(c => li({ av: avatar(c.by, 34), title: esc(c.by), sub: esc(c.text) }))) : '<p class="center muted">Sé el primero en comentar</p>') + `${inp('cm-in', 'Tu comentario', 'autocomplete="off"')}${btn('Comentar', `A.addComment('${id}')`)}`); };
-A.addComment = id => { const t = val('cm-in'); if (!t) return; S.posts.find(x => x.id === id).comments.push({ by: me().name, text: t }); closeSheet(); commit('Comentario publicado'); };
+A.comments = id => { const p = S.posts.find(x => x.id === id), cs = p.comments.filter(c => !myBlocks().includes(c.by)); sheet('Comentarios', (cs.length ? list(cs.map(c => li({ av: avatar(c.by, 34), title: esc(c.by), sub: esc(c.text) }))) : '<p class="center muted">Sé el primero en comentar</p>') + `${inp('cm-in', 'Tu comentario', 'autocomplete="off"')}${btn('Comentar', `A.addComment('${id}')`)}`); };
+A.addComment = id => { const t = val('cm-in'); if (!t || !limpio(t)) return; S.posts.find(x => x.id === id).comments.push({ by: me().name, text: t }); closeSheet(); commit('Comentario publicado'); };
 A.playVideo = (el) => { el.classList.remove('playing'); void el.offsetWidth; el.classList.add('playing'); toast('Video de ejemplo: reproducción simulada', 'warn'); };
 A.newPost = () => sheet('Nueva publicación', `${area('np-t', 'Texto', '¿Qué quieres compartir con tu club?')}${select('np-m', 'Adjunto de ejemplo', [['foto', 'Foto de ejemplo'], ['video', 'Video de ejemplo'], ['', 'Sin adjunto']], 'foto')}${btn('Publicar', 'A.addPost()', 'ok')}`);
-A.addPost = () => { const t = val('np-t'), k = val('np-m'); if (!t) return toast('Escribe algo primero', 'warn'); S.posts.unshift({ id: uid('ps'), by: me().name, clubId: myClubs()[0] || 'halcones', date: today(), text: t, media: k ? { kind: k, h: Math.floor(Math.random() * 360), e: SPORTS[SPORT_LIST[Math.floor(Math.random() * 7)]], dur: '0:30' } : null, likes: [], likesBase: 0, comments: [] }); closeSheet(); commit('Publicado en el muro'); };
+A.addPost = () => { const t = val('np-t'), k = val('np-m'); if (!t) return toast('Escribe algo primero', 'warn'); if (!limpio(t)) return; S.posts.unshift({ id: uid('ps'), by: me().name, clubId: myClubs()[0] || 'halcones', date: today(), text: t, media: k ? { kind: k, h: Math.floor(Math.random() * 360), e: SPORTS[SPORT_LIST[Math.floor(Math.random() * 7)]], dur: '0:30' } : null, likes: [], likesBase: 0, comments: [] }); closeSheet(); commit('Publicado en el muro'); };
 function postCard(p) {
   const mine = p.likes.includes(me().id), m = p.media;
-  return `<article class="card post"><div class="row">${avatar(p.by, 40)}<div class="sp" style="min-width:0"><div class="b">${esc(p.by)} ${p.official ? badge('Oficial') : ''}</div><div class="tiny muted">${esc((club(p.clubId) || {}).short || '')} · ${relDay(p.date)}</div></div></div><p style="margin:10px 0 0">${esc(p.text)}</p>${m ? `<div class="ph" style="--h:${m.h}" ${m.kind === 'video' ? 'onclick="A.playVideo(this)" role="button" aria-label="Reproducir video de ejemplo"' : ''}><span style="position:relative;z-index:1">${m.e}</span>${m.kind === 'video' ? `<span class="pl">${icon('play', 26, 'fill')}</span><span class="du">${m.dur}</span><span class="vp"></span>` : ''}</div>` : '<div class="mt12"></div>'}<div class="pact"><button class="${mine ? 'on' : ''}" onclick="A.like('${p.id}')" aria-pressed="${mine}">${icon('heart', 19, mine ? 'fill' : '')}${p.likesBase + p.likes.length}</button><button onclick="A.comments('${p.id}')">${icon('chat', 19)}${p.comments.length}</button></div></article>`;
+  return `<article class="card post"><div class="row">${p.official ? clubLogo(club(p.clubId), 40) : avatar(p.by, 40)}<div class="sp" style="min-width:0"><div class="b">${esc(p.by)} ${p.official ? badge('Oficial') : ''}</div><div class="tiny muted">${esc((club(p.clubId) || {}).short || '')} · ${relDay(p.date)}</div></div></div><p style="margin:10px 0 0">${esc(p.text)}</p>${m ? `<div class="ph" style="--h:${m.h}" ${m.kind === 'video' ? 'onclick="A.playVideo(this)" role="button" aria-label="Reproducir video de ejemplo"' : ''}><span style="position:relative;z-index:1">${m.e}</span>${m.kind === 'video' ? `<span class="pl">${icon('play', 26, 'fill')}</span><span class="du">${m.dur}</span><span class="vp"></span>` : ''}</div>` : '<div class="mt12"></div>'}<div class="pact"><button class="${mine ? 'on' : ''}" onclick="A.like('${p.id}')" aria-pressed="${mine}">${icon('heart', 19, mine ? 'fill' : '')}${p.likesBase + p.likes.length}</button><button onclick="A.comments('${p.id}')">${icon('chat', 19)}${p.comments.length}</button><button onclick="A.reportSheet('${p.id}')" aria-label="Reportar o bloquear">${icon('flag', 19)}</button></div></article>`;
 }
 route('/muro', {
   title: 'Muro', tab: 'muro', root: true, roles: ['jugador', 'apoderado', 'entrenador', 'directivo'],
   action: () => `<button class="hb" onclick="A.newPost()" aria-label="Nueva publicación">${icon('plus', 24)}</button>`,
-  render: () => { const f = S.ui.wall || 'club', cl = myClubs(), l = S.posts.filter(p => f === 'todos' || cl.includes(p.clubId)); return seg('wall', [['club', 'Mi club'], ['todos', 'Todos los clubes']], f) + (l.length ? l.map(postCard).join('') : empty('image', 'Muro vacío', 'Publica la primera foto de tu club.', btn('Nueva publicación', 'A.newPost()'))); }
+  render: () => { const f = S.ui.wall || 'club', cl = myClubs(), bl = myBlocks(), l = S.posts.filter(p => (f === 'todos' || cl.includes(p.clubId)) && !p.hidden && !bl.includes(p.by) && !S.reports.some(r => r.postId === p.id && r.by === me().id)); return seg('wall', [['club', 'Mi club'], ['todos', 'Todos los clubes']], f) + (l.length ? l.map(postCard).join('') : empty('image', 'Muro vacío', 'Publica la primera foto de tu club.', btn('Nueva publicación', 'A.newPost()'))); }
 });
 
 // --- Encuestas y votaciones ---
@@ -1711,7 +1719,7 @@ A.resolveClaim = (id, ok) => {
 };
 function sepDoc(x) {
   const p = player(x.playerId), c = club(x.clubId);
-  return `<div class="docp">${docHead(c.name, 'RUT ' + c.rut)}<h2>Comprobante de desvinculación</h2><dl class="kv"><dt>Deportista</dt><dd>${esc(p.name)}</dd><dt>RUT</dt><dd>${p.rut}</dd><dt>Deporte</dt><dd>${x.sport}</dd><dt>Tipo</dt><dd>${x.type === 'baja' ? 'Baja' : 'Renuncia'}</dd><dt>Motivo</dt><dd>${esc(x.reasons.join(', '))}</dd><dt>Firme desde</dt><dd>${fMed(x.closedAt)}</dd><dt>Causa de cierre</dt><dd>${esc(x.closeReason || 'Plazo vencido')}</dd></dl><p style="font-size:12.5px">El historial deportivo del deportista se conserva en su currículum.</p>${x.code ? docVer(x.code) : ''}</div>`;
+  return `<div class="docp">${docHead(c.name, 'RUT ' + c.rut, c)}<h2>Comprobante de desvinculación</h2><dl class="kv"><dt>Deportista</dt><dd>${esc(p.name)}</dd><dt>RUT</dt><dd>${p.rut}</dd><dt>Deporte</dt><dd>${x.sport}</dd><dt>Tipo</dt><dd>${x.type === 'baja' ? 'Baja' : 'Renuncia'}</dd><dt>Motivo</dt><dd>${esc(x.reasons.join(', '))}</dd><dt>Firme desde</dt><dd>${fMed(x.closedAt)}</dd><dt>Causa de cierre</dt><dd>${esc(x.closeReason || 'Plazo vencido')}</dd></dl><p style="font-size:12.5px">El historial deportivo del deportista se conserva en su currículum.</p>${x.code ? docVer(x.code) : ''}</div>`;
 }
 route('/plazo/:id', {
   title: 'Plazo del trámite', render: p => {
@@ -1831,7 +1839,7 @@ route('/torneo/:id', {
   }
 });
 
-// --- Marketplace (Directivo y Entrenador) ---
+// --- Marketplace (Club y Entrenador) ---
 const allCats = () => [...PROV_CATS, ...S.customCats];
 const stars = n => `<span style="color:#F2A90F">★</span> ${String(n).replace('.', ',')}`;
 const QS = { solicitada: ['Solicitada', 'warn'], enviada: ['Cotización recibida', 'info'], pagada: ['Pagada', 'ok'], rechazada: ['Rechazada', 'mute'] };
@@ -1840,7 +1848,7 @@ route('/marketplace', {
     const t = S.ui.mkTab || 'explorar', cid = myClubId();
     if (t === 'cot') { const l = S.quotes.filter(q => q.clubId === cid).sort((a, b) => b.date.localeCompare(a.date)); return seg('mkTab', [['explorar', 'Explorar'], ['cot', 'Mis cotizaciones']], t) + (l.length ? list(l.map(q => li({ ic: 'receipt', color: 'orange', title: esc(q.title), sub: `${esc(provider(q.providerId).name)}${q.amount ? ' · ' + clp(q.amount) : ''}`, right: badge(...QS[q.status]), href: '/cotizacion/' + q.id }))) : empty('receipt', 'Sin cotizaciones', 'Pide tu primera cotización a un proveedor.')); }
     const f = S.ui.mkCat || 'Todas', l = S.providers.filter(p => f === 'Todas' || p.cat === f);
-    return seg('mkTab', [['explorar', 'Explorar'], ['cot', 'Mis cotizaciones']], t) + `<div class="chips">${['Todas', ...allCats()].map(c => `<button class="chip ${c === f ? 'on' : ''}" onclick="A.ui('mkCat',this.textContent)">${esc(c)}</button>`).join('')}</div>` + (l.length ? list(l.map(p => li({ av: avatar(p.name, 42), title: esc(p.name), sub: `${esc(p.cat)} · ${esc(p.city)} · ${stars(p.rating)}`, href: '/proveedor/' + p.id }))) : empty('store', 'Sin proveedores', 'Aún no hay proveedores en esta categoría.'));
+    return seg('mkTab', [['explorar', 'Explorar'], ['cot', 'Mis cotizaciones']], t) + `<div class="chips">${['Todas', ...allCats()].map(c => `<button class="chip ${c === f ? 'on' : ''}" onclick="A.ui('mkCat',this.textContent)">${esc(c)}</button>`).join('')}</div>` + (l.length ? list(l.map(p => li({ av: avatar(p.name, 42, p.photo), title: esc(p.name), sub: `${esc(p.cat)} · ${esc(p.city)} · ${stars(p.rating)}`, href: '/proveedor/' + p.id }))) : empty('store', 'Sin proveedores', 'Aún no hay proveedores en esta categoría.'));
   }
 });
 A.quoteSheet = id => sheet('Pedir cotización', `${inp('qt-t', 'Qué necesitas', 'placeholder="Ej: 20 balones N°5" autocomplete="off"')}${area('qt-d', 'Detalle', 'Cantidad, fechas y lugar de entrega')}${btn('Enviar solicitud', `A.sendQuote('${id}')`, 'ok')}`);
@@ -1853,7 +1861,7 @@ function venueCard(p, v, editable) {
 route('/proveedor/:id', {
   title: 'Proveedor', render: x => {
     const p = provider(x.id); if (!p) return empty('store', 'Proveedor no encontrado', '');
-    return `<div class="card"><div class="row">${avatar(p.name, 56)}<div class="sp"><h3>${esc(p.name)}</h3><div class="small muted">${esc(p.cat)} · ${esc(p.city)}</div><div class="small">${stars(p.rating)}</div></div></div><p class="small" style="margin:10px 0">${esc(p.desc)}</p><div class="btns"><button class="btn sm s2" onclick="A.link('${p.web}')">${icon('globe', 16)}Sitio web</button><button class="btn sm s2" onclick="A.link('${p.ig}')">${icon('insta', 16)}Instagram</button></div></div>${sec('Catálogo')}${list(p.items.map(i => li({ title: esc(i.name), sub: i.unit, right: `<b>${i.price ? clp(i.price) : 'Convenio'}</b>` })))}${(p.venues || []).length ? sec('Recintos y disponibilidad') + p.venues.map(v => venueCard(p, v, false)).join('') : ''}${role() === 'directivo' || role() === 'entrenador' ? btn('Pedir cotización', `A.quoteSheet('${p.id}')`, 'ok', 'receipt') : ''}`;
+    return `<div class="card"><div class="row">${avatar(p.name, 56, p.photo)}<div class="sp"><h3>${esc(p.name)}</h3><div class="small muted">${esc(p.cat)} · ${esc(p.city)}</div><div class="small">${stars(p.rating)}</div></div></div><p class="small" style="margin:10px 0">${esc(p.desc)}</p><div class="btns"><button class="btn sm s2" onclick="A.link('${p.web}')">${icon('globe', 16)}Sitio web</button><button class="btn sm s2" onclick="A.link('${p.ig}')">${icon('insta', 16)}Instagram</button></div></div>${sec('Catálogo')}${list(p.items.map(i => li({ title: esc(i.name), sub: i.unit, right: `<b>${i.price ? clp(i.price) : 'Convenio'}</b>` })))}${(p.venues || []).length ? sec('Recintos y disponibilidad') + p.venues.map(v => venueCard(p, v, false)).join('') : ''}${role() === 'directivo' || role() === 'entrenador' ? btn('Pedir cotización', `A.quoteSheet('${p.id}')`, 'ok', 'receipt') : ''}`;
   }
 });
 function quoteTable(q) { return q.items.length ? `<table class="tbl">${q.items.map(i => `<tr><td>${esc(i.name)}<div class="tiny muted">${i.qty} × ${clp(i.price)}</div></td><td style="text-align:right"><b>${clp(i.qty * i.price)}</b></td></tr>`).join('')}<tr><td class="b">Total</td><td style="text-align:right" class="b">${clp(q.amount)}</td></tr></table>` : ''; }
@@ -1872,8 +1880,8 @@ route('/cotizacion/:id', {
    ====================================================================== */
 HOME_SUMMARY.jugador = () => {
   const p = player(S.users.jugador), ms = activeMems(p.id), next = subjEvents(p.id).find(e => e.date >= today()), pend = pendingCharges(p.id), a = S.assemblies.find(x => x.status === 'en_curso' && myClubs().includes(x.clubId));
-  return `<div class="card hero"><div class="row">${avatar(p.name, 48)}<div class="sp"><div class="b">${esc(p.name)}</div><div class="small muted">${ms.length ? ms.map(m => `${SPORTS[m.sport]} ${club(m.clubId).short}`).join(' · ') : 'Sin club'}</div></div></div><div class="row wrap gap8 mt8">${ms.length ? ms.map(m => stBadge(m.status)).join('') : ''}</div></div>` +
-    (ms.some(m => m.status === 'pendiente') ? note(MSG_INCORPORACION, 'warn', 'clock') + btn('Simular aceptación del club', 'A.simJoin()', 's2 sm') + '<div class="mt12"></div>' : '') +
+  return `<div class="card hero"><div class="row">${avatar(p.name, 48, p.photo)}<div class="sp"><div class="b">${esc(p.name)}</div><div class="small muted">${ms.length ? ms.map(m => `${SPORTS[m.sport]} ${club(m.clubId).short}`).join(' · ') : 'Sin club'}</div></div></div><div class="row wrap gap8 mt8">${ms.length ? ms.map(m => stBadge(m.status)).join('') : ''}</div></div>` +
+    (linkedClubs().length ? list(linkedClubs().map(c => clubRow(c))) : '') + (ms.some(m => m.status === 'pendiente') ? note(MSG_INCORPORACION, 'warn', 'clock') + btn('Simular aceptación del club', 'A.simJoin()', 's2 sm') + '<div class="mt12"></div>' : '') +
     (!ms.length ? note('Aún no estás vinculado a un club.') + goBtn('Vincular al club', '/unirme', 's2', 'building') + '<div class="mt12"></div>' : '') +
     (ms.some(m => m.status === 'suspendido') ? note('Estás <b>Suspendido</b> durante un plazo de trámite. Revísalo en Mis trámites.', 'bad', 'alert') : '') +
     (a ? `<button class="note ok" style="border:0;width:100%;text-align:left" onclick="go('/escanear')">${icon('scan', 18)}<div><b>Asamblea en curso:</b> ${esc(a.title)}. Toca para escanear el QR.</div></button>` : '') +
@@ -1891,7 +1899,7 @@ const CV_SEED = { p_matias: { sel: ['Preselección Regional Metropolitana Sub-23
 route('/j/cv', {
   title: 'Currículum deportivo', roles: ['jugador'], render: () => {
     S.cvExtra = S.cvExtra || CV_SEED; const p = player(S.users.jugador), c = cvData(p.id);
-    return note('Se genera automáticamente con tu historial. Nunca se borra, aunque cambies de club.') + `<div class="kpis">${kpi('Partidos', c.played)}${kpi('Goles', c.goles, 'atext')}${kpi('Asistencias', c.asist)}${kpi('Minutos', thou(c.min))}</div>${sec('Clubes')}${c.ms.length ? list(c.ms.map(m => li({ ic: 'building', title: club(m.clubId).short, sub: `${SPORTS[m.sport]} ${m.sport} · ${fDateY(m.since)} a ${m.until ? fDateY(m.until) : 'hoy'}`, right: stBadge(m.status) }))) : empty('building', 'Sin clubes', 'Tu historial aparecerá aquí.')}${sec('Torneos')}${c.ts.length ? list(c.ts.map(t => li({ ic: 'trophy', color: 'yellow', title: esc(t.name), sub: fDateY(t.start), href: '/torneo/' + t.id }))) : '<p class="muted small center">Sin torneos registrados</p>'}${c.sel.length ? sec('Selecciones') + list(c.sel.map(x => li({ ic: 'flag', color: 'red', title: esc(x) }))) : ''}${c.logros.length ? sec('Logros') + list(c.logros.map(x => li({ ic: 'star', color: 'orange', title: esc(x) }))) : ''}${goBtn('Certificado acreditado con QR', '/j/cv-imprimir', 'ok', 'doc')}`;
+    return note('Se genera automáticamente con tu historial. Nunca se borra, aunque cambies de club.') + `<div class="kpis">${kpi('Partidos', c.played)}${kpi('Goles', c.goles, 'atext')}${kpi('Asistencias', c.asist)}${kpi('Minutos', thou(c.min))}</div>${sec('Clubes')}${c.ms.length ? list(c.ms.map(m => li({ av: clubLogo(club(m.clubId), 40), title: club(m.clubId).short, sub: `${SPORTS[m.sport]} ${m.sport} · ${fDateY(m.since)} a ${m.until ? fDateY(m.until) : 'hoy'}`, right: stBadge(m.status) }))) : empty('building', 'Sin clubes', 'Tu historial aparecerá aquí.')}${sec('Torneos')}${c.ts.length ? list(c.ts.map(t => li({ ic: 'trophy', color: 'yellow', title: esc(t.name), sub: fDateY(t.start), href: '/torneo/' + t.id }))) : '<p class="muted small center">Sin torneos registrados</p>'}${c.sel.length ? sec('Selecciones') + list(c.sel.map(x => li({ ic: 'flag', color: 'red', title: esc(x) }))) : ''}${c.logros.length ? sec('Logros') + list(c.logros.map(x => li({ ic: 'star', color: 'orange', title: esc(x) }))) : ''}${goBtn('Certificado acreditado con QR', '/j/cv-imprimir', 'ok', 'doc')}`;
   }
 });
 route('/j/cv-imprimir', {
@@ -1907,13 +1915,13 @@ route('/j/certificado', {
     if (!evs.length) return seg('certType', [['convocatoria', 'Convocatoria'], ['participacion', 'Participación']], t) + empty('doc', 'Sin eventos para certificar', 'Necesitas una convocatoria o participación registrada.');
     const e = evs.find(x => x.id === S.ui.certEv) || evs[0], c = club(e.clubId), code = registerDoc(docCode('CE', p.id + e.id + t), t === 'convocatoria' ? 'Certificado de convocatoria' : 'Certificado de participación', e.title, p.name), to = S.ui.certTo || '';
     const fld = (l, v) => field(l, `<div class="lockf">${icon('lock', 16)}<span>${esc(v)}</span></div>`);
-    return `<div class="noprint">${seg('certType', [['convocatoria', 'Convocatoria'], ['participacion', 'Participación']], t)}${select('ce-ev', 'Partido', evs.map(x => [x.id, `${fDate(x.date)} · ${x.title}`]), e.id, `onchange="A.ui('certEv',this.value)"`)}<div class="card">${inp('ce-to', 'Para presentar en:', `value="${esc(to)}" placeholder="Ej: Universidad de Concepción" oninput="A.certUpd()" autocomplete="off"`, 'Es el único campo editable.')}${fld('Deportista', p.name)}${fld('RUT', p.rut)}${fld('Club', c.name)}${fld('Fecha del evento', fMed(e.date))}</div></div><div class="docp">${docHead(c.name, 'RUT ' + c.rut + ' · ' + c.city)}<h2>Certificado de ${t === 'convocatoria' ? 'convocatoria' : 'participación'}</h2><p style="font-size:13.5px;line-height:1.5">${esc(c.name)} certifica que <b>${esc(p.name)}</b>, RUT ${p.rut}, ${t === 'convocatoria' ? 'fue convocado al' : 'participó en el'} partido <b>${esc(e.title)}</b>, disputado el ${fMed(e.date)} a las ${e.time} en ${esc(e.place)}.</p><p style="font-size:13.5px">Se extiende para ser presentado en: <b class="ce-out">${esc(to) || '—'}</b>.</p>${docVer(code)}</div><div class="noprint">${btn('Descargar o imprimir', 'window.print()', 'ok', 'print')}</div>`;
+    return `<div class="noprint">${seg('certType', [['convocatoria', 'Convocatoria'], ['participacion', 'Participación']], t)}${select('ce-ev', 'Partido', evs.map(x => [x.id, `${fDate(x.date)} · ${x.title}`]), e.id, `onchange="A.ui('certEv',this.value)"`)}<div class="card">${inp('ce-to', 'Para presentar en:', `value="${esc(to)}" placeholder="Ej: Universidad de Concepción" oninput="A.certUpd()" autocomplete="off"`, 'Es el único campo editable.')}${fld('Deportista', p.name)}${fld('RUT', p.rut)}${fld('Club', c.name)}${fld('Fecha del evento', fMed(e.date))}</div></div><div class="docp">${docHead(c.name, 'RUT ' + c.rut + ' · ' + c.city, c)}<h2>Certificado de ${t === 'convocatoria' ? 'convocatoria' : 'participación'}</h2><p style="font-size:13.5px;line-height:1.5">${esc(c.name)} certifica que <b>${esc(p.name)}</b>, RUT ${p.rut}, ${t === 'convocatoria' ? 'fue convocado al' : 'participó en el'} partido <b>${esc(e.title)}</b>, disputado el ${fMed(e.date)} a las ${e.time} en ${esc(e.place)}.</p><p style="font-size:13.5px">Se extiende para ser presentado en: <b class="ce-out">${esc(to) || '—'}</b>.</p>${docVer(code)}</div><div class="noprint">${btn('Descargar o imprimir', 'window.print()', 'ok', 'print')}</div>`;
   }
 });
 A.payFed = (sp, cid) => { const p = subj(); let c = S.charges.find(x => x.kind === 'federacion' && x.playerId === p.id && x.status === 'pendiente' && x.meta.sport === sp); if (!c) c = addCharge({ playerId: p.id, clubId: cid, concept: `Cuota anual ${season()} · ${fedName(sp)}`, kind: 'federacion', amount: S.fedConfig[sp].annual, meta: { sport: sp } }); save(); go('/pagar/' + c.id); };
 function credCard(p, m, cr) {
   const st = m ? ST[m.status] : ST.desvinculado, c = club(cr.clubId); registerDoc(cr.code, 'Credencial federada', `${cr.sport} · temporada ${cr.season}`, p.name);
-  return `<div class="cred mb12"><div class="row"><div class="sp"><div class="tiny" style="opacity:.8;text-transform:uppercase;letter-spacing:.06em">${esc(fedName(cr.sport))}</div><div class="b" style="font-size:17px">Credencial federada</div></div>${LOGO(46)}</div><div class="row mt12" style="align-items:flex-start;position:relative;z-index:1">${avatar(p.name, 74)}<div class="sp"><div class="b" style="font-size:18px">${esc(p.name)}</div><div class="small" style="opacity:.9">RUT ${p.rut}</div><div class="small mt8">${SPORTS[cr.sport]} ${cr.sport}</div><div class="small">${esc(c.short)}</div><div class="small">Temporada ${cr.season}</div></div></div><div class="row mt12" style="position:relative;z-index:1"><div class="sp">${badge(st[0], st[1])}<div class="tiny mt8" style="opacity:.85">${cr.code}</div></div><span class="qrw">${qrLink(cr.code, 88)}</span></div></div>`;
+  return `<div class="cred mb12"><div class="row"><div class="sp"><div class="tiny" style="opacity:.8;text-transform:uppercase;letter-spacing:.06em">${esc(fedName(cr.sport))}</div><div class="b" style="font-size:17px">Credencial federada</div></div>${LOGO(46)}</div><div class="row mt12" style="align-items:flex-start;position:relative;z-index:1">${avatar(p.name, 74, p.photo)}<div class="sp"><div class="b" style="font-size:18px">${esc(p.name)}</div><div class="small" style="opacity:.9">RUT ${p.rut}</div><div class="small mt8">${SPORTS[cr.sport]} ${cr.sport}</div><div class="row gap8 small mt8">${clubLogo(c, 26)}<span>${esc(c.short)}</span></div><div class="small">Temporada ${cr.season}</div></div></div><div class="row mt12" style="position:relative;z-index:1"><div class="sp">${badge(st[0], st[1])}<div class="tiny mt8" style="opacity:.85">${cr.code}</div></div><span class="qrw">${qrLink(cr.code, 88)}</span></div></div>`;
 }
 route('/j/credencial', {
   title: 'Credencial federada', roles: ['jugador'], render: () => {
@@ -1929,14 +1937,14 @@ route('/j/credencial', {
    ====================================================================== */
 HOME_SUMMARY.apoderado = () => {
   const ks = myKids(), a = S.assemblies.find(x => x.status === 'en_curso' && myClubs().includes(x.clubId));
-  return `<div class="card hero"><div class="small muted">Pupilos</div><div class="b" style="font-size:18px">${ks.map(k => esc(k.player.first)).join(' y ')}</div></div>` + list(ks.map(k => { const d = debtOf(k.playerId), m = activeMems(k.playerId)[0]; return li({ av: avatar(k.player.name, 42), title: esc(k.player.name), sub: m ? `${SPORTS[m.sport]} ${club(m.clubId).short}` : 'Sin club', right: d ? badge('Deuda ' + clp(d), 'bad') : (m ? stBadge(m.status) : ''), on: `A.pickKid('${k.playerId}','/a/pupilos')` }); })) +
+  return `<div class="card hero"><div class="small muted">Pupilos</div><div class="b" style="font-size:18px">${ks.map(k => esc(k.player.first)).join(' y ')}</div></div>` + list(ks.map(k => { const d = debtOf(k.playerId), m = activeMems(k.playerId)[0]; return li({ av: avatar(k.player.name, 42, k.player.photo), title: esc(k.player.name), sub: m ? `${SPORTS[m.sport]} ${club(m.clubId).short}` : 'Sin club', right: d ? badge('Deuda ' + clp(d), 'bad') : (m ? stBadge(m.status) : ''), on: `A.pickKid('${k.playerId}','/a/pupilos')` }); })) + (linkedClubs().length ? sec('Clubes') + list(linkedClubs().map(c => clubRow(c))) : '') +
     (a ? `<button class="note ok" style="border:0;width:100%;text-align:left" onclick="go('/escanear')">${icon('scan', 18)}<div><b>Asamblea en curso:</b> ${esc(a.title)}. Toca para escanear el QR.</div></button>` : '');
 };
 A.pickKid = (id, href) => { S.ui.kid = id; save(); go(href); };
 route('/a/pupilos', {
   title: 'Mis pupilos', tab: 'pupilos', root: true, roles: ['apoderado'], render: () => {
     const p = subj(), k = myKids().find(x => x.playerId === p.id), ms = activeMems(p.id), ev = subjEvents(p.id).find(e => e.date >= today()), pend = pendingCharges(p.id);
-    return kidBar() + `<div class="card"><div class="row">${avatar(p.name, 56)}<div class="sp"><h3>${esc(p.name)}</h3><div class="small muted">${k.rel === 'Madre' ? 'Eres su madre' : 'Parentesco: ' + esc(k.rel)} · ${ageOf(p.birth)} años</div><div class="small muted">RUT ${p.rut}</div></div></div></div>${sec('Clubes')}${ms.length ? list(ms.map(m => li({ ic: 'building', title: `${club(m.clubId).short}`, sub: `${SPORTS[m.sport]} ${m.sport}${m.teamId ? ' · ' + team(m.teamId).name : ''}`, right: stBadge(m.status) }))) : empty('building', 'Sin club', 'Solicita su incorporación a un club.', goBtn('Unirme a un club', '/unirme'))}${ev ? sec('Próxima actividad') + evCard(ev, p.id) : ''}${list([li({ ic: 'card', color: 'orange', title: 'Cuotas y matrícula', sub: pend.length ? `${pend.length} pendientes · ${clp(sum(pend, c => c.amount))}` : 'Al día', href: '/pagos' }), li({ ic: 'chart', color: 'teal', title: 'Reportes', href: '/a/reportes' }), li({ ic: 'swap', color: 'indigo', title: 'Cambio de club', href: '/cambio-club' }), li({ ic: 'userminus', color: 'red', title: 'Renuncia', href: '/renuncia' }), li({ ic: 'clipboard', title: 'Trámites', href: '/tramites' })])}${goBtn('Registrar a un hijo', '/a/registrar-hijo', 's2', 'userplus')}`;
+    return kidBar() + `<div class="card"><div class="row">${avatar(p.name, 56, p.photo)}<div class="sp"><h3>${esc(p.name)}</h3><div class="small muted">${k.rel === 'Madre' ? 'Eres su madre' : 'Parentesco: ' + esc(k.rel)} · ${ageOf(p.birth)} años</div><div class="small muted">RUT ${p.rut}</div></div></div></div>${sec('Clubes')}${ms.length ? list(ms.map(m => li({ av: clubLogo(club(m.clubId), 40), title: `${club(m.clubId).short}`, sub: `${SPORTS[m.sport]} ${m.sport}${m.teamId ? ' · ' + team(m.teamId).name : ''}`, right: stBadge(m.status), href: '/club/' + m.clubId }))) : empty('building', 'Sin club', 'Solicita su incorporación a un club.', goBtn('Unirme a un club', '/unirme'))}${ev ? sec('Próxima actividad') + evCard(ev, p.id) : ''}${list([li({ ic: 'card', color: 'orange', title: 'Cuotas y matrícula', sub: pend.length ? `${pend.length} pendientes · ${clp(sum(pend, c => c.amount))}` : 'Al día', href: '/pagos' }), li({ ic: 'chart', color: 'teal', title: 'Reportes', href: '/a/reportes' }), li({ ic: 'swap', color: 'indigo', title: 'Cambio de club', href: '/cambio-club' }), li({ ic: 'userminus', color: 'red', title: 'Renuncia', href: '/renuncia' }), li({ ic: 'clipboard', title: 'Trámites', href: '/tramites' })])}${goBtn('Registrar a un hijo', '/a/registrar-hijo', 's2', 'userplus')}`;
   }
 });
 A.rhClub = () => { $('#rh-sport').innerHTML = opts(club(val('rh-club')).sports); };
@@ -1972,7 +1980,7 @@ const teamBar = () => chips('coachTeam', coachTeams().map(t => [t.id, t.name]), 
 const nextEvent = tid => S.events.filter(e => e.teamId === tid && e.date >= today()).sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time))[0];
 HOME_SUMMARY.entrenador = () => {
   const t = curTeam(), e = nextEvent(t.id), pend = S.proposals.filter(p => p.status === 'pendiente' && p.by === coach().by), sus = teamMembers(t.id).filter(m => m.status === 'suspendido').length;
-  return `<div class="card hero"><div class="small muted">${esc(club(t.clubId).name)}</div><div class="b" style="font-size:18px">Head coach · ${coach().sport}</div></div>${teamBar()}<div class="kpis">${kpi('Plantel', teamMembers(t.id).length)}${kpi('Suspendidos', sus, sus ? 'dtext' : '')}${kpi('Propuestas en VB', pend.length, pend.length ? 'wtext' : '')}${kpi('Encuestas', S.polls.filter(p => p.by === coach().by && pollOpen(p)).length)}</div>${e ? sec('Próximo') + `<button class="card ev" style="border:0;width:100%;text-align:left;color:inherit" onclick="go('/e/evento/${e.id}')"><div class="when"><b>${parse(e.date).getDate()}</b><span>${MESES_C[parse(e.date).getMonth()]}</span></div><div class="sp"><div>${badge(...EV_TYPES[e.type])}</div><div class="b mt8">${esc(e.title)}</div><div class="small muted">${relDay(e.date)} · ${e.time} · ${e.cited.length} citados</div></div></button>` : ''}`;
+  return `<button class="card hero" style="border:0;width:100%;text-align:left" onclick="go('/club/${t.clubId}')"><div class="row">${clubLogo(club(t.clubId), 48)}<div class="sp"><div class="small muted">${esc(club(t.clubId).name)}</div><div class="b" style="font-size:18px">Head coach · ${coach().sport}</div></div></div></button>${teamBar()}<div class="kpis">${kpi('Plantel', teamMembers(t.id).length)}${kpi('Suspendidos', sus, sus ? 'dtext' : '')}${kpi('Propuestas en VB', pend.length, pend.length ? 'wtext' : '')}${kpi('Encuestas', S.polls.filter(p => p.by === coach().by && pollOpen(p)).length)}</div>${e ? sec('Próximo') + `<button class="card ev" style="border:0;width:100%;text-align:left;color:inherit" onclick="go('/e/evento/${e.id}')"><div class="when"><b>${parse(e.date).getDate()}</b><span>${MESES_C[parse(e.date).getMonth()]}</span></div><div class="sp"><div>${badge(...EV_TYPES[e.type])}</div><div class="b mt8">${esc(e.title)}</div><div class="small muted">${relDay(e.date)} · ${e.time} · ${e.cited.length} citados</div></div></button>` : ''}`;
 };
 route('/e/eventos', {
   title: 'Partidos y entrenamientos', tab: 'partidos', root: true, roles: ['entrenador'],
@@ -2006,9 +2014,9 @@ route('/e/evento/:id', {
     const e = S.events.find(x => x.id === p.id); if (!e) return empty('calendar', 'Evento no encontrado', '');
     const mem = teamMembers(e.teamId), t = S.ui.evSec || 'citar', att = S.att[e.id] || {};
     const rows = mem.map(m => { const pl = player(m.playerId), sus = m.status === 'suspendido', cited = e.cited.includes(pl.id), a = att[pl.id];
-      if (t === 'citar') return `<div class="li">${avatar(pl.name, 38)}<span class="tx"><span class="t">${esc(pl.name)}</span><span class="s">${sus ? '' : a === 'si' ? 'Confirmó' : a === 'no' ? 'No asistirá' : 'Sin respuesta'}</span></span>${sus ? badge('Suspendido', 'bad') : tog(cited, `A.cite('${e.id}','${pl.id}')`)}</div>`;
-      if (t === 'lista') return `<div class="li">${avatar(pl.name, 38)}<span class="tx"><span class="t">${esc(pl.name)}</span></span>${sus ? badge('Suspendido', 'bad') : tog(e.present.includes(pl.id), `A.mark('${e.id}','${pl.id}')`)}</div>`;
-      const s = e.stats[pl.id]; return li({ av: avatar(pl.name, 38), title: esc(pl.name), sub: s ? `${s.goles} G · ${s.asist} A · ${s.min} min · ${s.ta} TA · ${s.tr} TR` : 'Sin registrar', on: `A.statSheet('${e.id}','${pl.id}')` }); }).join('');
+      if (t === 'citar') return `<div class="li">${avatar(pl.name, 38, pl.photo)}<span class="tx"><span class="t">${esc(pl.name)}</span><span class="s">${sus ? '' : a === 'si' ? 'Confirmó' : a === 'no' ? 'No asistirá' : 'Sin respuesta'}</span></span>${sus ? badge('Suspendido', 'bad') : tog(cited, `A.cite('${e.id}','${pl.id}')`)}</div>`;
+      if (t === 'lista') return `<div class="li">${avatar(pl.name, 38, pl.photo)}<span class="tx"><span class="t">${esc(pl.name)}</span></span>${sus ? badge('Suspendido', 'bad') : tog(e.present.includes(pl.id), `A.mark('${e.id}','${pl.id}')`)}</div>`;
+      const s = e.stats[pl.id]; return li({ av: avatar(pl.name, 38, pl.photo), title: esc(pl.name), sub: s ? `${s.goles} G · ${s.asist} A · ${s.min} min · ${s.ta} TA · ${s.tr} TR` : 'Sin registrar', on: `A.statSheet('${e.id}','${pl.id}')` }); }).join('');
     const sus = mem.filter(m => m.status === 'suspendido').length;
     return `<div class="card"><div>${badge(...EV_TYPES[e.type])}</div><h3 class="mt8">${esc(e.title)}</h3><div class="small muted mt8">${fLong(e.date)} · ${e.time}<br>${esc(e.place)}</div></div>` + seg('evSec', [['citar', `Citar (${e.cited.length})`], ['lista', `Lista (${e.present.length})`], ['stats', 'Estadísticas']], t) +
       (t === 'citar' ? (sus ? note('Los deportistas suspendidos no pueden ser convocados.', 'bad', 'alert') : '') + btn('Citar a todos los hábiles', `A.citeAll('${e.id}')`, 's2', 'megaphone') + '<div class="mt12"></div>' : '') + `<div class="list">${rows}</div>` +
@@ -2018,7 +2026,7 @@ route('/e/evento/:id', {
 route('/e/plantel', {
   title: 'Plantel', roles: ['entrenador'], render: () => {
     const t = curTeam(), l = teamMembers(t.id);
-    return teamBar() + (l.length ? list(l.map(m => { const p = player(m.playerId), evs = S.events.filter(e => e.stats[p.id]); return li({ av: avatar(p.name, 40), title: `${m.number ? m.number + '. ' : ''}${esc(p.name)}`, sub: `${esc(p.position || '')} · ${ageOf(p.birth)} años · ${sum(evs, e => e.stats[p.id].goles)} goles`, right: stBadge(m.status) }); })) : empty('users', 'Plantel vacío', 'Usa la carga masiva para agregar deportistas.', goBtn('Carga masiva', '/e/carga')));
+    return teamBar() + (l.length ? list(l.map(m => { const p = player(m.playerId), evs = S.events.filter(e => e.stats[p.id]); return li({ av: avatar(p.name, 40, p.photo), title: `${m.number ? m.number + '. ' : ''}${esc(p.name)}`, sub: `${esc(p.position || '')} · ${ageOf(p.birth)} años · ${sum(evs, e => e.stats[p.id].goles)} goles`, right: stBadge(m.status) }); })) : empty('users', 'Plantel vacío', 'Usa la carga masiva para agregar deportistas.', goBtn('Carga masiva', '/e/carga')));
   }
 });
 A.addOption = () => { const n = $$('.pl-op').length + 1; if (n > 6) return toast('Máximo 6 opciones', 'warn'); $('#pl-ops').insertAdjacentHTML('beforeend', `<input class="input pl-op mb8" placeholder="Opción ${n}" aria-label="Opción ${n}" autocomplete="off">`); };
@@ -2030,7 +2038,7 @@ A.addPoll = () => {
 route('/e/encuesta-nueva', {
   title: 'Crear encuesta', roles: ['entrenador'], render: () => teamBar() + `<div class="card">${inp('pl-t', 'Pregunta', 'autocomplete="off"')}<div class="field"><label>Opciones</label><div id="pl-ops"><input class="input pl-op mb8" placeholder="Opción 1" aria-label="Opción 1" autocomplete="off"><input class="input pl-op mb8" placeholder="Opción 2" aria-label="Opción 2" autocomplete="off"></div>${btn('Agregar opción', 'A.addOption()', 'ghost', 'plus')}</div>${select('pl-a', 'Dirigida a', [['jugadores', 'Deportistas'], ['apoderados', 'Apoderados'], ['todos', 'Todos']], 'jugadores')}${select('pl-c', 'Cierra en', [['3', '3 días'], ['7', '7 días'], ['14', '14 días']], '7')}</div>${btn('Publicar encuesta', 'A.addPoll()', 'ok')}`
 });
-// Mensaje masivo compartido por Entrenador y Directivo
+// Mensaje masivo compartido por Entrenador y Club
 A.broadcast = () => {
   const title = val('bc-t'), body = val('bc-b'), to = checked('bc-to'), r = role(); if (!title || !body || !to.length) return toast('Completa asunto, mensaje y destinatarios', 'warn');
   S.broadcasts.unshift({ id: uid('bc'), from: r === 'entrenador' ? coach().by : 'Directorio', fromRole: r === 'entrenador' ? 'Entrenador' : 'Directorio', to, clubId: myClubId(), teamId: r === 'entrenador' ? curTeam().id : null, title, body, date: today() });
@@ -2064,7 +2072,7 @@ A.saveStaff = id => { const n = val('sf-n'); if (!n) return toast('Escribe el no
 A.delStaff = id => { S.staff = S.staff.filter(x => x.id !== id); closeSheet(); commit('Integrante quitado'); };
 A.perm = (id, k) => { const s = S.staff.find(x => x.id === id); if (!COACH_PERMS.includes(k)) return; s.perms[k] = !s.perms[k]; commit(); };
 route('/e/staff', {
-  title: 'Cuerpo técnico', roles: ['entrenador'], render: () => note('Solo puedes delegar los permisos que tú mismo tienes.') + (myStaff().length ? myStaff().map(s => `<div class="card"><div class="row">${avatar(s.name, 44)}<div class="sp"><div class="b">${esc(s.name)}</div><div class="small muted">${esc(s.role)}</div></div><button class="ibtn" onclick="A.staffSheet('${s.id}')" aria-label="Editar">${icon('edit', 18)}</button></div><div class="mt12">${PERMS.map(([k, l]) => { const own = COACH_PERMS.includes(k); return `<div class="row" style="min-height:44px"><span class="sp small ${own ? '' : 'muted'}">${l}${own ? '' : ' ' + icon('lock', 12)}</span>${tog(!!s.perms[k], `A.perm('${s.id}','${k}')`, !own)}</div>`; }).join('')}</div></div>`).join('') : empty('shield', 'Sin cuerpo técnico', 'Agrega a tu preparador físico, asistente o médico.')) + btn('Agregar integrante', 'A.staffSheet()', 'ok', 'plus')
+  title: 'Cuerpo técnico', roles: ['entrenador'], render: () => note('Solo puedes delegar los permisos que tú mismo tienes.') + (myStaff().length ? myStaff().map(s => `<div class="card"><div class="row">${avatar(s.name, 44, s.photo)}<div class="sp"><div class="b">${esc(s.name)}</div><div class="small muted">${esc(s.role)}</div></div><button class="ibtn" onclick="A.staffSheet('${s.id}')" aria-label="Editar">${icon('edit', 18)}</button></div><div class="mt12">${PERMS.map(([k, l]) => { const own = COACH_PERMS.includes(k); return `<div class="row" style="min-height:44px"><span class="sp small ${own ? '' : 'muted'}">${l}${own ? '' : ' ' + icon('lock', 12)}</span>${tog(!!s.perms[k], `A.perm('${s.id}','${k}')`, !own)}</div>`; }).join('')}</div></div>`).join('') : empty('shield', 'Sin cuerpo técnico', 'Agrega a tu preparador físico, asistente o médico.')) + btn('Agregar integrante', 'A.staffSheet()', 'ok', 'plus')
 });
 // --- Carga masiva ---
 const CSV_HEAD = 'nombre;rut;fecha_nacimiento;sexo;posicion;email';
@@ -2102,7 +2110,7 @@ function overdueList() {
 HOME_SUMMARY.directivo = () => {
   const m = today().slice(0, 7), mv = moves().filter(x => x.date.slice(0, 7) === m), ing = sum(mv.filter(x => x.type === 'ingreso'), x => x.amount), eg = sum(mv.filter(x => x.type === 'egreso'), x => x.amount), od = overdueList();
   const pend = HOME_BADGE.aprobaciones() + HOME_BADGE.solicitudes() + HOME_BADGE.reclamos(), a = S.assemblies.find(x => x.status === 'en_curso' && x.clubId === cid());
-  return `<div class="card hero"><div class="small muted">${esc(club(cid()).name)}</div><div class="b" style="font-size:18px">${esc(S.users.directivo.cargo)}</div><div class="small muted">${clubMembers(cid()).length} deportistas · ${club(cid()).sports.length} deportes</div><div class="small muted">ID del club: ${club(cid()).code}</div></div><div class="kpis">${kpi('Ingresos del mes', clp(ing), 'atext')}${kpi('Egresos del mes', clp(eg))}${kpi('Morosidad', clp(sum(od, x => x.amt)), od.length ? 'dtext' : '')}${kpi('Por resolver', pend, pend ? 'wtext' : '')}</div>${a ? `<button class="note ok" style="border:0;width:100%;text-align:left" onclick="go('/d/asamblea/${a.id}')">${icon('hall', 18)}<div><b>Asamblea en curso:</b> ${esc(a.title)}</div></button>` : ''}`;
+  return `<button class="card hero" style="border:0;width:100%;text-align:left" onclick="go('/club/${cid()}')"><div class="row">${clubLogo(club(cid()), 48)}<div class="sp"><div class="small muted">${esc(club(cid()).name)}</div><div class="b" style="font-size:18px">${esc(S.users.directivo.cargo)}</div><div class="small muted">${clubMembers(cid()).length} deportistas · ${club(cid()).sports.length} deportes</div><div class="small muted">ID del club: ${club(cid()).code}</div></div></div></button><div class="kpis">${kpi('Ingresos del mes', clp(ing), 'atext')}${kpi('Egresos del mes', clp(eg))}${kpi('Morosidad', clp(sum(od, x => x.amt)), od.length ? 'dtext' : '')}${kpi('Por resolver', pend, pend ? 'wtext' : '')}</div>${a ? `<button class="note ok" style="border:0;width:100%;text-align:left" onclick="go('/d/asamblea/${a.id}')">${icon('hall', 18)}<div><b>Asamblea en curso:</b> ${esc(a.title)}</div></button>` : ''}`;
 };
 // --- Deportes, equipos y categorías ---
 A.addSport = () => sheet('Agregar deporte', `${select('ds-s', 'Deporte', SPORT_LIST.filter(s => !club(cid()).sports.includes(s)))}${btn('Agregar', 'A.doAddSport()', 'ok')}`);
@@ -2168,7 +2176,7 @@ A.simVotes = id => { const a = assemblyOf(id); a.motions.filter(m => m.open).for
 A.asmClose = id => { const a = assemblyOf(id); a.motions.forEach(m => m.open = false); a.status = 'cerrada'; a.acta = hasQuorum(a) ? 'La asamblea sesionó con quórum.' : 'La asamblea sesionó sin quórum: sus acuerdos quedan sujetos a segunda citación.'; registerDoc(a.code, 'Acta de asamblea', a.title, club(a.clubId).name); commit('Acta generada'); };
 function actaDoc(a) {
   const c = club(a.clubId), v = m => Object.values(m.votes), n = (m, k) => v(m).filter(x => x === k).length; registerDoc(a.code, 'Acta de asamblea', a.title, c.name);
-  return `<div class="docp">${docHead(c.name, 'RUT ' + c.rut)}<h2>Acta de asamblea ${a.type}</h2><dl class="kv"><dt>Materia</dt><dd>${esc(a.title)}</dd><dt>Fecha</dt><dd>${fMed(a.date)}, ${a.time}</dd><dt>Lugar</dt><dd>${esc(a.place)}</dd><dt>Asistentes</dt><dd>${a.attendees.length} de ${c.socios} socios</dd></dl><p style="font-size:12.5px">${esc(a.acta || '')}</p>${a.agenda.length ? `<p style="font-size:12.5px"><b>Tabla:</b> ${a.agenda.map(esc).join('; ')}.</p>` : ''}${a.motions.length ? `<table><tr><th>Moción</th><th>Sí</th><th>No</th><th>Abs.</th></tr>${a.motions.map(m => `<tr><td>${esc(m.text)}</td><td>${n(m, 'si')}</td><td>${n(m, 'no')}</td><td>${n(m, 'abs')}</td></tr>`).join('')}</table>` : ''}${docVer(a.code)}</div><div class="noprint">${btn('Descargar o imprimir', 'window.print()', 'ok', 'print')}</div>`;
+  return `<div class="docp">${docHead(c.name, 'RUT ' + c.rut, c)}<h2>Acta de asamblea ${a.type}</h2><dl class="kv"><dt>Materia</dt><dd>${esc(a.title)}</dd><dt>Fecha</dt><dd>${fMed(a.date)}, ${a.time}</dd><dt>Lugar</dt><dd>${esc(a.place)}</dd><dt>Asistentes</dt><dd>${a.attendees.length} de ${c.socios} socios</dd></dl><p style="font-size:12.5px">${esc(a.acta || '')}</p>${a.agenda.length ? `<p style="font-size:12.5px"><b>Tabla:</b> ${a.agenda.map(esc).join('; ')}.</p>` : ''}${a.motions.length ? `<table><tr><th>Moción</th><th>Sí</th><th>No</th><th>Abs.</th></tr>${a.motions.map(m => `<tr><td>${esc(m.text)}</td><td>${n(m, 'si')}</td><td>${n(m, 'no')}</td><td>${n(m, 'abs')}</td></tr>`).join('')}</table>` : ''}${docVer(a.code)}</div><div class="noprint">${btn('Descargar o imprimir', 'window.print()', 'ok', 'print')}</div>`;
 }
 route('/d/asambleas', {
   title: 'Asambleas', roles: ['directivo'], render: () => { const l = S.assemblies.filter(a => a.clubId === cid()).sort((a, b) => b.date.localeCompare(a.date)); return btn('Convocar asamblea', 'A.asmSheet()', 'ok', 'plus') + '<div class="mt12"></div>' + list(l.map(a => li({ ic: 'hall', color: 'purple', title: esc(a.title), sub: `${a.type === 'ordinaria' ? 'Ordinaria' : 'Extraordinaria'} · ${fDateY(a.date)}`, right: badge(...AST[a.status]), href: '/d/asamblea/' + a.id }))); }
@@ -2180,7 +2188,7 @@ route('/d/asamblea/:id', {
     if (a.status === 'cerrada') return head + actaDoc(a);
     if (a.status === 'convocada') return head + btn('Iniciar asamblea', `A.asmStart('${a.id}')`, 'ok', 'hall');
     const pre = a.attendees.filter(t => t.mode === 'presencial'), onl = a.attendees.filter(t => t.mode === 'online'), reg = a.attendees.some(t => t.id === 'directivo');
-    return head + `<div class="card center"><div class="small muted mb8">QR de la reunión</div><div style="display:inline-block;background:#fff;padding:8px;border-radius:12px">${qr(a.code, 190)}</div><div class="tiny muted mt8">Deportistas y apoderados usan "Escanear QR"</div></div>${quorumCard(a)}${simNote('agrega asistentes para ver el quórum en vivo.')}<div class="btns">${btn('+ Presencial', `A.asmSim('${a.id}','presencial')`, 's2 sm')}${btn('+ Online', `A.asmSim('${a.id}','online')`, 's2 sm')}</div>${sec('Asistentes')}<div class="kpis">${kpi('Presenciales', pre.length)}${kpi('Online', onl.length)}</div>${list(a.attendees.slice(-5).reverse().map(t => li({ av: avatar(t.name, 34), title: esc(t.name), sub: `${t.mode === 'online' ? 'Online' : 'Presencial'} · ${t.time}` })))}${reg ? '' : btn('Registrar mi asistencia', `A.asmMe('${a.id}')`, 's2', 'check')}${secLink('Votaciones', 'Nueva', `A.motionSheet('${a.id}')`)}${note('Solo votan quienes registraron asistencia.')}${a.motions.map(m => motionCard(a, m, reg, 'directivo')).join('')}<div class="btns">${btn('Simular votos', `A.simVotes('${a.id}')`, 's2 sm')}</div><div class="mt12">${btn('Cerrar y generar acta', `A.asmClose('${a.id}')`, 'ok', 'doc')}</div>`;
+    return head + `<div class="card center"><div class="small muted mb8">QR de la reunión</div><div style="display:inline-block;background:#fff;padding:8px;border-radius:12px">${qr(a.code, 190)}</div><div class="tiny muted mt8">Deportistas y apoderados usan "Escanear QR"</div></div>${quorumCard(a)}${simNote('agrega asistentes para ver el quórum en vivo.')}<div class="btns">${btn('+ Presencial', `A.asmSim('${a.id}','presencial')`, 's2 sm')}${btn('+ Online', `A.asmSim('${a.id}','online')`, 's2 sm')}</div>${sec('Asistentes')}<div class="kpis">${kpi('Presenciales', pre.length)}${kpi('Online', onl.length)}</div>${list(a.attendees.slice(-5).reverse().map(t => li({ av: avatar(t.name, 34, t.photo), title: esc(t.name), sub: `${t.mode === 'online' ? 'Online' : 'Presencial'} · ${t.time}` })))}${reg ? '' : btn('Registrar mi asistencia', `A.asmMe('${a.id}')`, 's2', 'check')}${secLink('Votaciones', 'Nueva', `A.motionSheet('${a.id}')`)}${note('Solo votan quienes registraron asistencia.')}${a.motions.map(m => motionCard(a, m, reg, 'directivo')).join('')}<div class="btns">${btn('Simular votos', `A.simVotes('${a.id}')`, 's2 sm')}</div><div class="mt12">${btn('Cerrar y generar acta', `A.asmClose('${a.id}')`, 'ok', 'doc')}</div>`;
   }
 });
 // --- Solicitudes de incorporación y transferencias ---
@@ -2190,9 +2198,9 @@ A.authTf = (id, ok) => { const t = S.transfers.find(x => x.id === id); if (ok) {
 route('/d/solicitudes', {
   title: 'Solicitudes', roles: ['directivo'], render: () => {
     const l = S.requests.filter(r => r.clubId === cid() && r.status === 'pendiente'), tr = S.transfers.filter(t => t.status === 'pendiente_autorizacion' && t.fromClub === cid()), done = S.requests.filter(r => r.clubId === cid() && r.status !== 'pendiente');
-    const rq = r => { const p = player(r.playerId), debts = S.clubs.filter(c => c.id !== cid() && debtOf(p.id, c.id) > 0); return `<div class="card"><div class="row">${avatar(p.name, 44)}<div class="sp"><div class="b">${esc(p.name)}</div><div class="small muted">${SPORTS[r.sport]} ${r.sport} · ${ageOf(p.birth)} años · ${fDate(r.date)}</div></div>${badge('Pendiente', 'warn')}</div>${r.note ? `<p class="small" style="margin:8px 0">${esc(r.note)}</p>` : ''}${debts.map(c => note(`Registra una deuda de <b>${clp(debtOf(p.id, c.id))}</b> con ${esc(c.short)}. Tu club decide si lo acepta.`, 'bad', 'alert')).join('')}<div class="btns">${btn('Rechazar', `A.req('${r.id}',false)`, 'dsoft sm')}${btn('Aceptar', `A.req('${r.id}',true)`, 'ok sm')}</div></div>`; };
+    const rq = r => { const p = player(r.playerId), debts = S.clubs.filter(c => c.id !== cid() && debtOf(p.id, c.id) > 0); return `<div class="card"><div class="row">${avatar(p.name, 44, p.photo)}<div class="sp"><div class="b">${esc(p.name)}</div><div class="small muted">${SPORTS[r.sport]} ${r.sport} · ${ageOf(p.birth)} años · ${fDate(r.date)}</div></div>${badge('Pendiente', 'warn')}</div>${r.note ? `<p class="small" style="margin:8px 0">${esc(r.note)}</p>` : ''}${debts.map(c => note(`Registra una deuda de <b>${clp(debtOf(p.id, c.id))}</b> con ${esc(c.short)}. Tu club decide si lo acepta.`, 'bad', 'alert')).join('')}<div class="btns">${btn('Rechazar', `A.req('${r.id}',false)`, 'dsoft sm')}${btn('Aceptar', `A.req('${r.id}',true)`, 'ok sm')}</div></div>`; };
     const lk = S.linkRequests.filter(r => r.clubId === cid() && r.status === 'pendiente');
-    const lks = lk.length ? sec('Vinculaciones al club') + lk.map(r => { const a = S.accounts.find(x => x.id === r.accountId); return `<div class="card"><div class="row">${avatar(a.name, 44)}<div class="sp"><div class="b">${esc(a.name)}</div><div class="small muted">${typeLabel(a.type)} · ${a.id} · ${fDate(r.date)}</div></div>${badge('Pendiente', 'warn')}</div><div class="btns">${btn('Rechazar', `A.lnk('${r.id}',false)`, 'dsoft sm')}${btn('Aceptar', `A.lnk('${r.id}',true)`, 'ok sm')}</div></div>`; }).join('') : '';
+    const lks = lk.length ? sec('Vinculaciones al club') + lk.map(r => { const a = S.accounts.find(x => x.id === r.accountId); return `<div class="card"><div class="row">${avatar(a.name, 44, a.photo)}<div class="sp"><div class="b">${esc(a.name)}</div><div class="small muted">${typeLabel(a.type)} · ${a.id} · ${fDate(r.date)}</div></div>${badge('Pendiente', 'warn')}</div><div class="btns">${btn('Rechazar', `A.lnk('${r.id}',false)`, 'dsoft sm')}${btn('Aceptar', `A.lnk('${r.id}',true)`, 'ok sm')}</div></div>`; }).join('') : '';
     return lks + (tr.length ? sec('Transferencias por autorizar') + tr.map(t => `<div class="card"><div class="b">${esc(player(t.playerId).name)}</div><div class="small muted">${t.sport}: pide pasar a ${esc(club(t.toClub).short)}</div>${note(`Deuda con tu club: <b>${clp(t.debt)}</b>`, 'bad', 'alert')}<div class="btns">${btn('Rechazar', `A.authTf('${t.id}',false)`, 'dsoft sm')}${btn('Autorizar', `A.authTf('${t.id}',true)`, 'ok sm')}</div></div>`).join('') : '') + sec('Incorporación') + (l.length ? l.map(rq).join('') : empty('userplus', 'Sin solicitudes', 'Las nuevas solicitudes de incorporación aparecerán aquí.')) + (done.length ? sec('Resueltas') + list(done.map(r => li({ title: esc(player(r.playerId).name), sub: r.sport, right: r.status === 'aceptada' ? badge('Aceptada', 'ok') : badge('Rechazada', 'mute') }))) : '');
   }
 });
@@ -2208,7 +2216,7 @@ A.bajaDebt = () => { const m = S.memberships.find(x => x.id === val('bj-m')); if
 route('/d/bajas', {
   title: 'Bajas y renuncias', roles: ['directivo'], render: () => {
     const t = S.ui.bjTab || 'curso', seps = S.separations.filter(x => x.clubId === cid()), act = seps.filter(x => ['en_plazo', 'reclamo'].includes(x.status)), hist = seps.filter(x => !['en_plazo', 'reclamo'].includes(x.status));
-    const ms = clubMembers(cid()).filter(m => m.status === 'habil'), row = x => li({ av: avatar(player(x.playerId).name, 40), title: `${x.type === 'baja' ? 'Baja' : 'Renuncia'} · ${esc(player(x.playerId).name)}`, sub: `${x.sport} · ${['en_plazo', 'reclamo'].includes(x.status) ? businessDaysLeft(today(), x.deadline) + ' días hábiles · vence ' + fDate(x.deadline) : 'Cierre ' + fDate(x.closedAt)}`, right: badge(...SEP_ST[x.status]), href: '/plazo/' + x.id });
+    const ms = clubMembers(cid()).filter(m => m.status === 'habil'), row = x => li({ av: avatar(player(x.playerId).name, 40, player(x.playerId).photo), title: `${x.type === 'baja' ? 'Baja' : 'Renuncia'} · ${esc(player(x.playerId).name)}`, sub: `${x.sport} · ${['en_plazo', 'reclamo'].includes(x.status) ? businessDaysLeft(today(), x.deadline) + ' días hábiles · vence ' + fDate(x.deadline) : 'Cierre ' + fDate(x.closedAt)}`, right: badge(...SEP_ST[x.status]), href: '/plazo/' + x.id });
     const body = t === 'curso' ? (act.length ? list(act.map(row)) : empty('clock', 'Sin trámites en curso', 'Las bajas y renuncias en plazo aparecerán aquí.')) : t === 'hist' ? (hist.length ? list(hist.map(row)) : empty('clock', 'Sin historial', '')) : `<div class="card">${select('bj-m', 'Deportista', ms.map(m => [m.id, `${player(m.playerId).name} · ${m.sport}`]), ms[0] && ms[0].id, 'onchange="A.bajaDebt()"')}<div id="bj-info"></div>${select('bj-c', 'Causal', [['no_pago', 'No pago'], ['conducta', 'Conducta prohibida por los estatutos']], 'no_pago')}${area('bj-d', 'Motivos detallados')}${inp('bj-a', 'Artículo de los estatutos', 'placeholder="Ej: Art. 12, letra b)" autocomplete="off"')}<div class="field"><label>Antecedentes adjuntos</label><div id="bj-files" class="mb8">${(S.ui.bajaFiles || []).map(f => badge(esc(f), 'mute')).join(' ')}</div>${btn('Adjuntar antecedente de ejemplo', 'A.bajaAttach()', 's2', 'paperclip')}</div></div>${btn('Iniciar baja', 'A.baja()', 'danger')}`;
     return seg('bjTab', [['curso', `En curso (${act.length})`], ['nueva', 'Nueva baja'], ['hist', 'Historial']], t) + body;
   }, after: () => { if ($('#bj-m')) A.bajaDebt(); }
@@ -2217,8 +2225,8 @@ route('/d/bajas', {
 A.claimView = id => { const c = S.claims.find(x => x.id === id); sheet('Resolver reclamo', `<div class="b">${esc(c.subject)}</div><div class="small muted mb8">${esc(player(c.playerId).name)} · ${fDate(c.date)}</div><p class="small">${esc(c.text)}</p>${area('cl-res', 'Resolución del directorio')}<div class="btns">${btn('Rechazar', `A.resolveClaim('${id}',false)`, 'dsoft')}${btn('Acoger', `A.resolveClaim('${id}',true)`, 'ok')}</div>`); };
 route('/d/reclamos', {
   title: 'Reclamos', roles: ['directivo'], render: () => {
-    const o = S.claims.filter(c => c.clubId === cid() && c.status === 'abierto'), d = S.claims.filter(c => c.clubId === cid() && c.status !== 'abierto');
-    return sec('Abiertos') + (o.length ? list(o.map(c => li({ ic: 'flag', color: 'yellow', title: esc(c.subject), sub: `${esc(player(c.playerId).name)} · ${fDate(c.date)}`, on: `A.claimView('${c.id}')` }))) : empty('flag', 'Sin reclamos abiertos', 'Los reclamos los resuelve el directorio.')) + (d.length ? sec('Resueltos') + list(d.map(c => li({ ic: 'check', color: 'green', title: esc(c.subject), sub: esc(c.resolution || '') }))) : '');
+    const o = S.claims.filter(c => c.clubId === cid() && c.status === 'abierto'), d = S.claims.filter(c => c.clubId === cid() && c.status !== 'abierto'), rs = S.reports.filter(r => r.clubId === cid() && r.status === 'abierto');
+    return (rs.length ? sec('Contenido reportado') + rs.map(r => { const q = r.postId && S.posts.find(x => x.id === r.postId); return `<div class="card"><div class="b">${esc(r.reason)}</div><div class="small muted">Reportado por ${esc(r.byName)} · ${fDate(r.date)}</div>${q ? `<p class="small" style="margin:8px 0 0">${esc(q.by)}: ${esc(q.text)}</p>` : ''}<div class="btns">${btn('Descartar', `A.resolveReport('${r.id}',false)`, 's2 sm')}${q ? btn('Ocultar', `A.resolveReport('${r.id}',true)`, 'danger sm') : ''}</div></div>`; }).join('') : '') + sec('Abiertos') + (o.length ? list(o.map(c => li({ ic: 'flag', color: 'yellow', title: esc(c.subject), sub: `${esc(player(c.playerId).name)} · ${fDate(c.date)}`, on: `A.claimView('${c.id}')` }))) : empty('flag', 'Sin reclamos abiertos', 'Los reclamos los resuelve el directorio.')) + (d.length ? sec('Resueltos') + list(d.map(c => li({ ic: 'check', color: 'green', title: esc(c.subject), sub: esc(c.resolution || '') }))) : '');
   }
 });
 // --- Préstamos de deportistas ---
@@ -2240,13 +2248,13 @@ route('/d/prestamo/:id', {
   title: 'Documento de préstamo', roles: ['directivo'], noTabs: true, render: p => {
     const l = S.loans.find(x => x.id === p.id); if (!l) return empty('swap', 'Préstamo no encontrado', '');
     const pl = player(l.playerId), o = club(l.fromClub), d = club(l.toClub); registerDoc(l.code, 'Documento de préstamo', `${o.short} → ${d.short}`, pl.name); save();
-    return `<div class="docp">${docHead(o.name, 'RUT ' + o.rut)}<h2>Documento de préstamo</h2><dl class="kv"><dt>Deportista</dt><dd>${esc(pl.name)}</dd><dt>RUT</dt><dd>${pl.rut}</dd><dt>Deporte</dt><dd>${l.sport}</dd><dt>Club de origen</dt><dd>${esc(o.name)}</dd><dt>Club de destino</dt><dd>${esc(d.name)}</dd><dt>Motivo</dt><dd>${esc(l.reason)}</dd><dt>Condición</dt><dd>${l.paid ? 'Pagado: ' + clp(l.amount) : 'Gratuito'}</dd><dt>Vigencia</dt><dd>${fDateY(l.start)} al ${fDateY(l.end)}</dd></dl>${docVer(l.code)}</div><div class="noprint">${l.paid && !l.paidAt ? goBtn(`Simular pago del club de destino ${clp(l.amount)}`, '/pagar/' + l.chargeId, 's2', 'card') + '<div class="mt8"></div>' : ''}${btn('Descargar o imprimir', 'window.print()', 'ok', 'print')}</div>`;
+    return `<div class="docp">${docHead(o.name, 'RUT ' + o.rut, o)}<h2>Documento de préstamo</h2><dl class="kv"><dt>Deportista</dt><dd>${esc(pl.name)}</dd><dt>RUT</dt><dd>${pl.rut}</dd><dt>Deporte</dt><dd>${l.sport}</dd><dt>Club de origen</dt><dd>${esc(o.name)}</dd><dt>Club de destino</dt><dd>${esc(d.name)}</dd><dt>Motivo</dt><dd>${esc(l.reason)}</dd><dt>Condición</dt><dd>${l.paid ? 'Pagado: ' + clp(l.amount) : 'Gratuito'}</dd><dt>Vigencia</dt><dd>${fDateY(l.start)} al ${fDateY(l.end)}</dd></dl>${docVer(l.code)}</div><div class="noprint">${l.paid && !l.paidAt ? goBtn(`Simular pago del club de destino ${clp(l.amount)}`, '/pagar/' + l.chargeId, 's2', 'card') + '<div class="mt8"></div>' : ''}${btn('Descargar o imprimir', 'window.print()', 'ok', 'print')}</div>`;
   }
 });
 route('/d/jugadores', {
   title: 'Deportistas', roles: ['directivo'], render: () => {
     const f = S.ui.djF || 'todos', l = clubMembers(cid()).filter(m => f === 'todos' || m.status === f || (f === 'moroso' && debtOf(m.playerId, cid()) > 0));
-    return chips('djF', [['todos', 'Todos'], ['habil', 'Hábiles'], ['suspendido', 'Suspendidos'], ['moroso', 'Con deuda']], f) + (l.length ? list(l.map(m => { const p = player(m.playerId), d = debtOf(p.id, cid()); return li({ av: avatar(p.name, 40), title: esc(p.name), sub: `${SPORTS[m.sport]} ${m.teamId ? team(m.teamId).name : m.sport}${d ? ' · debe ' + clp(d) : ''}`, right: stBadge(m.status) }); })) : empty('users', 'Sin deportistas', 'No hay deportistas con este filtro.'));
+    return chips('djF', [['todos', 'Todos'], ['habil', 'Hábiles'], ['suspendido', 'Suspendidos'], ['moroso', 'Con deuda']], f) + (l.length ? list(l.map(m => { const p = player(m.playerId), d = debtOf(p.id, cid()); return li({ av: avatar(p.name, 40, p.photo), title: esc(p.name), sub: `${SPORTS[m.sport]} ${m.teamId ? team(m.teamId).name : m.sport}${d ? ' · debe ' + clp(d) : ''}`, right: stBadge(m.status) }); })) : empty('users', 'Sin deportistas', 'No hay deportistas con este filtro.'));
   }
 });
 route('/d/masivo', { title: 'Mensaje masivo', roles: ['directivo'], render: () => massForm() });
@@ -2268,7 +2276,7 @@ route('/f/dashboard', {
   }
 });
 route('/f/clubes', {
-  title: 'Clubes', roles: ['federacion'], render: () => { const l = fClubs(); return scopeNote() + note(`${sum(fRegions(), ([, v]) => v.clubs)} clubes federados en total. Aquí se listan solo los clubes de ejemplo del prototipo.`) + (l.length ? list(l.map(c => li({ ic: 'building', color: 'green', title: esc(c.name), sub: `${esc(c.city)}, ${esc(c.region)} · RUT ${c.rut}`, right: badge('Federado', 'ok') }))) : empty('building', 'Sin clubes', 'No hay clubes de ejemplo de este deporte en este ámbito.')); }
+  title: 'Clubes', roles: ['federacion'], render: () => { const l = fClubs(); return scopeNote() + note(`${sum(fRegions(), ([, v]) => v.clubs)} clubes federados en total. Aquí se listan solo los clubes de ejemplo del prototipo.`) + (l.length ? list(l.map(c => li({ av: clubLogo(c, 40), title: esc(c.name), sub: `${esc(c.city)}, ${esc(c.region)} · RUT ${c.rut}`, right: badge('Federado', 'ok'), href: '/club/' + c.id }))) : empty('building', 'Sin clubes', 'No hay clubes de ejemplo de este deporte en este ámbito.')); }
 });
 A.addCom = () => {
   const t = val('co-t'), b = val('co-b'); if (!t || !b) return toast('Completa título y contenido', 'warn');
@@ -2318,10 +2326,8 @@ const myQuotes = () => S.quotes.filter(q => q.providerId === S.ui.provId);
 const paidQuotes = () => myQuotes().filter(q => q.status === 'pagada');
 const provTournaments = () => { const f = S.provPrefs; return S.tournaments.filter(t => t.start > today() && f.regions.includes(t.region) && f.cats.includes(t.category)).sort((a, b) => a.start.localeCompare(b.start)); };
 HOME_SUMMARY.proveedor = () => { const p = myProv(), q = myQuotes(); return `<div class="card hero"><div class="small muted">${esc(p.cat)}</div><div class="b" style="font-size:18px">${esc(p.name)}</div><div class="small muted">${esc(p.city)} · ${stars(p.rating)}</div></div><div class="kpis">${kpi('Por cotizar', q.filter(x => x.status === 'solicitada').length, 'wtext')}${kpi('Neto recibido', clp(sum(paidQuotes(), netOf)), 'atext')}</div>`; };
-A.provEdit = () => { const p = myProv(); sheet('Editar perfil', `${area('pe-d', 'Descripción')}${inp('pe-w', 'Sitio web', `value="${esc(p.web)}" autocomplete="off"`)}${inp('pe-i', 'Instagram', `value="${esc(p.ig)}" autocomplete="off"`)}${btn('Guardar', 'A.provSave()', 'ok')}`); $('#pe-d').value = p.desc; };
-A.provSave = () => { const p = myProv(); p.desc = val('pe-d'); p.web = val('pe-w'); p.ig = val('pe-i'); closeSheet(); commit('Perfil actualizado'); };
 route('/p/perfil', {
-  title: 'Mi perfil', roles: ['proveedor'], render: () => { const p = myProv(); return `<div class="card"><div class="row">${avatar(p.name, 60)}<div class="sp"><h3>${esc(p.name)}</h3><div class="small muted">${esc(p.cat)} · ${esc(p.city)}, ${esc(p.region)}</div><div class="small">${stars(p.rating)}</div></div></div><p class="small" style="margin:10px 0">${esc(p.desc)}</p><div class="btns"><button class="btn sm s2" onclick="A.link(this.dataset.u)" data-u="${esc(p.web)}">${icon('globe', 16)}Sitio web</button><button class="btn sm s2" onclick="A.link(this.dataset.u)" data-u="${esc(p.ig)}">${icon('insta', 16)}Instagram</button></div></div>${btn('Editar perfil', 'A.provEdit()', 's2', 'edit')}<div class="mt12"></div>${goBtn('Ver catálogo', '/p/catalogo', 'ghost')}`; }
+  title: 'Mi perfil', roles: ['proveedor'], render: () => { const p = myProv(); return `<div class="card"><div class="row">${avatar(p.name, 60, p.photo)}<div class="sp"><h3>${esc(p.name)}</h3><div class="small muted">${esc(p.cat)} · ${esc(p.city)}, ${esc(p.region)}</div><div class="small">${stars(p.rating)}</div></div></div><p class="small" style="margin:10px 0">${esc(p.desc)}</p><div class="btns"><button class="btn sm s2" onclick="A.link(this.dataset.u)" data-u="${esc(p.web)}">${icon('globe', 16)}Sitio web</button><button class="btn sm s2" onclick="A.link(this.dataset.u)" data-u="${esc(p.ig)}">${icon('insta', 16)}Instagram</button></div></div>${goBtn('Editar perfil', '/perfil/editar', 's2', 'edit')}<div class="mt12"></div>${goBtn('Ver catálogo', '/p/catalogo', 'ghost')}`; }
 });
 A.itemSheet = () => sheet('Agregar producto o servicio', `${inp('it-n', 'Nombre', 'autocomplete="off"')}${inp('it-p', 'Precio', 'type="number" inputmode="numeric"')}${inp('it-u', 'Unidad', 'value="unidad" autocomplete="off"')}${btn('Agregar', 'A.addItem()', 'ok')}`);
 A.addItem = () => { const n = val('it-n'); if (!n) return toast('Escribe el nombre', 'warn'); myProv().items.push({ id: uid('i'), name: n, price: +val('it-p') || 0, unit: val('it-u') || 'unidad' }); closeSheet(); commit('Agregado al catálogo'); };
@@ -2335,7 +2341,7 @@ A.catNew = () => sheet('Nueva categoría', `${inp('nc-n', 'Nombre de la categor�
 A.addProvCat = () => { const n = val('nc-n'); if (!n) return; if (!allCats().includes(n)) S.customCats.push(n); closeSheet(); commit('Categoría creada'); };
 A.setProvCat = i => { S.ui.provCat = allCats()[i]; commit(); };
 route('/p/categorias', {
-  title: 'Categorías', roles: ['proveedor'], render: () => { const c = S.ui.provCat, l = c ? S.providers.filter(p => p.cat === c) : []; return list([...allCats().map((x, i) => li({ ic: 'grid', color: x === c ? 'green' : 'blue', title: esc(x), sub: `${S.providers.filter(p => p.cat === x).length} proveedores`, on: `A.setProvCat(${i})`, chev: false })), li({ ic: 'plus', color: 'gray', title: '+ Nueva categoría', on: 'A.catNew()', chev: false })]) + (c ? sec(esc(c)) + (l.length ? list(l.map(p => li({ av: avatar(p.name, 40), title: esc(p.name), sub: esc(p.city), href: '/proveedor/' + p.id }))) : empty('store', 'Sin proveedores', 'Aún no hay proveedores en esta categoría.')) : ''); }
+  title: 'Categorías', roles: ['proveedor'], render: () => { const c = S.ui.provCat, l = c ? S.providers.filter(p => p.cat === c) : []; return list([...allCats().map((x, i) => li({ ic: 'grid', color: x === c ? 'green' : 'blue', title: esc(x), sub: `${S.providers.filter(p => p.cat === x).length} proveedores`, on: `A.setProvCat(${i})`, chev: false })), li({ ic: 'plus', color: 'gray', title: '+ Nueva categoría', on: 'A.catNew()', chev: false })]) + (c ? sec(esc(c)) + (l.length ? list(l.map(p => li({ av: avatar(p.name, 40, p.photo), title: esc(p.name), sub: esc(p.city), href: '/proveedor/' + p.id }))) : empty('store', 'Sin proveedores', 'Aún no hay proveedores en esta categoría.')) : ''); }
 });
 A.slot = (pid, vid, k) => { const v = provider(pid).venues.find(x => x.id === vid); v.slots[k] = !v.slots[k]; commit(); };
 A.venueSheet = () => sheet('Agregar recinto', `${inp('vn-n', 'Nombre', 'autocomplete="off"')}${select('vn-s', 'Deporte principal', SPORT_LIST)}${inp('vn-c', 'Capacidad', 'type="number" inputmode="numeric" value="200"')}${inp('vn-a', 'Ubicación', 'autocomplete="off"')}${btn('Agregar recinto', 'A.addVenue()', 'ok')}`);
@@ -2378,6 +2384,132 @@ route('/p/pagos', {
   title: 'Pagos recibidos', roles: ['proveedor'], render: () => { const l = paidQuotes(), br = sum(l, q => q.amount), ne = sum(l, netOf); return `<div class="kpis">${kpi('Ventas', clp(br))}${kpi('Neto', clp(ne), 'atext')}</div>${note(`My Club descuenta ${COMMISSION}% de comisión por venta. Pagos simulados.`)}${l.length ? list(l.map(q => li({ ic: 'money', color: 'green', title: esc(q.title), sub: `${esc(club(q.clubId).short)} · ${fDate(q.paidAt)}`, right: `<b>${clp(netOf(q))}</b>`, href: '/p/cotizacion/' + q.id }))) : empty('money', 'Sin pagos', 'Cuando un club pague una cotización aparecerá aquí.')}`; }
 });
 
+/* ======================================================================
+   14. FICHA DEL CLUB, PERFIL EDITABLE Y CUENTA
+   ====================================================================== */
+// Clubes a los que está vinculada la cuenta activa (la ficha es una sola para todas las cuentas)
+const linkedClubs = () => [...new Set(myClubs())].map(club).filter(Boolean);
+const lockField = (l, v) => field(l, `<div class="lockf">${icon('lock', 16)}<span>${esc(v)}</span></div>`);
+route('/club/:id', {
+  title: 'Ficha del club', render: p => {
+    const c = club(p.id); if (!c) return empty('building', 'Club no encontrado', '');
+    const own = role() === 'directivo' && myClubId() === c.id;
+    const rows = [['RUT', c.rut], ['Constitución', c.constituted && fMed(c.constituted)], ['Registro deportivo', c.regNumber && 'N° ' + c.regNumber], ['Dirección', [c.address, c.city, c.region].filter(Boolean).join(', ')], ['Teléfono', c.phone], ['Email', c.email], ['Sitio web', c.web], ['Instagram', c.ig]].filter(r => r[1]);
+    return `<div class="card center"><div style="display:flex;justify-content:center;margin-bottom:10px">${clubLogo(c, 96)}</div><h2>${esc(c.name)}</h2><div class="mt8">${badge('ID ' + c.code, 'mute')}</div>${c.desc ? `<p class="small muted" style="margin:10px 0 0">${esc(c.desc)}</p>` : ''}</div><div class="card"><table class="tbl">${rows.map(([a, b]) => `<tr><td class="muted">${a}</td><td class="b">${esc(b)}</td></tr>`).join('')}</table></div>${c.sports.length ? sec('Deportes') + `<div class="row wrap gap8 mb12">${c.sports.map(s => badge(`${SPORTS[s] || ''} ${esc(s)}`, 'info')).join('')}</div>` : ''}${(c.board || []).length ? sec('Directorio') + `<div class="card"><table class="tbl">${c.board.map(b => `<tr><td class="muted">${esc(b.cargo)}</td><td class="b">${esc(b.name)}</td></tr>`).join('')}</table></div>` : ''}${own ? goBtn('Editar datos y logo del club', '/perfil/editar', 'ok', 'edit') : ''}`;
+  }
+});
+
+// --- Foto de perfil y logo del club: se reducen antes de guardarlos ---
+function readImage(file, max, type) {
+  return new Promise((ok, no) => {
+    if (!/^image\//.test(file.type)) return no(new Error('tipo'));
+    const url = URL.createObjectURL(file), im = new Image();
+    im.onload = () => {
+      const w = im.naturalWidth || max, h = im.naturalHeight || max, r = Math.min(1, max / Math.max(w, h)), cv = document.createElement('canvas');
+      cv.width = Math.round(w * r); cv.height = Math.round(h * r); cv.getContext('2d').drawImage(im, 0, 0, cv.width, cv.height);
+      URL.revokeObjectURL(url); ok(cv.toDataURL(type, 0.82));
+    };
+    im.onerror = () => { URL.revokeObjectURL(url); no(new Error('imagen')); };
+    im.src = url;
+  });
+}
+function myPhoto(a = acct()) { return a.type === 'club' ? club(a.clubId).logo : a.type === 'jugador' ? player(a.refId).photo : a.type === 'proveedor' ? provider(a.refId).photo : a.photo; }
+function setMyPhoto(a, v) { if (a.type === 'club') club(a.clubId).logo = v; else if (a.type === 'jugador') player(a.refId).photo = v; else if (a.type === 'proveedor') provider(a.refId).photo = v; else a.photo = v; }
+const photoView = a => a.type === 'club' ? clubLogo(club(a.clubId), 96) : avatar(a.name, 96, myPhoto(a));
+function photoChanged(a, msg) { $('#ph-prev').innerHTML = photoView(a); $('#ph-del').style.display = myPhoto(a) ? '' : 'none'; toast(msg); }
+A.pickPhoto = async inp => {
+  const f = inp.files[0], a = acct(), logo = a.type === 'club'; if (!f) return;
+  try {
+    const data = await readImage(f, logo ? 256 : 320, logo ? 'image/png' : 'image/jpeg'), prev = myPhoto(a); setMyPhoto(a, data);
+    if (!save()) { setMyPhoto(a, prev); return toast('No hay espacio para guardar la imagen', 'bad'); }
+    photoChanged(a, logo ? 'Logo actualizado en todas las cuentas del club' : 'Foto actualizada');
+  } catch (e) { toast('No se pudo leer esa imagen', 'bad'); }
+  inp.value = '';
+};
+A.delPhoto = () => { const a = acct(); setMyPhoto(a, null); save(); photoChanged(a, 'Imagen quitada'); };
+
+// --- Edición de perfil: nombre, RUT y fecha de nacimiento o constitución quedan bloqueados ---
+function editFields(a) {
+  const e = (id, l, v, attrs = '', hint = '') => inp(id, l, `value="${esc(v == null ? '' : v)}" autocomplete="off" ${attrs}`, hint), p = a.type === 'jugador' ? player(a.refId) : null, c = a.type === 'club' ? club(a.clubId) : null, pv = a.type === 'proveedor' ? provider(a.refId) : null;
+  let locked = lockField(c ? 'Nombre del club' : 'Nombre', a.name) + lockField('RUT', a.rut), html = e('ed-email', 'Email', a.email, 'type="email" inputmode="email" autocapitalize="off"') + e('ed-phone', 'Teléfono', a.phone, 'type="tel" inputmode="tel"');
+  if (p) { locked += lockField('Fecha de nacimiento', fMed(p.birth)); html += `<div class="row"><div class="sp">${e('ed-height', 'Estatura (cm)', p.height, 'type="number" inputmode="numeric"')}</div><div class="sp">${select('ed-size', 'Talla', [['', 'Sin indicar'], 'XS', 'S', 'M', 'L', 'XL', 'XXL'], p.size || '')}</div></div>` + e('ed-pos', 'Posición o especialidad', p.position) + e('ed-city', 'Comuna', p.city); }
+  if (a.type === 'apoderado') html += e('ed-city', 'Comuna', a.city);
+  if (a.type === 'entrenador') html += e('ed-spec', 'Especialidad', a.specialty) + e('ed-city', 'Comuna', a.city);
+  if (a.type === 'federacion') html += e('ed-web', 'Sitio web', a.web);
+  if (pv) html += e('ed-city', 'Comuna', pv.city) + select('ed-region', 'Región', REGIONES, pv.region) + e('ed-web', 'Sitio web', pv.web) + e('ed-ig', 'Instagram', pv.ig) + field('Descripción', `<textarea class="input" id="ed-desc">${esc(pv.desc)}</textarea>`);
+  if (c) {
+    if (c.constituted) locked += lockField('Fecha de constitución', fMed(c.constituted));
+    html += e('ed-num', 'Registro deportivo número', c.regNumber) + e('ed-addr', 'Dirección', c.address) + e('ed-city', 'Comuna', c.city) + select('ed-region', 'Región', [['', 'Sin indicar'], ...REGIONES], c.region || '') + e('ed-web', 'Sitio web', c.web) + e('ed-ig', 'Instagram', c.ig) + field('Descripción del club', `<textarea class="input" id="ed-desc">${esc(c.desc || '')}</textarea>`) + `<div class="field"><label>Directorio (mínimo 3 cargos)</label><div id="dir-rows">${(c.board || []).map(b => dirRow(b.cargo, false, b.name)).join('')}</div><div class="hint mb8">Deja un nombre vacío para quitar ese cargo.</div>${btn('Agregar cargo', 'A.addCargo()', 'ghost', 'plus')}</div>`;
+  }
+  return { locked, html };
+}
+A.saveProfile = () => {
+  const a = acct(), err = m => { const b = $('#ed-err'); b.textContent = m; b.scrollIntoView({ block: 'center' }); }, email = val('ed-email').toLowerCase(), phone = val('ed-phone');
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return err('El email no es válido.');
+  if (!phone) return err('Indica un teléfono.');
+  if (S.accounts.some(x => x.id !== a.id && x.email === email)) return err('Ese email ya está registrado.');
+  if (a.type === 'club') {
+    const board = $$('.dir-row').map(r => ({ cargo: $('.dir-c', r).value.trim(), name: $('.dir-n', r).value.trim() })).filter(x => x.cargo && x.name);
+    if (board.length < 3) return err('El directorio requiere mínimo 3 cargos con nombre.');
+    Object.assign(club(a.clubId), { regNumber: val('ed-num'), address: val('ed-addr'), city: val('ed-city'), region: val('ed-region'), web: val('ed-web'), ig: val('ed-ig'), desc: val('ed-desc'), email, phone, board });
+  }
+  if (a.type === 'jugador') Object.assign(player(a.refId), { email, phone, height: +val('ed-height') || null, size: val('ed-size'), position: val('ed-pos'), city: val('ed-city') });
+  if (a.type === 'apoderado') { a.city = val('ed-city'); guardian(a.refId).email = email; }
+  if (a.type === 'entrenador') { a.specialty = val('ed-spec'); a.city = val('ed-city'); }
+  if (a.type === 'federacion') a.web = val('ed-web');
+  if (a.type === 'proveedor') Object.assign(provider(a.refId), { city: val('ed-city'), region: val('ed-region'), web: val('ed-web'), ig: val('ed-ig'), desc: val('ed-desc') });
+  a.email = email; a.phone = phone; save(); go('/perfil'); toast('Perfil actualizado');
+};
+route('/perfil/editar', {
+  title: 'Editar perfil', noTabs: true, render: () => {
+    const a = acct(), f = editFields(a), logo = a.type === 'club';
+    return `<div class="card center"><div id="ph-prev" style="display:flex;justify-content:center;margin-bottom:12px">${photoView(a)}</div><label class="btn s2" style="cursor:pointer">${icon('image', 20)}${logo ? 'Cargar logo del club' : 'Cambiar foto'}<input type="file" accept="image/*" hidden onchange="A.pickPhoto(this)"></label><div class="mt8" id="ph-del" style="${myPhoto(a) ? '' : 'display:none'}">${btn('Quitar imagen', 'A.delPhoto()', 'ghost')}</div>${logo ? '<div class="hint">Se verá en todas las cuentas vinculadas al club.</div>' : ''}</div>${sec('Datos que no se pueden cambiar')}<div class="card">${f.locked}</div>${sec('Datos editables')}<div class="card">${f.html}<div class="err mb8" id="ed-err"></div>${btn('Guardar cambios', 'A.saveProfile()', 'ok')}</div>`;
+  }
+});
+
+// --- Eliminar cuenta: exigido por App Store y Google Play ---
+function deleteAccount(a) {
+  S.linkRequests = S.linkRequests.filter(r => r.accountId !== a.id);
+  const anon = o => Object.assign(o, { name: 'Usuario eliminado', first: 'Usuario', rut: '', email: '', phone: '', photo: null, birth: o.birth, city: '', height: null, size: '' });
+  if (a.type === 'jugador') { const p = player(a.refId); activeMems(p.id).forEach(m => { m.status = 'desvinculado'; m.until = today(); }); S.requests.filter(r => r.playerId === p.id && r.status === 'pendiente').forEach(r => { r.status = 'rechazada'; }); anon(p); }
+  if (a.type === 'apoderado') S.guardians = S.guardians.filter(g => g.id !== a.refId);
+  if (a.type === 'proveedor') Object.assign(provider(a.refId), { name: 'Proveedor eliminado', items: [], venues: [], desc: '', web: '', ig: '', photo: null });
+  if (a.type === 'club') Object.assign(club(a.clubId), { logo: null, board: [], email: '', phone: '', address: '', web: '', ig: '', desc: '', closed: true });
+  S.accounts = S.accounts.filter(x => x.id !== a.id);
+}
+A.deleteAsk = () => {
+  if (acct().demo) return toast('Las cuentas de demostración no se eliminan', 'warn');
+  sheet('Eliminar mi cuenta', `<p class="small muted" style="margin:0 0 12px">Se borrarán tu cuenta y tus datos personales. Los registros que un club o federación deba conservar quedarán sin tus datos de identificación. Esta acción no se puede deshacer.</p>${inp('del-pw', 'Confirma con tu clave', 'type="password" autocomplete="off"')}<div class="err mb8" id="del-err"></div>${btn('Eliminar definitivamente', 'A.deleteDo()', 'danger')}<div class="mt8">${btn('Cancelar', 'closeSheet()', 's2')}</div>`);
+};
+A.deleteDo = () => { const a = acct(); if (a.pass !== hash(val('del-pw'))) { $('#del-err').textContent = 'La clave no es correcta.'; return; } deleteAccount(a); const d = demoAccount('jugador'); S.session.homeId = d.id; applyAccount(d); S.session.loggedIn = false; save(); NAV.length = 0; closeSheet(); replaceTo('/login'); toast('Tu cuenta fue eliminada'); };
+
+// --- Moderación de contenido (App Store 1.2 y Google Play): filtrar, reportar y bloquear ---
+const OFENSIVAS = /(^|[^a-záéíóúñ])(we[oó]n(es)?|culiao|conchetumare|ctm|maric[oó]n|put[ao]s?|mierda|imb[eé]cil)([^a-záéíóúñ]|$)/i;
+const limpio = t => { if (!OFENSIVAS.test(t)) return true; toast('Tu mensaje contiene lenguaje ofensivo', 'bad'); return false; };
+const myBlocks = () => S.blocks[me().id] || [];
+const REPORT_M = ['Contenido ofensivo', 'Acoso o amenazas', 'Datos personales de otra persona', 'Contenido inapropiado sobre menores', 'Otro'];
+A.reportSheet = id => { const p = S.posts.find(x => x.id === id), mine = p.by === me().name; sheet('Reportar publicación', `${select('rp-m', 'Motivo', REPORT_M, REPORT_M[0])}${btn('Enviar reporte', `A.doReport('${id}')`, 'danger', 'flag')}${!p.official && !mine ? `<div class="mt8">${btn('Bloquear a ' + esc(p.by), `A.block('${id}')`, 's2')}</div>` : ''}`); };
+A.doReport = id => { const p = S.posts.find(x => x.id === id); S.reports.unshift({ id: uid('rp'), postId: id, by: me().id, byName: me().name, reason: val('rp-m'), date: today(), status: 'abierto', clubId: p.clubId }); notify('directivo', `Publicación reportada en el muro: ${val('rp-m')}.`, '/d/reclamos', p.clubId); closeSheet(); commit('Reporte enviado: el club lo revisará'); };
+A.block = id => { const n = S.posts.find(x => x.id === id).by, m = me().id; S.blocks[m] = [...new Set([...myBlocks(), n])]; closeSheet(); commit('Usuario bloqueado'); };
+A.chatMenu = id => { const c = S.chats.find(x => x.id === id); sheet('Opciones del chat', `${btn('Reportar conversación', `A.chatReport('${id}')`, 'danger', 'flag')}${c.type === 'directo' ? `<div class="mt8">${btn('Bloquear a ' + esc(c.title), `A.chatBlock('${id}')`, 's2')}</div>` : ''}`); };
+A.chatReport = id => { const c = S.chats.find(x => x.id === id), cl = myClubs()[0] || null; S.reports.unshift({ id: uid('rp'), chatId: id, by: me().id, byName: me().name, reason: 'Conversación: ' + c.title, date: today(), status: 'abierto', clubId: cl }); notify('directivo', `Conversación reportada: ${c.title}.`, '/d/reclamos', cl); closeSheet(); commit('Reporte enviado: el club lo revisará'); };
+A.chatBlock = id => { const c = S.chats.find(x => x.id === id), m = me().id; S.blocks[m] = [...new Set([...myBlocks(), c.title])]; save(); closeSheet(); replaceTo('/mensajes'); toast('Usuario bloqueado'); };
+A.resolveReport = (id, hide) => { const r = S.reports.find(x => x.id === id); r.status = 'resuelto'; const p = r.postId && S.posts.find(x => x.id === r.postId); if (hide && p) p.hidden = true; commit(hide ? 'Contenido ocultado' : 'Reporte descartado'); };
+
+// --- Documentos legales (borradores para revisión de un abogado) ---
+const LEGAL = {
+  'eliminar-cuenta': ['Eliminar cuenta de My Club', [['Desde la app', 'Entra a Perfil, toca Eliminar mi cuenta y confirma con tu clave. La eliminación es inmediata.'], ['Sin la app instalada', 'Escribe al contacto de soporte de My Club desde el email de tu cuenta e indica que deseas eliminarla. Correo de soporte: pendiente de completar antes del lanzamiento.'], ['Qué se elimina', 'Tu cuenta, tu foto y tus datos personales de contacto.'], ['Qué se conserva', 'Los registros contables o federativos que la ley obligue a mantener quedan sin tus datos de identificación.']]],
+  contacto: ['Ayuda y contacto', [['Soporte', 'Correo de soporte: pendiente de completar antes del lanzamiento.'], ['Reportar contenido', 'En el muro y en los chats, toca la bandera para reportar contenido o bloquear a una persona. El club lo revisa en su bandeja de reclamos.']]],
+  privacidad: ['Política de privacidad', [['Responsable', 'My Club administra esta aplicación. Datos de contacto del responsable: pendientes de completar antes del lanzamiento.'], ['Datos que tratamos', 'Nombre, RUT, email, teléfono y fecha de nacimiento; estatura, talla y foto si decides agregarlas; datos deportivos, pagos y documentos asociados a tu club.'], ['Menores de edad', 'Los datos de menores solo los registra su apoderado, quien actúa en su representación.'], ['Para qué los usamos', 'Administrar tu cuenta, tu vínculo con clubes y federaciones, cobros, certificados y comunicaciones del club.'], ['Con quién se comparten', 'Con los clubes y federaciones a los que te vinculas, y con proveedores tecnológicos que prestan el servicio. No vendemos datos personales.'], ['Tus derechos', 'Puedes acceder, rectificar y eliminar tus datos. La cuenta se elimina desde Perfil → Eliminar mi cuenta.'], ['Conservación', 'Guardamos los datos mientras la cuenta exista y por los plazos que exija la ley para registros contables o federativos.']]],
+  terminos: ['Términos de uso', [['Uso de la app', 'My Club es una herramienta para administrar clubes deportivos, asociaciones y federaciones. Debes entregar información verdadera.'], ['Cuentas', 'Eres responsable de tu clave. Los menores de edad se registran mediante su apoderado.'], ['Pagos', 'Los pagos a clubes, federaciones y proveedores corresponden a servicios fuera de la app y se rigen por las condiciones de cada entidad.'], ['Contenido', 'Lo que publiques debe respetar a otras personas. Podemos retirar contenido ilegal u ofensivo.'], ['Modificaciones', 'Avisaremos los cambios relevantes de estos términos dentro de la app.']]]
+};
+route('/legal/:doc', {
+  public: true, noTabs: true, title: p => (LEGAL[p.doc] || ['Documento'])[0], render: p => {
+    const d = LEGAL[p.doc]; if (!d) return empty('doc', 'Documento no encontrado', '');
+    return note('Borrador sujeto a revisión legal antes del lanzamiento.', 'warn') + `<div class="card">${d[1].map(([t, x]) => `<h3 class="mt12">${t}</h3><p class="small" style="margin:4px 0 0">${x}</p>`).join('')}</div>`;
+  }
+});
+
 // @@PANTALLAS@@
 
 /* ======================================================================
@@ -2388,7 +2520,9 @@ processDeadlines();
 save();
 NAV.push(location.hash || '#/inicio');
 render(true);
-if ('serviceWorker' in navigator && location.protocol.startsWith('http')) navigator.serviceWorker.register('sw.js').catch(e => console.warn('SW no registrado', e));
+const NATIVO = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+if (NATIVO && window.Capacitor.Plugins.App) window.Capacitor.Plugins.App.addListener('backButton', () => { if ($('.sheet')) closeSheet(); else if (NAV.length > 1) A.back(); else window.Capacitor.Plugins.App.exitApp(); });
+if (!NATIVO && 'serviceWorker' in navigator && location.protocol.startsWith('http')) navigator.serviceWorker.register('sw.js').catch(e => console.warn('SW no registrado', e));
 </script>
 </body>
 </html>
