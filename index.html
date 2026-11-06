@@ -344,7 +344,11 @@ const docCode = (p, seed) => { const h = hash(seed).toString(36).toUpperCase().p
 /* ======================================================================
    2. DATOS DE EJEMPLO
    ====================================================================== */
-const SPORTS = { 'Fútbol': '⚽', 'Básquetbol': '🏀', 'Vóleibol': '🏐', 'Atletismo': '🏃', 'Rugby': '🏉', 'Remo': '🚣', 'Natación': '🏊' };
+// Deportes olímpicos vigentes: verano (París 2024 y Los Ángeles 2028) e invierno (Milano Cortina 2026)
+const OLIMPICOS = { 'Atletismo': '🏃', 'Bádminton': '🏸', 'Balonmano': '🤾', 'Básquetbol': '🏀', 'Básquetbol 3x3': '🏀', 'Béisbol': '⚾', 'Biatlón': '🎿', 'Bobsleigh': '🛷', 'Boxeo': '🥊', 'Breaking': '🕺', 'Canotaje': '🛶', 'Ciclismo': '🚴', 'Clavados': '🤿', 'Combinada nórdica': '🎿', 'Cricket': '🏏', 'Curling': '🥌', 'Equitación': '🏇', 'Escalada deportiva': '🧗', 'Esgrima': '🤺', 'Esquí acrobático': '⛷️', 'Esquí alpino': '⛷️', 'Esquí de fondo': '🎿', 'Esquí de montaña': '🎿', 'Flag football': '🏈', 'Fútbol': '⚽', 'Gimnasia': '🤸', 'Golf': '⛳', 'Halterofilia': '🏋️', 'Hockey césped': '🏑', 'Hockey sobre hielo': '🏒', 'Judo': '🥋', 'Lacrosse': '🥍', 'Lucha': '🤼', 'Luge': '🛷', 'Natación': '🏊', 'Natación artística': '🏊', 'Patinaje artístico': '⛸️', 'Patinaje de velocidad': '⛸️', 'Patinaje de velocidad en pista corta': '⛸️', 'Pentatlón moderno': '🏅', 'Polo acuático': '🤽', 'Remo': '🚣', 'Rugby': '🏉', 'Salto de esquí': '🎿', 'Skateboarding': '🛹', 'Skeleton': '🛷', 'Snowboard': '🏂', 'Sóftbol': '🥎', 'Squash': '🎾', 'Surf': '🏄', 'Taekwondo': '🥋', 'Tenis': '🎾', 'Tenis de mesa': '🏓', 'Tiro': '🎯', 'Tiro con arco': '🏹', 'Triatlón': '🏊', 'Vela': '⛵', 'Vóleibol': '🏐', 'Vóleibol playa': '🏐' };
+const OLIMPICOS_LISTA = Object.keys(OLIMPICOS).sort((a, b) => a.localeCompare(b, 'es'));
+// SPORT_LIST sigue siendo la lista de los datos demo. Un deporte fuera de ella usa el ícono genérico.
+const SPORTS = new Proxy({ 'Fútbol': '⚽', 'Básquetbol': '🏀', 'Vóleibol': '🏐', 'Atletismo': '🏃', 'Rugby': '🏉', 'Remo': '🚣', 'Natación': '🏊' }, { get: (t, k) => t[k] || OLIMPICOS[k] || '🏅' });
 const SPORT_LIST = Object.keys(SPORTS);
 const REGIONES = ['Arica y Parinacota', 'Tarapacá', 'Antofagasta', 'Atacama', 'Coquimbo', 'Valparaíso', 'Metropolitana', "O'Higgins", 'Maule', 'Ñuble', 'Biobío', 'Araucanía', 'Los Ríos', 'Los Lagos', 'Aysén', 'Magallanes'];
 const CATEGORIAS = ['Sub-13', 'Sub-15', 'Sub-18', 'Adulto', 'Senior +35', 'Todo competidor'];
@@ -814,7 +818,8 @@ const club = id => S.clubs.find(c => c.id === id);
 const team = id => S.teams.find(t => t.id === id);
 const tournament = id => S.tournaments.find(t => t.id === id);
 const provider = id => S.providers.find(p => p.id === id);
-const fedName = sp => FED_NAMES[sp];
+const fedName = sp => FED_NAMES[sp] || (sp ? 'Federación de ' + sp : '');
+const fedCfg = sp => S.fedConfig[sp] || { pase: 0, prestamo: 0, annual: 0 };
 const role = () => S.session.role;
 const myGuardian = () => guardian(S.users.apoderado);
 const myKids = () => myGuardian().kids.map(k => ({ ...k, player: player(k.playerId) }));
@@ -986,7 +991,7 @@ function createTransfer(pid, sport, toClub, reason) {
   return t;
 }
 function chargePase(t) {
-  const c = addCharge({ playerId: t.playerId, clubId: t.fromClub, concept: `Pase ${t.sport}: ${club(t.fromClub).short} → ${club(t.toClub).short}`, kind: 'pase', amount: S.fedConfig[t.sport].pase, meta: { transferId: t.id, sport: t.sport } });
+  const c = addCharge({ playerId: t.playerId, clubId: t.fromClub, concept: `Pase ${t.sport}: ${club(t.fromClub).short} → ${club(t.toClub).short}`, kind: 'pase', amount: fedCfg(t.sport).pase, meta: { transferId: t.id, sport: t.sport } });
   t.chargeId = c.id; return c;
 }
 function completeTransfer(id) {
@@ -1774,7 +1779,7 @@ A.tfUpd = () => {
   const p = subj(), sp = val('tf-sport'), m = activeInSport(p.id, sp); if (!m) return;
   const sel = $('#tf-club'), cur = sel.value, ds = S.clubs.filter(c => c.sports.includes(sp) && c.id !== m.clubId);
   sel.innerHTML = opts(ds.map(c => [c.id, c.name]), cur);
-  const d = debtOf(p.id, m.clubId), pase = S.fedConfig[sp].pase;
+  const d = debtOf(p.id, m.clubId), pase = fedCfg(sp).pase;
   $('#tf-info').innerHTML = d > 0 ? note(`Registra deuda de <b>${clp(d)}</b> con ${club(m.clubId).short}. La transferencia requiere la <b>autorización del club de origen</b>; luego se paga el pase de ${clp(pase)}.`, 'warn', 'alert') : note(`Sin deuda con ${club(m.clubId).short}. La transferencia es <b>automática</b> después de pagar el pase de ${clp(pase)}.`, 'ok', 'check');
 };
 A.transfer = () => {
@@ -2117,14 +2122,25 @@ HOME_SUMMARY.directivo = () => {
   return `<button class="card hero" style="border:0;width:100%;text-align:left" onclick="go('/club/${cid()}')"><div class="row">${clubLogo(club(cid()), 48)}<div class="sp"><div class="small muted">${esc(club(cid()).name)}</div><div class="b" style="font-size:18px">${esc(S.users.directivo.cargo)}</div><div class="small muted">${clubMembers(cid()).length} deportistas · ${club(cid()).sports.length} deportes</div><div class="small muted">ID del club: ${club(cid()).code}</div></div></div></button><div class="kpis">${kpi('Ingresos del mes', clp(ing), 'atext')}${kpi('Egresos del mes', clp(eg))}${kpi('Morosidad', clp(sum(od, x => x.amt)), od.length ? 'dtext' : '')}${kpi('Por resolver', pend, pend ? 'wtext' : '')}</div>${a ? `<button class="note ok" style="border:0;width:100%;text-align:left" onclick="go('/d/asamblea/${a.id}')">${icon('hall', 18)}<div><b>Asamblea en curso:</b> ${esc(a.title)}</div></button>` : ''}`;
 };
 // --- Deportes, equipos y categorías ---
-A.addSport = () => sheet('Agregar deporte', `${select('ds-s', 'Deporte', SPORT_LIST.filter(s => !club(cid()).sports.includes(s)))}${btn('Agregar', 'A.doAddSport()', 'ok')}`);
-A.doAddSport = () => { const s = val('ds-s'); if (!s) return; club(cid()).sports.push(s); closeSheet(); commit(s + ' agregado al club'); };
+A.addSport = () => sheet('Agregar deporte', `<div id="ds-l">${select('ds-s', 'Deporte', OLIMPICOS_LISTA.filter(s => !club(cid()).sports.includes(s)))}<div class="mb8">${btn('OTRO', 'A.sportOther()', 's2')}</div></div><div id="ds-o" style="display:none">${inp('ds-n', 'Nombre del deporte', 'maxlength="40" autocomplete="off"')}</div><div class="err mb8" id="ds-err"></div>${btn('Agregar', 'A.doAddSport()', 'ok')}`);
+A.sportOther = () => { $('#ds-l').style.display = 'none'; $('#ds-o').style.display = ''; $('#ds-n').focus(); };
+// El nombre libre se muestra en muchas pantallas: solo admite letras, números y puntuación simple.
+const SPORT_RE = /^[A-Za-z0-9ÁÉÍÓÚÜÑáéíóúüñ ().-]{2,40}$/;
+function pickSport() {
+  const err = m => { $('#ds-err').textContent = m; return null; };
+  if ($('#ds-o').style.display === 'none') return val('ds-s') || err('Elige un deporte.');
+  const n = val('ds-n').replace(/\s+/g, ' '), same = l => l.find(x => x.toLowerCase() === n.toLowerCase());
+  if (!SPORT_RE.test(n)) return err('Escribe entre 2 y 40 caracteres: solo letras, números, espacios y . ( ) -');
+  if (same(club(cid()).sports)) return err('Ese deporte ya está en tu club.');
+  return same(OLIMPICOS_LISTA) || n;
+}
+A.doAddSport = () => { const s = pickSport(); if (!s) return; club(cid()).sports.push(s); closeSheet(); commit(s + ' agregado al club'); };
 A.teamSheet = sp => sheet('Nuevo equipo o categoría', `${inp('dt-n', 'Nombre', `value="${sp} Sub-13" autocomplete="off"`)}${select('dt-c', 'Categoría', CATEGORIAS, 'Sub-13')}${select('dt-x', 'Sexo', ['Masculino', 'Femenino', 'Mixto'], 'Mixto')}${inp('dt-e', 'Entrenador', 'value="Por asignar" autocomplete="off"')}${btn('Crear equipo', `A.addTeam('${sp}')`, 'ok')}`);
 A.addTeam = sp => { const n = val('dt-n'); if (!n) return toast('Escribe un nombre', 'warn'); S.teams.push({ id: uid('t'), clubId: cid(), sport: sp, name: n, category: val('dt-c'), sex: val('dt-x'), coach: val('dt-e') || 'Por asignar' }); closeSheet(); commit('Equipo creado'); };
 A.coachSheet = id => { const t = team(id); sheet('Asignar entrenador', `<p class="center muted small" style="margin:0 0 12px">${esc(t.name)}</p>${inp('dc-n', 'Entrenador', `value="${esc(t.coach)}" autocomplete="off"`)}${btn('Asignar', `A.setCoach('${id}')`, 'ok')}`); };
 A.setCoach = id => { const n = val('dc-n'); if (!n) return; team(id).coach = n; closeSheet(); commit('Entrenador asignado'); };
 route('/d/deportes', {
-  title: 'Deportes del club', roles: ['directivo'], render: () => club(cid()).sports.map(sp => { const ts = S.teams.filter(t => t.clubId === cid() && t.sport === sp); return secLink(`${SPORTS[sp]} ${sp}`, 'Agregar equipo', `A.teamSheet('${sp}')`) + (ts.length ? list(ts.map(t => li({ ic: 'users', title: esc(t.name), sub: `${t.category} · ${t.sex} · ${teamMembers(t.id).length} deportistas<br>Entrenador: ${esc(t.coach)}`, on: `A.coachSheet('${t.id}')` }))) : '<p class="center muted small">Aún sin equipos</p>'); }).join('') + (SPORT_LIST.some(s => !club(cid()).sports.includes(s)) ? '<div class="mt12"></div>' + btn('Agregar deporte', 'A.addSport()', 'ok', 'plus') : '')
+  title: 'Deportes del club', roles: ['directivo'], render: () => club(cid()).sports.map(sp => { const ts = S.teams.filter(t => t.clubId === cid() && t.sport === sp); return secLink(`${SPORTS[sp]} ${sp}`, 'Agregar equipo', `A.teamSheet('${sp}')`) + (ts.length ? list(ts.map(t => li({ ic: 'users', title: esc(t.name), sub: `${t.category} · ${t.sex} · ${teamMembers(t.id).length} deportistas<br>Entrenador: ${esc(t.coach)}`, on: `A.coachSheet('${t.id}')` }))) : '<p class="center muted small">Aún sin equipos</p>'); }).join('') + '<div class="mt12"></div>' + btn('Agregar deporte', 'A.addSport()', 'ok', 'plus')
 });
 // --- Finanzas ---
 function dashboardTab() {
@@ -2245,7 +2261,7 @@ A.addLoan = () => {
 route('/d/prestamos', {
   title: 'Préstamos de deportistas', roles: ['directivo'], render: () => {
     const l = S.loans.filter(x => x.fromClub === cid() || x.toClub === cid()), ms = clubMembers(cid()).filter(m => m.status === 'habil'), sp = (ms[0] || {}).sport;
-    return `<div class="card">${select('ln-m', 'Deportista', ms.map(m => [m.id, `${player(m.playerId).name} · ${m.sport}`]))}${field('Club de origen', `<div class="lockf">${icon('lock', 16)}${esc(club(cid()).short)}</div>`)}${select('ln-to', 'Club de destino', S.clubs.filter(c => c.id !== cid()).map(c => [c.id, c.short]))}${inp('ln-r', 'Motivo', 'autocomplete="off"')}${select('ln-p', 'Condición', [['gratuito', 'Gratuito'], ['pagado', 'Pagado']], 'gratuito', 'onchange="A.loanType()"')}<div id="ln-am" style="display:none">${inp('ln-a', 'Monto', 'type="number" inputmode="numeric"', `Valor federado de referencia: ${clp(S.fedConfig[sp || 'Fútbol'].prestamo)}`)}</div></div>${btn('Crear préstamo', 'A.addLoan()', 'ok', 'swap')}${sec('Préstamos')}${l.length ? list(l.map(x => li({ ic: 'swap', color: 'indigo', title: esc(player(x.playerId).name), sub: `${club(x.fromClub).short} → ${club(x.toClub).short} · ${x.paid ? clp(x.amount) : 'Gratuito'}`, href: '/d/prestamo/' + x.id }))) : empty('swap', 'Sin préstamos', 'Crea el primero con el formulario.')}`;
+    return `<div class="card">${select('ln-m', 'Deportista', ms.map(m => [m.id, `${player(m.playerId).name} · ${m.sport}`]))}${field('Club de origen', `<div class="lockf">${icon('lock', 16)}${esc(club(cid()).short)}</div>`)}${select('ln-to', 'Club de destino', S.clubs.filter(c => c.id !== cid()).map(c => [c.id, c.short]))}${inp('ln-r', 'Motivo', 'autocomplete="off"')}${select('ln-p', 'Condición', [['gratuito', 'Gratuito'], ['pagado', 'Pagado']], 'gratuito', 'onchange="A.loanType()"')}<div id="ln-am" style="display:none">${inp('ln-a', 'Monto', 'type="number" inputmode="numeric"', `Valor federado de referencia: ${clp(fedCfg(sp || 'Fútbol').prestamo)}`)}</div></div>${btn('Crear préstamo', 'A.addLoan()', 'ok', 'swap')}${sec('Préstamos')}${l.length ? list(l.map(x => li({ ic: 'swap', color: 'indigo', title: esc(player(x.playerId).name), sub: `${club(x.fromClub).short} → ${club(x.toClub).short} · ${x.paid ? clp(x.amount) : 'Gratuito'}`, href: '/d/prestamo/' + x.id }))) : empty('swap', 'Sin préstamos', 'Crea el primero con el formulario.')}`;
   }
 });
 route('/d/prestamo/:id', {
@@ -2684,7 +2700,7 @@ real('regKid', async () => {
 });
 real('req', (id, ok) => realDo(() => SB.rpc('resolve_join', { p_id: id, p_ok: ok }), ok ? 'Deportista aceptado: ahora está Hábil' : 'Solicitud rechazada'));
 real('lnk', (id, ok) => realDo(() => SB.rpc('resolve_link', { p_id: id, p_ok: ok }), ok ? 'Vinculación aceptada' : 'Vinculación rechazada'));
-real('doAddSport', () => { const s = val('ds-s'); if (!s) return; closeSheet(); return realDo(() => SB.rpc('add_sport', { p_sport: s }), s + ' agregado al club'); });
+real('doAddSport', () => { const s = pickSport(); if (!s) return; closeSheet(); return realDo(() => SB.rpc('add_sport', { p_sport: s }), s + ' agregado al club'); });
 real('addTeam', sp => { const n = val('dt-n'); if (!n) return toast('Escribe un nombre', 'warn'); const p = { sport: sp, name: n, category: val('dt-c'), sex: val('dt-x'), coach: val('dt-e') }; closeSheet(); return realDo(() => SB.rpc('add_team', { p }), 'Equipo creado'); });
 real('setCoach', id => { const n = val('dc-n'); if (!n) return; closeSheet(); return realDo(() => SB.rpc('set_team_coach', { p_team: id, p_coach: n }), 'Entrenador asignado'); });
 real('readAll', () => realDo(() => SB.rpc('mark_notifs_read', { p_id: null }), 'Notificaciones leídas'));

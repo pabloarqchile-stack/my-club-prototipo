@@ -149,6 +149,11 @@ def correr(t):
     cid2 = t.rpc(None, 'find_club', 'C00000002')['id']
     t.rechaza_rpc('deportista no agrega deportes', dep, 'add_sport', ('Fútbol',), 'Solo el club')
     t.rpc(club, 'add_sport', 'Fútbol')
+    for malo in ("<img src=x>", "D'Artagnan", "');alert(1)//", 'x', 'a' * 41, '   '):
+        t.rechaza_rpc('nombre de deporte peligroso: ' + malo, club, 'add_sport', (malo,), 'nombre del deporte')
+    t.rpc(club, 'add_sport', '  Pádel   2 (Ñuble) ')
+    t.rpc(club, 'add_sport', 'pádel 2 (ñuble)')
+    t.check('deporte libre se normaliza y no se duplica', t.rpc(club, 'my_state')['clubs'][0]['sports'] == ['Fútbol', 'Pádel 2 (Ñuble)'])
     t.rechaza_rpc('equipo de deporte no habilitado', club, 'add_team', (J({'sport': 'Remo', 'name': 'X'}),), 'agrega ese deporte')
     team = t.rpc(club, 'add_team', J({'sport': 'Fútbol', 'name': 'Adulto', 'category': 'Adulto', 'sex': 'Mixto'}))
     t.rechaza_rpc('otro club no toca el equipo', club2, 'set_team_coach', (team, 'Yo'), 'Solo el club')

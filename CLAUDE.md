@@ -49,6 +49,7 @@ Eliminar cuenta (`A.deleteAsk`), páginas públicas `#/legal/privacidad`, `termi
 - Las cuentas demo funcionan siempre con datos locales; cualquier otro email usa la base. En modo real `S` es una copia en memoria, no se guarda en localStorage (`S.session.real`).
 - `supabase/migrations/`: esquema, RLS y funciones. El navegador solo lee por RLS; **toda escritura pasa por funciones SQL**, sin INSERT/UPDATE/DELETE directos. Nombre, RUT y fechas los bloquea un trigger.
 - Sección 15 de `index.html`: cliente `SB` (fetch, sin SDK ni dependencias), `hydrate()` y `real(nombre, fn)`, que reemplaza una acción de `A` solo en modo real sin tocar la versión demo.
+- **Deportes del club:** `OLIMPICOS` más OTRO con texto libre, limitado por `SPORT_RE` y por `add_sport` en SQL, porque el nombre se imprime sin escapar en muchas plantillas. `SPORT_LIST` es solo la lista de los datos demo.
 - **Etapa 1 conectada:** cuentas, recuperación de clave, perfil y foto, ficha y logo del club, deportes y equipos, vínculos, incorporación, pupilos, plantel y avisos, eliminar cuenta.
 - **Lista `REAL_OK`:** solo esas rutas existen en modo real; el resto se oculta hasta conectarse. Al conectar un módulo: migración nueva, funciones, `hydrate()`, `real()` y agregar la ruta a `REAL_OK`.
 - **Falta conectar:** calendario y asistencia, cobros y pagos, muro, mensajes (con su moderación), votaciones, bajas, transferencias, préstamos, torneos, federación y proveedor. Las fotos viven en la base como dataURL pequeños.
@@ -113,6 +114,6 @@ Una federación por deporte, 2 asociaciones regionales (Biobío, Valparaíso), ~
 Con `pip install playwright`, las pruebas del demo levantan solas una copia con `config.js` vacío (`tools/servidor_demo.py`). **Nunca correr `flujos.py` contra el sitio público**: registraría usuarios en la base real.
 - `python tools/recorrido.py`: abre cada pantalla por rol a 390 × 844 @3x, revisa consola y desbordes, y guarda capturas en `/screenshots`.
 - `python tools/flujos.py`: prueba con clics las reglas de negocio, cuentas, logo, moderación y modo sin conexión (105 comprobaciones) y el modo sin conexión.
-- `python tools/probar_base.py`: aplica las migraciones en un Postgres local y prueba permisos por rol (102 comprobaciones).
-- `python tools/flujos_real.py`: navegador → API emulada → Postgres, con cada usuario en un contexto separado (38 comprobaciones). Auth y REST son emulados: no reemplaza probar contra el proyecto real.
+- `python tools/probar_base.py`: aplica las migraciones en un Postgres local y prueba permisos por rol (109 comprobaciones).
+- `python tools/flujos_real.py`: navegador → API emulada → Postgres, con cada usuario en un contexto separado (43 comprobaciones). Auth y REST son emulados: no reemplaza probar contra el proyecto real.
 Al cambiar archivos, subir `CACHE` en `sw.js`.

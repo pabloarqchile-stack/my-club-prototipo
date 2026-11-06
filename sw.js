@@ -1,6 +1,6 @@
 // Service worker de My Club: guarda todo en caché para funcionar sin conexión.
 // Sube la versión al cambiar archivos para que los teléfonos reciban la actualización.
-const CACHE = 'myclub-v5';
+const CACHE = 'myclub-v6';
 const FILES = ['./', './index.html', './config.js', './manifest.webmanifest', './icons/logo.png', './icons/escudo.png', './icons/icon-180.png', './icons/icon-192.png', './icons/icon-512.png'];
 
 self.addEventListener('install', e => {
