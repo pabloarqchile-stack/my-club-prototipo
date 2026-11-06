@@ -492,6 +492,7 @@ function seed() {
   // --- Cuentas de demostración e ID correlativo (letra del perfil + 8 dígitos) ---
   s.clubs.forEach((c, i) => c.code = 'C' + String(i + 1).padStart(8, '0'));
   s.idSeq = { C: 7, D: 1, A: 1, E: 1, F: 1, P: 1 };
+  s.guardianLinks = [];
   Object.assign(s.clubs[0], { constituted: '1987-04-12', regNumber: '1987-4521', email: 'contacto@loshalcones.cl', phone: '+56 2 2555 0101', address: 'Av. Irarrázaval 3450', web: 'www.loshalcones.cl', ig: '@loshalcones', desc: 'Club de barrio con ramas de fútbol, básquetbol y vóleibol.', board: [{ cargo: 'Presidenta', name: 'Patricia Lagos Moreno' }, { cargo: 'Vicepresidente', name: 'Germán Ibarra Soto' }, { cargo: 'Tesorero', name: 'Sergio Molina Paz' }, { cargo: 'Secretaria', name: 'Rosa Fuentes Díaz' }] });
   Object.assign(s.clubs[1], { constituted: '1962-08-20', regNumber: '1962-0187', address: 'Av. Collao 1202', web: 'www.atleticobiobio.cl', desc: 'Atletismo y rugby en Concepción.', board: [{ cargo: 'Presidente', name: 'Andrés Vidal Soto' }, { cargo: 'Tesorera', name: 'Paula Riquelme Lara' }, { cargo: 'Secretario', name: 'Tomás Jara Mena' }] });
   Object.assign(s.clubs[2], { constituted: '1924-03-05', regNumber: '1924-0043', address: 'Muelle Barón s/n', web: 'www.nauticovalparaiso.cl', desc: 'Remo y natación frente a la bahía de Valparaíso.', board: [{ cargo: 'Presidente', name: 'Gonzalo Pérez Vial' }, { cargo: 'Tesorera', name: 'Daniela Fuentes Roa' }, { cargo: 'Secretaria', name: 'Inés Carrasco Mora' }] });
@@ -806,7 +807,7 @@ const STORE_KEY = 'myclub-demo-v1', SESSION_KEY = 'myclub-sesion-v1', REAL_UI_KE
 const CFG = window.MYCLUB_CONFIG || {}, HAS_DB = !!(CFG.url && CFG.key);
 let S;
 function load() {
-  try { const raw = localStorage.getItem(STORE_KEY); if (raw) { const o = JSON.parse(raw); if (o && o.v === 3) return o; } } catch (e) { console.warn('Estado no disponible', e); }
+  try { const raw = localStorage.getItem(STORE_KEY); if (raw) { const o = JSON.parse(raw); if (o && o.v === 3) { o.guardianLinks = o.guardianLinks || []; return o; } } } catch (e) { console.warn('Estado no disponible', e); }
   return seed();
 }
 function save() { if (S.session.real) { try { localStorage.setItem(REAL_UI_KEY, JSON.stringify({ home: S.home })); } catch (e) { } return true; } try { localStorage.setItem(STORE_KEY, JSON.stringify(S)); return true; } catch (e) { console.warn('No se pudo guardar', e); return false; } }
@@ -1296,7 +1297,7 @@ window.addEventListener('hashchange', () => {
 // --- Accesos del inicio por rol: [id, etiqueta, ícono, color, ruta] ---
 const HOME = {
   jugador: [['calendario', 'Calendario', 'calendar', 'blue', '/calendario'], ['asistencia', 'Asistencia', 'check', 'green', '/asistencia'], ['pagos', 'Pagos', 'card', 'orange', '/pagos'], ['muro', 'Muro', 'image', 'pink', '/muro'], ['mensajes', 'Mensajes', 'chat', 'indigo', '/mensajes'], ['encuestas', 'Votaciones', 'poll', 'purple', '/encuestas'], ['cv', 'Currículum', 'cv', 'teal', '/j/cv'], ['certificado', 'Certificados', 'doc', 'blue', '/j/certificado'], ['credencial', 'Credencial', 'id', 'green', '/j/credencial'], ['unirme', 'Unirme a club', 'userplus', 'yellow', '/unirme'], ['cambio', 'Cambio de club', 'swap', 'indigo', '/cambio-club'], ['renuncia', 'Renuncia', 'userminus', 'red', '/renuncia'], ['rutinas', 'Rutinas', 'dumbbell', 'orange', '/rutinas'], ['escanear', 'Escanear QR', 'scan', 'gray', '/escanear'], ['tramites', 'Mis trámites', 'clipboard', 'teal', '/tramites']],
-  apoderado: [['pupilos', 'Pupilos', 'users', 'blue', '/a/pupilos'], ['pagos', 'Pagos', 'card', 'orange', '/pagos'], ['asistencia', 'Asistencia', 'check', 'green', '/asistencia'], ['calendario', 'Calendario', 'calendar', 'indigo', '/calendario'], ['mensajes', 'Mensajes', 'chat', 'purple', '/mensajes'], ['reportes', 'Reportes', 'chart', 'teal', '/a/reportes'], ['registrar', 'Registrar hijo', 'userplus', 'yellow', '/a/registrar-hijo'], ['encuestas', 'Votaciones', 'poll', 'pink', '/encuestas'], ['cambio', 'Cambio de club', 'swap', 'indigo', '/cambio-club'], ['renuncia', 'Renuncia', 'userminus', 'red', '/renuncia'], ['escanear', 'Escanear QR', 'scan', 'gray', '/escanear'], ['tramites', 'Trámites', 'clipboard', 'teal', '/tramites']],
+  apoderado: [['pupilos', 'Pupilos', 'users', 'blue', '/a/pupilos'], ['vincular-hijo', 'Vincular hijo', 'id', 'teal', '/a/vincular-pupilo'], ['pagos', 'Pagos', 'card', 'orange', '/pagos'], ['asistencia', 'Asistencia', 'check', 'green', '/asistencia'], ['calendario', 'Calendario', 'calendar', 'indigo', '/calendario'], ['mensajes', 'Mensajes', 'chat', 'purple', '/mensajes'], ['reportes', 'Reportes', 'chart', 'teal', '/a/reportes'], ['registrar', 'Registrar hijo', 'userplus', 'yellow', '/a/registrar-hijo'], ['encuestas', 'Votaciones', 'poll', 'pink', '/encuestas'], ['cambio', 'Cambio de club', 'swap', 'indigo', '/cambio-club'], ['renuncia', 'Renuncia', 'userminus', 'red', '/renuncia'], ['escanear', 'Escanear QR', 'scan', 'gray', '/escanear'], ['tramites', 'Trámites', 'clipboard', 'teal', '/tramites']],
   entrenador: [['eventos', 'Partidos y entrenos', 'calendar', 'blue', '/e/eventos'], ['plantel', 'Plantel', 'users', 'green', '/e/plantel'], ['torneos', 'Base de torneos', 'trophy', 'yellow', '/torneos'], ['proponer', 'Proponer', 'flag', 'orange', '/e/proponer'], ['encuestas', 'Encuestas', 'poll', 'purple', '/encuestas'], ['masivo', 'Mensaje masivo', 'megaphone', 'pink', '/e/masivo'], ['rutinas', 'Rutinas', 'dumbbell', 'teal', '/rutinas'], ['staff', 'Cuerpo técnico', 'shield', 'indigo', '/e/staff'], ['carga', 'Carga masiva', 'upload', 'gray', '/e/carga'], ['marketplace', 'Marketplace', 'store', 'red', '/marketplace']],
   directivo: [['deportes', 'Deportes del club', 'grid', 'blue', '/d/deportes'], ['finanzas', 'Finanzas', 'bank', 'green', '/d/finanzas'], ['aprobaciones', 'Aprobaciones', 'vote', 'orange', '/d/aprobaciones'], ['asambleas', 'Asambleas', 'hall', 'purple', '/d/asambleas'], ['solicitudes', 'Solicitudes', 'userplus', 'teal', '/d/solicitudes'], ['bajas', 'Bajas y renuncias', 'userminus', 'red', '/d/bajas'], ['reclamos', 'Reclamos', 'flag', 'yellow', '/d/reclamos'], ['prestamos', 'Préstamos', 'swap', 'indigo', '/d/prestamos'], ['jugadores', 'Deportistas', 'users', 'pink', '/d/jugadores'], ['masivo', 'Mensaje masivo', 'megaphone', 'gray', '/d/masivo'], ['marketplace', 'Marketplace', 'store', 'blue', '/marketplace']],
   federacion: [['dashboard', 'Dashboard', 'chart', 'blue', '/f/dashboard'], ['clubes', 'Clubes', 'building', 'green', '/f/clubes'], ['comunicados', 'Comunicados', 'megaphone', 'orange', '/f/comunicados'], ['valores', 'Valores y cobros', 'money', 'purple', '/f/valores'], ['ficha', 'Ficha tipo', 'clipboard', 'teal', '/f/ficha'], ['estadisticas', 'Estadísticas', 'poll', 'indigo', '/f/estadisticas']],
@@ -1362,7 +1363,7 @@ function regForm(t) {
   const c = t === 'club';
   let html = inp('rg-name', c ? 'Nombre del club' : t === 'proveedor' ? 'Nombre o razón social' : 'Nombre', 'autocomplete="off"') + inp('rg-rut', c ? 'RUT del club' : 'RUT', 'placeholder="12.345.678-5" autocomplete="off"') + inp('rg-email', 'Email', 'type="email" inputmode="email" autocomplete="off" autocapitalize="off"') + inp('rg-phone', 'Teléfono', 'type="tel" inputmode="tel" placeholder="+56 9 1234 5678" autocomplete="off"') + inp('rg-pass', 'Crear clave', 'type="password" autocomplete="new-password"', HAS_DB ? 'Mínimo 8 caracteres.' : 'Prototipo: usa una clave de prueba, nunca una real.');
   if (c) html += inp('rg-date', 'Fecha de constitución', 'type="date"') + inp('rg-num', 'Registro deportivo número', 'autocomplete="off"') + `<div class="field"><label>Directorio (mínimo 3 cargos)</label><div id="dir-rows">${['Presidente', 'Vicepresidente', 'Tesorero', 'Secretario', 'Director'].map(x => dirRow(x, true)).join('')}</div>${btn('Agregar cargo', 'A.addCargo()', 'ghost', 'plus')}</div>`;
-  if (t === 'jugador') html += inp('rg-birth', 'Fecha de nacimiento', 'type="date"', 'Los menores de edad solo pueden ser registrados por su apoderado.') + `<div class="row"><div class="sp">${inp('rg-height', 'Estatura en cm (opcional)', 'type="number" inputmode="numeric" min="50" max="250"')}</div><div class="sp">${select('rg-size', 'Talla (opcional)', [['', 'Sin indicar'], 'XS', 'S', 'M', 'L', 'XL', 'XXL'], '')}</div></div>` + linkBox('lk', true);
+  if (t === 'jugador') html += inp('rg-birth', 'Fecha de nacimiento', 'type="date"', 'Si eres menor de edad, luego tu apoderado podrá vincularse usando tu ID.') + `<div class="row"><div class="sp">${inp('rg-height', 'Estatura en cm (opcional)', 'type="number" inputmode="numeric" min="50" max="250"')}</div><div class="sp">${select('rg-size', 'Talla (opcional)', [['', 'Sin indicar'], 'XS', 'S', 'M', 'L', 'XL', 'XXL'], '')}</div></div>` + linkBox('lk', true);
   if (['apoderado', 'entrenador'].includes(t)) html += linkBox('lk', false);
   if (t === 'federacion') html += select('rg-sport', 'Deporte de la federación', SPORT_LIST, SPORT_LIST[0]);
   if (t === 'proveedor') html += select('rg-cat', 'Categoría', allCats(), allCats()[0]);
@@ -1393,7 +1394,6 @@ A.completeReg = () => {
   if (t === 'jugador') {
     const birth = val('rg-birth');
     if (!birth) return err('Indica tu fecha de nacimiento.');
-    if (ageOf(birth) < 18) return err('Los menores de edad solo pueden ser registrados por su apoderado.');
     if (S.players.some(p => cleanRut(p.rut) === cleanRut(rut))) return err('Ya existe un deportista con ese RUT.');
     const id = uid('p'); S.players.push({ id, first: name.split(' ')[0], name, sex: 'M', birth, rut: acc.rut, email, phone, position: '', height: +val('rg-height') || null, size: val('rg-size') });
     acc.refId = id;
@@ -1416,7 +1416,7 @@ route('/registro', {
 });
 
 // --- Cuentas sin club o sin pupilos: pantalla para completar lo que falta ---
-const GATE_OK = ['/perfil', '/perfil/editar', '/notificaciones', '/vincular', '/a/registrar-hijo', '/nueva-clave'];
+const GATE_OK = ['/perfil', '/perfil/editar', '/notificaciones', '/vincular', '/a/registrar-hijo', '/a/vincular-pupilo', '/nueva-clave'];
 A.linkSend = () => { if (!_link) return toast('Primero toca VINCULAR AL CLUB', 'warn'); const r = requestLink(acct(), _link.clubId); if (r.error) return toast(r.error, 'warn'); _link = null; commit('Solicitud enviada al club'); };
 A.simLink = id => { resolveLink(id, true); commit('Club vinculado (simulación)'); };
 function linkPanel() {
@@ -1424,7 +1424,7 @@ function linkPanel() {
   return (mine.length ? sec('Clubes vinculados') + list(mine.map(c => li({ ic: 'building', title: esc(c.name), sub: 'ID ' + c.code, right: badge('Vinculado', 'ok') }))) : '') + (pend.length ? sec('Solicitudes pendientes') + pend.map(r => `<div class="card"><div class="row"><div class="sp"><div class="b">${esc(club(r.clubId).short)}</div><div class="small muted">Enviada el ${fDate(r.date)}</div></div>${badge('Pendiente', 'warn')}</div>${S.session.real ? '' : `<div class="mt12">${btn('Simular aprobación del club', `A.simLink('${r.id}')`, 's2 sm')}</div>`}</div>`).join('') : '') + `<div class="card">${linkBox('lv', false)}<div class="mt8">${btn('Enviar solicitud', 'A.linkSend()', 'ok')}</div></div>`;
 }
 function gateScreen() {
-  if (needsKid()) return empty('users', 'Aún no tienes pupilos', 'Registra a tu hijo o hija para ver sus cuotas, actividades y mensajes.', goBtn('Registrar a un hijo', '/a/registrar-hijo', 'ok', 'userplus')) + linkPanel();
+  if (needsKid()) return empty('users', 'Aún no tienes pupilos', 'Registra a tu hijo o hija para ver sus cuotas, actividades y mensajes.', goBtn('Registrar a un hijo', '/a/registrar-hijo', 'ok', 'userplus') + '<div class="mt8"></div>' + goBtn('Vincular a un hijo con su ID', '/a/vincular-pupilo', 's2', 'id')) + linkPanel();
   if (coach && role() === 'entrenador' && coach().clubId) return empty('users', 'Tu club aún no tiene equipos', 'Cuando el directorio cree un equipo podrás usar esta sección.');
   return note('Vincúlate a un club para usar esta sección. El club debe aprobar tu solicitud.') + linkPanel();
 }
@@ -1452,8 +1452,8 @@ route('/perfil', {
   title: 'Perfil', tab: 'perfil', root: true, render: () => {
     const r = role(), m = me(), acc = acct(); let items = '';
     const clubInfo = linkedClubs().length ? sec('Mi club') + list(linkedClubs().map(c => clubRow(c))) : '', p = acc.type === 'jugador' && player(acc.refId), extra = p ? [p.height && p.height + ' cm', p.size && 'Talla ' + p.size, p.position].filter(Boolean).join(' · ') : '';
-    if (r === 'jugador') items = list([li({ ic: 'cv', color: 'teal', title: 'Mi currículum deportivo', href: '/j/cv' }), li({ ic: 'id', color: 'green', title: 'Credencial federada', href: '/j/credencial' }), li({ ic: 'clipboard', color: 'indigo', title: 'Mis trámites', href: '/tramites' })]);
-    if (r === 'apoderado') items = list([li({ ic: 'users', title: 'Mis pupilos', href: '/a/pupilos' }), li({ ic: 'userplus', color: 'yellow', title: 'Registrar a un hijo', href: '/a/registrar-hijo' }), li({ ic: 'clipboard', color: 'indigo', title: 'Trámites', href: '/tramites' })]);
+    if (r === 'jugador') items = list([li({ ic: 'cv', color: 'teal', title: 'Mi currículum deportivo', href: '/j/cv' }), li({ ic: 'id', color: 'green', title: 'Credencial federada', href: '/j/credencial' }), li({ ic: 'clipboard', color: 'indigo', title: 'Mis trámites', href: '/tramites' }), ...(isMinorAcc() || myGuardianLinks().length ? [li({ ic: 'users', color: 'orange', title: 'Mis apoderados', href: '/apoderados' })] : [])]);
+    if (r === 'apoderado') items = list([li({ ic: 'users', title: 'Mis pupilos', href: '/a/pupilos' }), li({ ic: 'userplus', color: 'yellow', title: 'Registrar a un hijo', href: '/a/registrar-hijo' }), li({ ic: 'id', color: 'teal', title: 'Vincular a un hijo con su ID', href: '/a/vincular-pupilo' }), li({ ic: 'clipboard', color: 'indigo', title: 'Trámites', href: '/tramites' })]);
     if (['apoderado', 'entrenador'].includes(r)) items += list([li({ ic: 'building', color: 'teal', title: 'Vincular al club', href: '/vincular' })]);
     if (r === 'federacion' && !S.session.real) items = sec('Ámbito de la vista') + `<div class="card">${select('f-sp', 'Federación', SPORT_LIST.map(s => [s, FED_NAMES[s]]), S.ui.fedSport, `onchange="A.ui('fedSport',this.value)"`)}${select('f-sc', 'Ver como', [['nacional', 'Federación (nacional)'], ...S.associations.map(a => [a.id, a.name])], S.ui.fedScope, `onchange="A.ui('fedScope',this.value)"`, 'Las asociaciones usan la misma vista, limitada a su región.')}</div>`;
     if (r === 'proveedor' && !S.session.real) items = sec('Empresa activa (demo)') + `<div class="card">${select('p-em', 'Empresa', S.providers.map(p => [p.id, `${p.name} · ${p.cat}`]), S.ui.provId, `onchange="A.ui('provId',this.value)"`)}</div>`;
@@ -1969,7 +1969,7 @@ A.regKid = () => {
   sheet('Solicitud enviada', `<p class="center" style="margin:0 0 16px">${MSG_INCORPORACION}</p>${btn('Entendido', 'closeSheet()')}`);
 };
 route('/a/registrar-hijo', {
-  title: 'Registrar a un hijo', roles: ['apoderado'], render: () => note('Solo el apoderado puede registrar a un menor de edad.') + `<div class="card">${inp('rh-name', 'Nombre completo', 'autocomplete="off"')}${inp('rh-rut', 'RUT del menor', 'placeholder="23.456.789-K" autocomplete="off"')}${inp('rh-birth', 'Fecha de nacimiento', 'type="date"')}${select('rh-sex', 'Sexo', [['F', 'Femenino'], ['M', 'Masculino']], 'F')}${select('rh-rel', 'Parentesco', ['Madre', 'Padre', 'Abuela', 'Abuelo', 'Tutora legal', 'Tutor legal'], 'Madre')}${S.session.real ? linkBox('rh', true) : `${select('rh-club', 'Club', S.clubs.map(c => [c.id, c.short]), 'halcones', 'onchange="A.rhClub()"')}${select('rh-sport', 'Deporte', club('halcones').sports, 'Fútbol')}`}<div class="err" id="rh-err"></div></div>${btn('Registrar y solicitar incorporación', 'A.regKid()', 'ok')}`
+  title: 'Registrar a un hijo', roles: ['apoderado'], render: () => note('Crea aquí a tu hijo o hija si aún no tiene cuenta. Si ya la tiene, vincúlalo con su ID.') + goBtn('Vincular con su ID', '/a/vincular-pupilo', 's2', 'id') + `<div class="card mt12">${inp('rh-name', 'Nombre completo', 'autocomplete="off"')}${inp('rh-rut', 'RUT del menor', 'placeholder="23.456.789-K" autocomplete="off"')}${inp('rh-birth', 'Fecha de nacimiento', 'type="date"')}${select('rh-sex', 'Sexo', [['F', 'Femenino'], ['M', 'Masculino']], 'F')}${select('rh-rel', 'Parentesco', ['Madre', 'Padre', 'Abuela', 'Abuelo', 'Tutora legal', 'Tutor legal'], 'Madre')}${S.session.real ? linkBox('rh', true) : `${select('rh-club', 'Club', S.clubs.map(c => [c.id, c.short]), 'halcones', 'onchange="A.rhClub()"')}${select('rh-sport', 'Deporte', club('halcones').sports, 'Fútbol')}`}<div class="err" id="rh-err"></div></div>${btn('Registrar y solicitar incorporación', 'A.regKid()', 'ok')}`
 });
 route('/a/reportes', {
   title: 'Reportes', roles: ['apoderado'], render: () => {
@@ -2503,6 +2503,33 @@ A.deleteAsk = () => {
 };
 A.deleteDo = () => { const a = acct(); if (a.pass !== hash(val('del-pw'))) { $('#del-err').textContent = 'La clave no es correcta.'; return; } deleteAccount(a); const d = demoAccount('jugador'); S.session.homeId = d.id; applyAccount(d); S.session.loggedIn = false; save(); NAV.length = 0; closeSheet(); replaceTo('/login'); toast('Tu cuenta fue eliminada'); };
 
+// --- Apoderados de deportistas con cuenta propia: el vínculo lo debe aceptar el deportista ---
+const isMinorAcc = () => { const a = acct(); return !!a && a.type === 'jugador' && ageOf(player(a.refId).birth) < 18; };
+const myGuardianLinks = () => { const a = acct(); return S.guardianLinks.filter(l => l.status !== 'rechazada' && (a.type === 'apoderado' ? l.guardianCode === a.id : l.code === a.id)); };
+function acceptGuardian(l) { const g = guardian(S.accounts.find(a => a.id === l.guardianCode).refId); if (!g.kids.some(k => k.playerId === l.playerId)) g.kids.push({ playerId: l.playerId, rel: l.rel }); }
+A.guardianSend = () => {
+  const a = acct(), code = val('gl-id').toUpperCase(), rel = val('gl-rel'), t = S.accounts.find(x => x.id === code && x.type === 'jugador'), p = t && player(t.refId), e = $('#gl-err');
+  if (!p || ageOf(p.birth) >= 18) { e.textContent = 'No encontramos a un deportista menor de edad con ese ID.'; return; }
+  const prev = S.guardianLinks.find(l => l.guardianCode === a.id && l.code === code);
+  if (prev) { e.textContent = prev.status === 'aceptada' ? 'Este deportista ya es tu pupilo.' : prev.status === 'pendiente' ? 'Ya enviaste una solicitud a este deportista.' : 'Este deportista ya rechazó tu solicitud.'; return; }
+  S.guardianLinks.unshift({ id: uid('gl'), guardianCode: a.id, guardianName: a.name, code, playerId: p.id, playerName: p.name, rel, status: 'pendiente', date: today() });
+  commit('Solicitud enviada: el deportista debe aceptarla');
+};
+A.guardianResolve = (id, ok) => { const l = S.guardianLinks.find(x => x.id === id); l.status = ok ? 'aceptada' : 'rechazada'; if (ok) acceptGuardian(l); commit(ok ? 'Apoderado vinculado' : 'Solicitud rechazada'); };
+A.guardianRemove = id => { const l = S.guardianLinks.find(x => x.id === id), g = guardian(S.accounts.find(a => a.id === l.guardianCode).refId); l.status = 'rechazada'; g.kids = g.kids.filter(k => k.playerId !== l.playerId); commit('Vínculo eliminado'); };
+route('/a/vincular-pupilo', {
+  title: 'Vincular a un hijo', roles: ['apoderado'], render: () => {
+    const l = myGuardianLinks().filter(x => x.status === 'pendiente');
+    return note('Pídele a tu hijo o hija su ID de deportista, que empieza con D. Deberá aceptar la solicitud desde su cuenta.') + `<div class="card">${inp('gl-id', 'ID del deportista', 'placeholder="Ej: D00000012" autocomplete="off" autocapitalize="characters"')}${select('gl-rel', 'Parentesco', ['Madre', 'Padre', 'Abuela', 'Abuelo', 'Tutora legal', 'Tutor legal'], 'Madre')}<div class="err" id="gl-err"></div></div>${btn('Enviar solicitud', 'A.guardianSend()', 'ok')}` + (l.length ? sec('Solicitudes pendientes') + l.map(x => `<div class="card"><div class="row"><div class="sp"><div class="b">ID ${esc(x.code)}</div><div class="small muted">Enviada el ${fDate(x.date)}</div></div>${badge('Pendiente', 'warn')}</div>${S.session.real ? '' : `<div class="mt12">${btn('Simular aceptación del deportista', `A.guardianResolve('${x.id}',true)`, 's2 sm')}</div>`}</div>`).join('') : '');
+  }
+});
+route('/apoderados', {
+  title: 'Mis apoderados', roles: ['jugador'], render: () => {
+    const l = myGuardianLinks(), pend = l.filter(x => x.status === 'pendiente'), ok = l.filter(x => x.status === 'aceptada');
+    return `<div class="card center"><div class="small muted">Tu ID de deportista</div><div class="big">${acct().id}</div><div class="hint">Compártelo solo con tu madre, padre o apoderado.</div></div>` + (pend.length ? sec('Solicitudes') + pend.map(x => `<div class="card"><div class="b">${esc(x.guardianName)}</div><div class="small muted">Pide ser tu apoderado (${esc(x.rel)}). Acepta solo si lo conoces.</div><div class="btns">${btn('Rechazar', `A.guardianResolve('${x.id}',false)`, 'dsoft sm')}${btn('Aceptar', `A.guardianResolve('${x.id}',true)`, 'ok sm')}</div></div>`).join('') : '') + sec('Apoderados vinculados') + (ok.length ? list(ok.map(x => li({ ic: 'users', title: esc(x.guardianName), sub: esc(x.rel), right: btn('Quitar', `A.guardianRemove('${x.id}')`, 'ghost sm'), chev: false }))) : empty('users', 'Sin apoderados', 'Cuando tu apoderado use tu ID, su solicitud aparecerá aquí.'));
+  }
+});
+
 // --- Moderación de contenido (App Store 1.2 y Google Play): filtrar, reportar y bloquear ---
 const OFENSIVAS = /(^|[^a-záéíóúñ])(we[oó]n(es)?|culiao|conchetumare|ctm|maric[oó]n|put[ao]s?|mierda|imb[eé]cil)([^a-záéíóúñ]|$)/i;
 const limpio = t => { if (!OFENSIVAS.test(t)) return true; toast('Tu mensaje contiene lenguaje ofensivo', 'bad'); return false; };
@@ -2520,8 +2547,8 @@ A.resolveReport = (id, hide) => { const r = S.reports.find(x => x.id === id); r.
 const LEGAL = {
   'eliminar-cuenta': ['Eliminar cuenta de My Club', [['Desde la app', 'Entra a Perfil, toca Eliminar mi cuenta y confirma con tu clave. La eliminación es inmediata.'], ['Sin la app instalada', 'Escribe al contacto de soporte de My Club desde el email de tu cuenta e indica que deseas eliminarla. Correo de soporte: pendiente de completar antes del lanzamiento.'], ['Qué se elimina', 'Tu cuenta, tu foto y tus datos personales de contacto.'], ['Qué se conserva', 'Los registros contables o federativos que la ley obligue a mantener quedan sin tus datos de identificación.']]],
   contacto: ['Ayuda y contacto', [['Soporte', 'Correo de soporte: pendiente de completar antes del lanzamiento.'], ['Reportar contenido', 'En el muro y en los chats, toca la bandera para reportar contenido o bloquear a una persona. El club lo revisa en su bandeja de reclamos.']]],
-  privacidad: ['Política de privacidad', [['Responsable', 'My Club administra esta aplicación. Datos de contacto del responsable: pendientes de completar antes del lanzamiento.'], ['Datos que tratamos', 'Nombre, RUT, email, teléfono y fecha de nacimiento; estatura, talla y foto si decides agregarlas; datos deportivos, pagos y documentos asociados a tu club.'], ['Menores de edad', 'Los datos de menores solo los registra su apoderado, quien actúa en su representación.'], ['Para qué los usamos', 'Administrar tu cuenta, tu vínculo con clubes y federaciones, cobros, certificados y comunicaciones del club.'], ['Con quién se comparten', 'Con los clubes y federaciones a los que te vinculas, y con proveedores tecnológicos que prestan el servicio. No vendemos datos personales.'], ['Tus derechos', 'Puedes acceder, rectificar y eliminar tus datos. La cuenta se elimina desde Perfil → Eliminar mi cuenta.'], ['Conservación', 'Guardamos los datos mientras la cuenta exista y por los plazos que exija la ley para registros contables o federativos.']]],
-  terminos: ['Términos de uso', [['Uso de la app', 'My Club es una herramienta para administrar clubes deportivos, asociaciones y federaciones. Debes entregar información verdadera.'], ['Cuentas', 'Eres responsable de tu clave. Los menores de edad se registran mediante su apoderado.'], ['Pagos', 'Los pagos a clubes, federaciones y proveedores corresponden a servicios fuera de la app y se rigen por las condiciones de cada entidad.'], ['Contenido', 'Lo que publiques debe respetar a otras personas. Podemos retirar contenido ilegal u ofensivo.'], ['Modificaciones', 'Avisaremos los cambios relevantes de estos términos dentro de la app.']]]
+  privacidad: ['Política de privacidad', [['Responsable', 'My Club administra esta aplicación. Datos de contacto del responsable: pendientes de completar antes del lanzamiento.'], ['Datos que tratamos', 'Nombre, RUT, email, teléfono y fecha de nacimiento; estatura, talla y foto si decides agregarlas; datos deportivos, pagos y documentos asociados a tu club.'], ['Menores de edad', 'Un menor puede crear su cuenta o ser registrado por su apoderado. El apoderado se vincula con el ID del deportista y este debe aceptar. Texto pendiente de revisión legal por el consentimiento de los menores de 14 años.'], ['Para qué los usamos', 'Administrar tu cuenta, tu vínculo con clubes y federaciones, cobros, certificados y comunicaciones del club.'], ['Con quién se comparten', 'Con los clubes y federaciones a los que te vinculas, y con proveedores tecnológicos que prestan el servicio. No vendemos datos personales.'], ['Tus derechos', 'Puedes acceder, rectificar y eliminar tus datos. La cuenta se elimina desde Perfil → Eliminar mi cuenta.'], ['Conservación', 'Guardamos los datos mientras la cuenta exista y por los plazos que exija la ley para registros contables o federativos.']]],
+  terminos: ['Términos de uso', [['Uso de la app', 'My Club es una herramienta para administrar clubes deportivos, asociaciones y federaciones. Debes entregar información verdadera.'], ['Cuentas', 'Eres responsable de tu clave. Un menor de edad puede crear su cuenta o ser registrado por su apoderado.'], ['Pagos', 'Los pagos a clubes, federaciones y proveedores corresponden a servicios fuera de la app y se rigen por las condiciones de cada entidad.'], ['Contenido', 'Lo que publiques debe respetar a otras personas. Podemos retirar contenido ilegal u ofensivo.'], ['Modificaciones', 'Avisaremos los cambios relevantes de estos términos dentro de la app.']]]
 };
 route('/legal/:doc', {
   public: true, noTabs: true, title: p => (LEGAL[p.doc] || ['Documento'])[0], render: p => {
@@ -2572,7 +2599,7 @@ const AUTH_MSG = {
 const appUrl = () => location.href.split('#')[0];
 
 // Pantallas conectadas a la base. El resto no se muestra hasta tener su propia etapa.
-const REAL_OK = ['/login', '/registro', '/recuperar', '/nueva-clave', '/inicio', '/perfil', '/perfil/editar', '/notificaciones', '/vincular', '/unirme', '/club/:id', '/legal/:doc', '/a/pupilos', '/a/registrar-hijo', '/e/plantel', '/d/deportes', '/d/solicitudes', '/d/jugadores'];
+const REAL_OK = ['/login', '/registro', '/recuperar', '/nueva-clave', '/inicio', '/perfil', '/perfil/editar', '/notificaciones', '/vincular', '/unirme', '/club/:id', '/legal/:doc', '/a/pupilos', '/a/registrar-hijo', '/a/vincular-pupilo', '/apoderados', '/e/plantel', '/d/deportes', '/d/solicitudes', '/d/jugadores'];
 const realOk = path => { const m = match(path); return !!m && REAL_OK.includes(m.r.path); };
 function realPrune(root) {
   $$('[onclick^="go(\'"]', root).forEach(el => { const p = el.getAttribute('onclick').match(/^go\('([^']+)'/); if (p && !realOk(p[1])) el.remove(); });
@@ -2596,9 +2623,10 @@ function hydrate(d, ui) {
   const pubId = id => (s.accounts.find(a => a.uid === id) || {}).id;
   s.linkRequests = d.links.map(l => ({ id: l.id, accountId: pubId(l.account_id), clubId: l.club_id, date: day(l.created_at), status: l.status, resolvedAt: day(l.resolved_at) }));
   const a = s.accounts.find(x => x.uid === uid_), accepted = s.linkRequests.filter(l => l.accountId === a.id && l.status === 'aceptada').map(l => l.clubId);
+  s.guardianLinks = (d.guardian_links || []).map(l => ({ ...l, date: day(l.date) }));
   s.notifs = d.notifications.map(n => ({ id: n.id, to: r, text: n.text, date: day(n.created_at), read: n.read, href: n.href, clubId: null }));
   if (type === 'jugador') a.refId = (s.players.find(p => p.accountId === uid_) || {}).id;
-  if (type === 'apoderado') { a.refId = 'g_' + a.id; s.guardians = [{ id: a.refId, name: a.name, rut: a.rut, email: a.email, clubs: accepted, kids: s.players.filter(p => p.guardianId === uid_).map(p => ({ playerId: p.id, rel: p.rel || 'Apoderado' })) }]; }
+  if (type === 'apoderado') { a.refId = 'g_' + a.id; s.guardians = [{ id: a.refId, name: a.name, rut: a.rut, email: a.email, clubs: accepted, kids: [...s.players.filter(p => p.guardianId === uid_).map(p => ({ playerId: p.id, rel: p.rel || 'Apoderado' })), ...s.guardianLinks.filter(l => l.status === 'aceptada' && l.playerId).map(l => ({ playerId: l.playerId, rel: l.rel }))] }]; }
   if (type === 'club') { const c = s.clubs.find(x => x.ownerId === uid_); a.clubId = c.id; a.profile = { name: (c.board[0] || {}).name || a.name, cargo: 'Cuenta del club' }; }
   if (type === 'entrenador') { a.clubId = accepted[0] || null; a.profile = { name: a.name, by: a.name, clubId: null, sport: null, teams: [] }; }
   if (type === 'federacion') a.profile = { name: a.name, cargo: 'Representante' };
@@ -2667,7 +2695,6 @@ real('completeReg', async () => {
   if (t === 'jugador') {
     reg.birth = val('rg-birth'); reg.height = val('rg-height'); reg.size = val('rg-size');
     if (!reg.birth) return err('Indica tu fecha de nacimiento.');
-    if (ageOf(reg.birth) < 18) return err('Los menores de edad solo pueden ser registrados por su apoderado.');
   }
   if (t === 'federacion') reg.sport = val('rg-sport');
   if (t === 'proveedor') reg.cat = val('rg-cat');
@@ -2698,6 +2725,9 @@ real('regKid', async () => {
     if (joined) sheet('Solicitud enviada', `<p class="center" style="margin:0 0 16px">${MSG_INCORPORACION}</p>${btn('Entendido', 'closeSheet()')}`); else toast('Pupilo registrado');
   } catch (e) { err(e.message); }
 });
+real('guardianSend', async () => { const e = $('#gl-err'); e.textContent = ''; try { await SB.rpc('request_guardian', { p_code: val('gl-id'), p_rel: val('gl-rel') }); await refreshReal(); toast('Solicitud enviada: el deportista debe aceptarla'); } catch (x) { e.textContent = x.message; } });
+real('guardianResolve', (id, ok) => realDo(() => SB.rpc('resolve_guardian', { p_id: id, p_ok: ok }), ok ? 'Apoderado vinculado' : 'Solicitud rechazada'));
+real('guardianRemove', id => realDo(() => SB.rpc('remove_guardian', { p_id: id }), 'Vínculo eliminado'));
 real('req', (id, ok) => realDo(() => SB.rpc('resolve_join', { p_id: id, p_ok: ok }), ok ? 'Deportista aceptado: ahora está Hábil' : 'Solicitud rechazada'));
 real('lnk', (id, ok) => realDo(() => SB.rpc('resolve_link', { p_id: id, p_ok: ok }), ok ? 'Vinculación aceptada' : 'Vinculación rechazada'));
 real('doAddSport', () => { const s = pickSport(); if (!s) return; closeSheet(); return realDo(() => SB.rpc('add_sport', { p_sport: s }), s + ' agregado al club'); });
@@ -2748,7 +2778,7 @@ function realHome() {
   const a = acct(), r = role(), cl = (a.clubId && club(a.clubId)) || club(linkedClubs()[0] && linkedClubs()[0].id);
   const hero = `<div class="card hero"><div class="row">${r === 'directivo' ? clubLogo(club(a.clubId), 48) : avatar(a.name, 48, myPhoto(a))}<div class="sp"><div class="b" style="font-size:18px">${esc(a.name)}</div><div class="small muted">${typeLabel(a.type)} · ID ${a.id}</div></div></div></div>`;
   if (r === 'directivo') return hero + `<div class="kpis">${kpi('Deportistas', clubMembers(a.clubId).length)}${kpi('Por resolver', HOME_BADGE.solicitudes())}</div>` + (club(a.clubId).sports.length ? '' : note('Agrega tus deportes y equipos para que los deportistas puedan vincularse.'));
-  if (r === 'jugador') { const ms = activeMems(a.refId); return hero + (ms.length ? list(ms.map(m => li({ av: clubLogo(club(m.clubId), 42), title: esc(club(m.clubId).short), sub: m.sport, right: stBadge(m.status), href: '/club/' + m.clubId }))) : '') + goBtn('Unirme a un club', '/unirme', 'ok', 'building') + '<div class="mt8"></div>'; }
+  if (r === 'jugador') { const ms = activeMems(a.refId); return hero + (ms.length ? list(ms.map(m => li({ av: clubLogo(club(m.clubId), 42), title: esc(club(m.clubId).short), sub: m.sport, right: stBadge(m.status), href: '/club/' + m.clubId }))) : '') + (myGuardianLinks().some(l => l.status === 'pendiente') ? goBtn('Revisar solicitud de apoderado', '/apoderados', 'naranjo', 'users') + '<div class="mt8"></div>' : isMinorAcc() && !myGuardianLinks().length ? note(`Eres menor de edad: dale tu ID <b>${a.id}</b> a tu apoderado para que se vincule.`) : '') + goBtn('Unirme a un club', '/unirme', 'ok', 'building') + '<div class="mt8"></div>'; }
   if (r === 'apoderado' || r === 'entrenador') return hero + (cl ? list([clubRow(cl)]) : '');
   return hero + note('Tu cuenta está activa. Te avisaremos cuando las herramientas de tu perfil estén disponibles.');
 }

@@ -118,8 +118,6 @@ def correr(t):
     t.rechaza_rpc('RUT de club repetido', club2, 'register_account', (bad(),), 'este tipo con ese RUT')
     r = t.rpc(club2, 'register_account', bad(name='Club Dos', rut=RUTS['club2']))
     t.check('segundo club C00000002', r['publicId'] == 'C00000002')
-    t.rechaza_rpc('menor no se registra solo', dep, 'register_account',
-                  (J({**base, 'type': 'jugador', 'rut': RUTS['dep'], 'name': 'Dep', 'birth': '2015-01-01'}),), 'apoderado')
     r = t.rpc(dep, 'register_account', J({**base, 'type': 'jugador', 'rut': RUTS['dep'], 'name': 'Deportista Uno', 'birth': '1990-05-05', 'height': 180, 'size': 'M'}))
     t.check('ID de deportista', r['publicId'] == 'D00000001')
     t.check('ID de apoderado', t.rpc(apo, 'register_account', J({**base, 'type': 'apoderado', 'rut': RUTS['apo'], 'name': 'Apo Uno'}))['publicId'] == 'A00000001')
@@ -226,7 +224,62 @@ def correr(t):
     t.check('otro deportista del club no ve al menor', not any(x['id'] == k for x in t.rpc(dep, 'my_state')['players']))
     t.rechaza_rpc('otro no postula al menor', dep, 'request_join', (k, cid2, 'Fútbol', ''), 'tuya o de tus pupilos')
 
-    # --- Avisos ---
+    # --- Menores con cuenta propia y apoderados por ID ---
+    menor, papa, mama, extrano = [t.usuario(f'{n}@prueba.cl') for n in ('menor', 'papa', 'mama', 'extrano')]
+    r = t.rpc(menor, 'register_account', J({**base, 'type': 'jugador', 'rut': rut(21000001), 'name': 'Menor Solo', 'birth': '2014-02-02'}))
+    code = r['publicId']
+    t.check('menor crea su cuenta', code.startswith('D'))
+    for u, n, x in ((papa, 'Papá Uno', 21000002), (mama, 'Mamá Uno', 21000003), (extrano, 'Extraño', 21000004)):
+        t.rpc(u, 'register_account', J({**base, 'type': 'apoderado', 'rut': rut(x), 'name': n}))
+    t.rechaza_rpc('solo apoderado pide vínculo', dep, 'request_guardian', (code, 'Padre'), 'Solo un apoderado')
+    t.rechaza_rpc('no vincula a un adulto', papa, 'request_guardian', ('D00000001', 'Padre'), 'menor de edad')
+    t.rechaza_rpc('ID inexistente', papa, 'request_guardian', ('D99999999', 'Padre'), 'menor de edad')
+    t.rechaza_rpc('anónimo no pide vínculo', None, 'request_guardian', (code, 'Padre'))
+    g = t.rpc(papa, 'request_guardian', code, 'Padre')
+    s = t.rpc(papa, 'my_state')
+    t.check('sin aceptar no ve al menor', not s['players'] and s['guardian_links'][0]['playerName'] is None and s['guardian_links'][0]['playerId'] is None)
+    t.rechaza_rpc('sin aceptar no puede inscribirlo', papa, 'request_join', (t.rpc(menor, 'my_state')['players'][0]['id'], cid, 'Fútbol', ''), 'tuya o de tus pupilos')
+    t.rechaza_rpc('solicitud repetida', papa, 'request_guardian', (code, 'Padre'), 'Ya enviaste')
+    s = t.rpc(menor, 'my_state')
+    pm = s['players'][0]['id']
+    t.check('menor ve quién pide el vínculo', s['guardian_links'][0]['guardianName'] == 'Papá Uno')
+    t.check('menor recibe aviso', any('apoderado' in n['text'] for n in s['notifications']))
+    t.check('menor no ve datos privados del apoderado', len(s['accounts']) == 1)
+    t.rechaza_rpc('apoderado no se acepta solo', papa, 'resolve_guardian', (g, True), 'Solo el deportista')
+    t.rechaza_rpc('un tercero no acepta', extrano, 'resolve_guardian', (g, True), 'Solo el deportista')
+    t.rechaza_rpc('otro deportista no acepta', dep, 'resolve_guardian', (g, True), 'Solo el deportista')
+    t.rpc(menor, 'resolve_guardian', g, True)
+    s = t.rpc(papa, 'my_state')
+    t.check('aceptado ve a su pupilo', s['players'][0]['id'] == pm and s['guardian_links'][0]['playerName'] == 'Menor Solo')
+    t.rechaza_rpc('no se resuelve dos veces', menor, 'resolve_guardian', (g, False), 'ya fue resuelta')
+    t.rechaza_rpc('ya es pupilo', papa, 'request_guardian', (code, 'Padre'), 'ya es tu pupilo')
+    m2 = t.rpc(papa, 'request_join', pm, cid, 'Fútbol', '')
+    g2 = t.rpc(mama, 'request_guardian', code, 'Madre')
+    t.rpc(menor, 'resolve_guardian', g2, True)
+    t.check('dos apoderados a la vez', t.rpc(mama, 'my_state')['players'][0]['id'] == pm)
+    t.rpc(club, 'resolve_join', m2, True)
+    t.check('ambos apoderados reciben el aviso del club', all(any('aceptó la incorporación' in n['text'] for n in t.rpc(u, 'my_state')['notifications']) for u in (papa, mama)))
+    t.check('apoderado vinculado ve el club', len(t.rpc(papa, 'my_state')['clubs']) == 1)
+    t.rpc(menor, 'remove_guardian', g2)
+    t.check('quitado deja de ver al menor', not t.rpc(mama, 'my_state')['players'])
+    t.rechaza_rpc('quitado no puede insistir', mama, 'request_guardian', (code, 'Madre'), 'ya rechazó')
+    g3 = t.rpc(extrano, 'request_guardian', code, 'Padre')
+    t.rpc(menor, 'resolve_guardian', g3, False)
+    t.check('rechazado no ve al menor', not t.rpc(extrano, 'my_state')['players'])
+    t.rechaza_rpc('rechazado no puede insistir', extrano, 'request_guardian', (code, 'Padre'), 'ya rechazó')
+    t.rechaza_rpc('un tercero no quita vínculos', extrano, 'remove_guardian', (g,), 'No puedes modificar')
+    for i in range(6):
+        u = t.usuario(f'hijo{i}@prueba.cl')
+        c = t.rpc(u, 'register_account', J({**base, 'type': 'jugador', 'rut': rut(21000100 + i), 'name': 'Hijo Masivo', 'birth': '2012-01-01'}))['publicId']
+        if i < 5:
+            t.rpc(extrano, 'request_guardian', c, 'Padre')
+        else:
+            t.rechaza_rpc('límite de solicitudes masivas', extrano, 'request_guardian', (c, 'Padre'), 'demasiadas')
+    t.rechaza('vínculos cerrados por API', menor, 'select * from public.guardian_links', texto='permission denied')
+    t.rechaza('función interna de vínculos', None, 'select public.my_guardian_links()', texto='permission denied')
+    t.rpc(papa, 'delete_my_account')
+    t.check('borrar apoderado no borra al menor con cuenta', len(t.rpc(menor, 'my_state')['players']) == 1)
+
     n = t.rpc(dep, 'my_state')['notifications'][0]['id']
     t.rpc(ajeno, 'mark_notifs_read', n)
     t.check('no marca avisos ajenos', not t.rpc(dep, 'my_state')['notifications'][0]['read'])

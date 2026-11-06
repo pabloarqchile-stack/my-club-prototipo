@@ -50,6 +50,7 @@ Eliminar cuenta (`A.deleteAsk`), páginas públicas `#/legal/privacidad`, `termi
 - `supabase/migrations/`: esquema, RLS y funciones. El navegador solo lee por RLS; **toda escritura pasa por funciones SQL**, sin INSERT/UPDATE/DELETE directos. Nombre, RUT y fechas los bloquea un trigger.
 - Sección 15 de `index.html`: cliente `SB` (fetch, sin SDK ni dependencias), `hydrate()` y `real(nombre, fn)`, que reemplaza una acción de `A` solo en modo real sin tocar la versión demo.
 - **Deportes del club:** `OLIMPICOS` más OTRO con texto libre, limitado por `SPORT_RE` y por `add_sport` en SQL, porque el nombre se imprime sin escapar en muchas plantillas. `SPORT_LIST` es solo la lista de los datos demo.
+- **Revisión legal pendiente:** el art. 16 quáter de la Ley 21.719 exige consentimiento de padres o representantes para menores de 14 años.
 - **Etapa 1 conectada:** cuentas, recuperación de clave, perfil y foto, ficha y logo del club, deportes y equipos, vínculos, incorporación, pupilos, plantel y avisos, eliminar cuenta.
 - **Lista `REAL_OK`:** solo esas rutas existen en modo real; el resto se oculta hasta conectarse. Al conectar un módulo: migración nueva, funciones, `hydrate()`, `real()` y agregar la ruta a `REAL_OK`.
 - **Falta conectar:** calendario y asistencia, cobros y pagos, muro, mensajes (con su moderación), votaciones, bajas, transferencias, préstamos, torneos, federación y proveedor. Las fotos viven en la base como dataURL pequeños.
@@ -90,7 +91,7 @@ Se cambia de rol desde **Perfil → Cambiar de rol** sin cerrar sesión.
 
 ## Reglas de negocio
 1. Incorporación (el texto se mantiene exacto y dice "jugador", aunque en el resto de la app es "deportista"): mensaje exacto "El club ha recibido su solicitud de incorporación. Cuando el club la acepte, aparecerá como jugador hábil." Estado "Pendiente" hasta que el directorio acepte.
-2. El deportista adulto se registra y se vincula con el ID del club y su deporte. Menor solo lo registra su apoderado.
+2. El deportista, adulto o menor, crea su cuenta y se vincula con el ID del club y su deporte. El apoderado puede registrar a un menor sin cuenta, o vincularse a uno con cuenta usando su ID (D...). Como los ID son correlativos, el vínculo requiere que el deportista lo acepte (`guardian_links`); sin aceptar, el apoderado no ve nada del menor. Pueden ser varios apoderados.
 3. Transferencia: sin deuda → automática tras pagar el pase. Con deuda → requiere autorización del club de origen.
 4. Renuncia / baja: la parte afectada recibe los motivos; plazo de **10 días hábiles** (lun–vie, sin feriados de Chile) para reclamar o subsanar, con cuenta regresiva y fecha límite.
 5. Durante el plazo: jugador "Suspendido" en ese deporte (insignia roja), no convocable.
@@ -114,6 +115,6 @@ Una federación por deporte, 2 asociaciones regionales (Biobío, Valparaíso), ~
 Con `pip install playwright`, las pruebas del demo levantan solas una copia con `config.js` vacío (`tools/servidor_demo.py`). **Nunca correr `flujos.py` contra el sitio público**: registraría usuarios en la base real.
 - `python tools/recorrido.py`: abre cada pantalla por rol a 390 × 844 @3x, revisa consola y desbordes, y guarda capturas en `/screenshots`.
 - `python tools/flujos.py`: prueba con clics las reglas de negocio, cuentas, logo, moderación y modo sin conexión (105 comprobaciones) y el modo sin conexión.
-- `python tools/probar_base.py`: aplica las migraciones en un Postgres local y prueba permisos por rol (109 comprobaciones).
-- `python tools/flujos_real.py`: navegador → API emulada → Postgres, con cada usuario en un contexto separado (43 comprobaciones). Auth y REST son emulados: no reemplaza probar contra el proyecto real.
+- `python tools/probar_base.py`: aplica las migraciones en un Postgres local y prueba permisos por rol (137 comprobaciones).
+- `python tools/flujos_real.py`: navegador → API emulada → Postgres, con cada usuario en un contexto separado (50 comprobaciones). Auth y REST son emulados: no reemplaza probar contra el proyecto real.
 Al cambiar archivos, subir `CACHE` en `sw.js`.

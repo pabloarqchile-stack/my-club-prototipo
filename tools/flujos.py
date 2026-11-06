@@ -93,7 +93,7 @@ with sync_playwright() as p:
     cid_new=nuevoid(); ok(cid_new=='C00000008','club recibe C00000008 correlativo: '+cid_new)
     nav('/club/'+ev("S.clubs.at(-1).id")); g.wait_for_timeout(150); t=g.inner_text('#view'); ok(cid_new in t and 'Carla Delegada' in t and 'RD-4471' in t,'ficha del club muestra ID y directorio')
     # Deportista: menor, ID erróneo, vinculación y mensaje exacto
-    abrir('jugador'); base('Paula Atleta',rut(19888777),'paula@prueba.cl'); g.fill('#rg-birth','2015-01-01'); completar(); ok('menores de edad' in g.inner_text('#rg-err'),'menor bloqueado')
+    abrir('jugador'); base('Paula Atleta',rut(19888777),'paula@prueba.cl')
     g.fill('#rg-birth','1995-01-01'); g.fill('#rg-height','172'); g.fill('#lk-id','C99999999'); g.get_by_role('button',name='VINCULAR AL CLUB').click(); g.wait_for_timeout(100); ok('No encontramos' in g.inner_text('#lk-res'),'ID de club inexistente')
     completar(); ok('VINCULAR AL CLUB' in g.inner_text('#rg-err'),'exige confirmar el ID')
     g.fill('#lk-id','c00000001'); g.get_by_role('button',name='VINCULAR AL CLUB').click(); g.wait_for_timeout(100); ok('Los Halcones' in g.inner_text('#lk-res'),'VINCULAR encuentra el club'); g.select_option('#lk-sport','Vóleibol'); completar()
@@ -150,6 +150,14 @@ with sync_playwright() as p:
     login('demo@myclub.cl','demo'); ev("A.deleteAsk()"); g.wait_for_timeout(150); ok(ev("!!acct()"),'cuenta demo no se elimina'); ev("A.logout()"); g.wait_for_timeout(200); nav('/legal/privacidad'); g.wait_for_timeout(150); ok('Menores de edad' in g.inner_text('#view'),'privacidad visible sin sesión')
     nav('/login'); g.wait_for_timeout(200); bg=ev("[getComputedStyle([...document.querySelectorAll('.login .btn')][0]).backgroundColor,getComputedStyle([...document.querySelectorAll('.login .btn')][1]).backgroundColor]"); ok(bg==['rgb(244, 122, 31)','rgb(28, 209, 191)'],'INGRESAR naranjo y REGISTRARSE calipso '+str(bg))
     nav('/legal/eliminar-cuenta'); g.wait_for_timeout(150); ok('Sin la app instalada' in g.inner_text('#view'),'página web de eliminación de cuenta')
+    # Menor con cuenta propia y apoderado que se vincula con el ID
+    abrir('jugador'); base('Mina Menor',rut(22333444),'mina@prueba.cl'); g.fill('#rg-birth','2014-01-01'); completar(); mid=nuevoid(); ok(mid.startswith('D'),'menor crea su cuenta: '+mid)
+    nav('/apoderados'); g.wait_for_timeout(150); ok(mid in g.inner_text('#view'),'menor ve su ID para compartirlo')
+    abrir('apoderado'); base('Andrea Madre',rut(16555444),'andrea@prueba.cl'); completar(); nuevoid()
+    nav('/a/vincular-pupilo'); g.wait_for_timeout(150); g.fill('#gl-id','D99999999'); g.get_by_role('button',name='Enviar solicitud').click(); g.wait_for_timeout(120); ok('No encontramos' in g.inner_text('#gl-err'),'ID inexistente rechazado')
+    g.fill('#gl-id',mid.lower()); g.get_by_role('button',name='Enviar solicitud').click(); g.wait_for_timeout(150); ok('Simular aceptación' in g.inner_text('#view'),'solicitud queda pendiente')
+    ok(ev("myKids().length")==0,'sin aceptar no queda como pupilo'); tap('Simular aceptación'); g.wait_for_timeout(150); ok(ev("myKids().length")==1,'aceptado queda como pupilo')
+    nav('/a/pupilos'); g.wait_for_timeout(150); ok('Mina Menor' in g.inner_text('#view'),'pupilo con cuenta aparece')
     # Restablecer demo
     ev("A.doReset()"); g.wait_for_timeout(300); ok(ev("S.session.loggedIn")==False and g.locator('.login').count()==1,'restablecer demo')
     # Offline con SW
