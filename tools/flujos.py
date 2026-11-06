@@ -153,6 +153,7 @@ with sync_playwright() as p:
     # Menor con cuenta propia y apoderado que se vincula con el ID
     abrir('jugador'); base('Mina Menor',rut(22333444),'mina@prueba.cl'); g.fill('#rg-birth','2014-01-01'); completar(); mid=nuevoid(); ok(mid.startswith('D'),'menor crea su cuenta: '+mid)
     nav('/apoderados'); g.wait_for_timeout(150); ok(mid in g.inner_text('#view'),'menor ve su ID para compartirlo')
+    nav('/unirme'); g.wait_for_timeout(150); ok('menores de 14' in g.inner_text('#view') and g.locator('#jn-id').count()==0,'menor de 14 sin apoderado no se une a un club')
     abrir('apoderado'); base('Andrea Madre',rut(16555444),'andrea@prueba.cl'); completar(); nuevoid()
     nav('/a/vincular-pupilo'); g.wait_for_timeout(150); g.fill('#gl-id','D99999999'); g.get_by_role('button',name='Enviar solicitud').click(); g.wait_for_timeout(120); ok('No encontramos' in g.inner_text('#gl-err'),'ID inexistente rechazado')
     g.fill('#gl-id',mid.lower()); g.get_by_role('button',name='Enviar solicitud').click(); g.wait_for_timeout(150); ok('Simular aceptación' in g.inner_text('#view'),'solicitud queda pendiente')

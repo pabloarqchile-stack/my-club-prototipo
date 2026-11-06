@@ -857,6 +857,8 @@ const unread = () => myNotifs().filter(n => !n.read).length;
 const nextSeq = () => ++S.seq;
 
 // --- Cuentas, ID correlativo y vinculación a clubes ---
+const MSG_MENOR_14 = 'Los menores de 14 años necesitan un apoderado vinculado antes de unirse a un club.';
+const MSG_MENOR_14_REG = 'Crea tu cuenta sin ID de club: como tienes menos de 14 años, primero debe vincularse tu apoderado.';
 const REG_TYPES = [
   ['club', 'Club', 'C', 'building', 'blue', 'Crea tu club y su directorio'], ['jugador', 'Deportista', 'D', 'user', 'green', 'Practica un deporte en un club'],
   ['apoderado', 'Apoderado', 'A', 'users', 'orange', 'Administra a tus pupilos menores de edad'], ['entrenador', 'Entrenador', 'E', 'clipboard', 'purple', 'Dirige equipos de un club'],
@@ -966,6 +968,7 @@ function issueCredential(pid, sp, cid) {
 // --- Incorporación (reglas 1, 2 y 8) ---
 const MSG_INCORPORACION = 'El club ha recibido su solicitud de incorporación. Cuando el club la acepte, aparecerá como jugador hábil.';
 function requestJoin(pid, clubId, sport, teamId, note) {
+  if (needsGuardian()) return { error: MSG_MENOR_14 };
   const dup = activeInSport(pid, sport);
   if (dup) return { error: `${player(pid).first} ya pertenece a ${club(dup.clubId).short} en ${sport}. Un deportista solo puede estar en un club por deporte: usa Cambio de club.` };
   const mid = uid('m');
@@ -1395,6 +1398,7 @@ A.completeReg = () => {
     const birth = val('rg-birth');
     if (!birth) return err('Indica tu fecha de nacimiento.');
     if (S.players.some(p => cleanRut(p.rut) === cleanRut(rut))) return err('Ya existe un deportista con ese RUT.');
+    if (_link && ageOf(birth) < 14) return err(MSG_MENOR_14_REG);
     const id = uid('p'); S.players.push({ id, first: name.split(' ')[0], name, sex: 'M', birth, rut: acc.rut, email, phone, position: '', height: +val('rg-height') || null, size: val('rg-size') });
     acc.refId = id;
     if (_link) { const sp = val('lk-sport'), tm = S.teams.find(x => x.clubId === _link.clubId && x.sport === sp); requestJoin(id, _link.clubId, sp, tm && tm.id, ''); after = MSG_INCORPORACION; }
@@ -1770,6 +1774,7 @@ A.join = () => {
 route('/unirme', {
   title: 'Unirme a un club', roles: ['jugador', 'apoderado'], render: () => {
     const p = subj(); _link = null;
+    if (needsGuardian()) return note(MSG_MENOR_14, 'warn', 'alert') + goBtn('Ver mis apoderados', '/apoderados', 'ok', 'users');
     return kidBar() + (role() === 'apoderado' ? note(`Solicitud en nombre de <b>${esc(p.first)}</b>.`) : '') + `<div class="card">${linkBox('jn', true)}${area('jn-note', 'Mensaje al club (opcional)')}<div class="err" id="jn-err"></div></div>${btn('Enviar solicitud', 'A.join()', 'ok')}`;
   }
 });
@@ -2504,6 +2509,8 @@ A.deleteAsk = () => {
 A.deleteDo = () => { const a = acct(); if (a.pass !== hash(val('del-pw'))) { $('#del-err').textContent = 'La clave no es correcta.'; return; } deleteAccount(a); const d = demoAccount('jugador'); S.session.homeId = d.id; applyAccount(d); S.session.loggedIn = false; save(); NAV.length = 0; closeSheet(); replaceTo('/login'); toast('Tu cuenta fue eliminada'); };
 
 // --- Apoderados de deportistas con cuenta propia: el vínculo lo debe aceptar el deportista ---
+// Ley 21.719, art. 16 quáter: bajo 14 años se requiere consentimiento de padres o representantes.
+const needsGuardian = () => { const a = acct(); return !!a && a.type === 'jugador' && ageOf(player(a.refId).birth) < 14 && !myGuardianLinks().some(l => l.status === 'aceptada'); };
 const isMinorAcc = () => { const a = acct(); return !!a && a.type === 'jugador' && ageOf(player(a.refId).birth) < 18; };
 const myGuardianLinks = () => { const a = acct(); return S.guardianLinks.filter(l => l.status !== 'rechazada' && (a.type === 'apoderado' ? l.guardianCode === a.id : l.code === a.id)); };
 function acceptGuardian(l) { const g = guardian(S.accounts.find(a => a.id === l.guardianCode).refId); if (!g.kids.some(k => k.playerId === l.playerId)) g.kids.push({ playerId: l.playerId, rel: l.rel }); }
@@ -2547,7 +2554,7 @@ A.resolveReport = (id, hide) => { const r = S.reports.find(x => x.id === id); r.
 const LEGAL = {
   'eliminar-cuenta': ['Eliminar cuenta de My Club', [['Desde la app', 'Entra a Perfil, toca Eliminar mi cuenta y confirma con tu clave. La eliminación es inmediata.'], ['Sin la app instalada', 'Escribe al contacto de soporte de My Club desde el email de tu cuenta e indica que deseas eliminarla. Correo de soporte: pendiente de completar antes del lanzamiento.'], ['Qué se elimina', 'Tu cuenta, tu foto y tus datos personales de contacto.'], ['Qué se conserva', 'Los registros contables o federativos que la ley obligue a mantener quedan sin tus datos de identificación.']]],
   contacto: ['Ayuda y contacto', [['Soporte', 'Correo de soporte: pendiente de completar antes del lanzamiento.'], ['Reportar contenido', 'En el muro y en los chats, toca la bandera para reportar contenido o bloquear a una persona. El club lo revisa en su bandeja de reclamos.']]],
-  privacidad: ['Política de privacidad', [['Responsable', 'My Club administra esta aplicación. Datos de contacto del responsable: pendientes de completar antes del lanzamiento.'], ['Datos que tratamos', 'Nombre, RUT, email, teléfono y fecha de nacimiento; estatura, talla y foto si decides agregarlas; datos deportivos, pagos y documentos asociados a tu club.'], ['Menores de edad', 'Un menor puede crear su cuenta o ser registrado por su apoderado. El apoderado se vincula con el ID del deportista y este debe aceptar. Texto pendiente de revisión legal por el consentimiento de los menores de 14 años.'], ['Para qué los usamos', 'Administrar tu cuenta, tu vínculo con clubes y federaciones, cobros, certificados y comunicaciones del club.'], ['Con quién se comparten', 'Con los clubes y federaciones a los que te vinculas, y con proveedores tecnológicos que prestan el servicio. No vendemos datos personales.'], ['Tus derechos', 'Puedes acceder, rectificar y eliminar tus datos. La cuenta se elimina desde Perfil → Eliminar mi cuenta.'], ['Conservación', 'Guardamos los datos mientras la cuenta exista y por los plazos que exija la ley para registros contables o federativos.']]],
+  privacidad: ['Política de privacidad', [['Responsable', 'My Club administra esta aplicación. Datos de contacto del responsable: pendientes de completar antes del lanzamiento.'], ['Datos que tratamos', 'Nombre, RUT, email, teléfono y fecha de nacimiento; estatura, talla y foto si decides agregarlas; datos deportivos, pagos y documentos asociados a tu club.'], ['Menores de edad', 'Un menor puede crear su cuenta o ser registrado por su apoderado. El apoderado se vincula con el ID del deportista y este debe aceptar. Los menores de 14 años solo pueden unirse a un club con un apoderado vinculado. Texto pendiente de revisión legal.'], ['Para qué los usamos', 'Administrar tu cuenta, tu vínculo con clubes y federaciones, cobros, certificados y comunicaciones del club.'], ['Con quién se comparten', 'Con los clubes y federaciones a los que te vinculas, y con proveedores tecnológicos que prestan el servicio. No vendemos datos personales.'], ['Tus derechos', 'Puedes acceder, rectificar y eliminar tus datos. La cuenta se elimina desde Perfil → Eliminar mi cuenta.'], ['Conservación', 'Guardamos los datos mientras la cuenta exista y por los plazos que exija la ley para registros contables o federativos.']]],
   terminos: ['Términos de uso', [['Uso de la app', 'My Club es una herramienta para administrar clubes deportivos, asociaciones y federaciones. Debes entregar información verdadera.'], ['Cuentas', 'Eres responsable de tu clave. Un menor de edad puede crear su cuenta o ser registrado por su apoderado.'], ['Pagos', 'Los pagos a clubes, federaciones y proveedores corresponden a servicios fuera de la app y se rigen por las condiciones de cada entidad.'], ['Contenido', 'Lo que publiques debe respetar a otras personas. Podemos retirar contenido ilegal u ofensivo.'], ['Modificaciones', 'Avisaremos los cambios relevantes de estos términos dentro de la app.']]]
 };
 route('/legal/:doc', {
@@ -2695,6 +2702,7 @@ real('completeReg', async () => {
   if (t === 'jugador') {
     reg.birth = val('rg-birth'); reg.height = val('rg-height'); reg.size = val('rg-size');
     if (!reg.birth) return err('Indica tu fecha de nacimiento.');
+    if (_link && ageOf(reg.birth) < 14) return err(MSG_MENOR_14_REG);
   }
   if (t === 'federacion') reg.sport = val('rg-sport');
   if (t === 'proveedor') reg.cat = val('rg-cat');
@@ -2778,7 +2786,7 @@ function realHome() {
   const a = acct(), r = role(), cl = (a.clubId && club(a.clubId)) || club(linkedClubs()[0] && linkedClubs()[0].id);
   const hero = `<div class="card hero"><div class="row">${r === 'directivo' ? clubLogo(club(a.clubId), 48) : avatar(a.name, 48, myPhoto(a))}<div class="sp"><div class="b" style="font-size:18px">${esc(a.name)}</div><div class="small muted">${typeLabel(a.type)} · ID ${a.id}</div></div></div></div>`;
   if (r === 'directivo') return hero + `<div class="kpis">${kpi('Deportistas', clubMembers(a.clubId).length)}${kpi('Por resolver', HOME_BADGE.solicitudes())}</div>` + (club(a.clubId).sports.length ? '' : note('Agrega tus deportes y equipos para que los deportistas puedan vincularse.'));
-  if (r === 'jugador') { const ms = activeMems(a.refId); return hero + (ms.length ? list(ms.map(m => li({ av: clubLogo(club(m.clubId), 42), title: esc(club(m.clubId).short), sub: m.sport, right: stBadge(m.status), href: '/club/' + m.clubId }))) : '') + (myGuardianLinks().some(l => l.status === 'pendiente') ? goBtn('Revisar solicitud de apoderado', '/apoderados', 'naranjo', 'users') + '<div class="mt8"></div>' : isMinorAcc() && !myGuardianLinks().length ? note(`Eres menor de edad: dale tu ID <b>${a.id}</b> a tu apoderado para que se vincule.`) : '') + goBtn('Unirme a un club', '/unirme', 'ok', 'building') + '<div class="mt8"></div>'; }
+  if (r === 'jugador') { const ms = activeMems(a.refId); return hero + (ms.length ? list(ms.map(m => li({ av: clubLogo(club(m.clubId), 42), title: esc(club(m.clubId).short), sub: m.sport, right: stBadge(m.status), href: '/club/' + m.clubId }))) : '') + (myGuardianLinks().some(l => l.status === 'pendiente') ? goBtn('Revisar solicitud de apoderado', '/apoderados', 'naranjo', 'users') + '<div class="mt8"></div>' : isMinorAcc() && !myGuardianLinks().length ? note(`Eres menor de edad: dale tu ID <b>${a.id}</b> a tu apoderado para que se vincule.${needsGuardian() ? ' Lo necesitas para unirte a un club.' : ''}`) : '') + (needsGuardian() ? '' : goBtn('Unirme a un club', '/unirme', 'ok', 'building') + '<div class="mt8"></div>'); }
   if (r === 'apoderado' || r === 'entrenador') return hero + (cl ? list([clubRow(cl)]) : '');
   return hero + note('Tu cuenta está activa. Te avisaremos cuando las herramientas de tu perfil estén disponibles.');
 }

@@ -231,6 +231,14 @@ def correr(t):
     t.check('menor crea su cuenta', code.startswith('D'))
     for u, n, x in ((papa, 'Papá Uno', 21000002), (mama, 'Mamá Uno', 21000003), (extrano, 'Extraño', 21000004)):
         t.rpc(u, 'register_account', J({**base, 'type': 'apoderado', 'rut': rut(x), 'name': n}))
+    t.rechaza_rpc('menor de 14 sin apoderado no se une', menor, 'request_join', (t.rpc(menor, 'my_state')['players'][0]['id'], cid, 'Fútbol', ''), 'menores de 14')
+    t.check('sus datos no llegan al club', not any(x['name'] == 'Menor Solo' for x in t.rpc(club, 'my_state')['players']))
+    ado = t.usuario('ado@prueba.cl')
+    t.rpc(ado, 'register_account', J({**base, 'type': 'jugador', 'rut': rut(21000005), 'name': 'Adolescente', 'birth': '2011-01-01'}))
+    t.check('desde 14 años se une solo', bool(t.rpc(ado, 'request_join', t.rpc(ado, 'my_state')['players'][0]['id'], cid, 'Fútbol', '')))
+    n14 = t.usuario('n14@prueba.cl')
+    t.rechaza_rpc('menor de 14 no entra con vínculo en el registro', n14, 'register_account', (J({**base, 'type': 'jugador', 'rut': rut(21000006), 'name': 'Chico', 'birth': '2015-01-01', 'link': {'clubId': cid, 'sport': 'Fútbol'}}),), 'menores de 14')
+    t.check('registro rechazado no deja cuenta', t.rpc(n14, 'my_state')['account'] is None)
     t.rechaza_rpc('solo apoderado pide vínculo', dep, 'request_guardian', (code, 'Padre'), 'Solo un apoderado')
     t.rechaza_rpc('no vincula a un adulto', papa, 'request_guardian', ('D00000001', 'Padre'), 'menor de edad')
     t.rechaza_rpc('ID inexistente', papa, 'request_guardian', ('D99999999', 'Padre'), 'menor de edad')
@@ -258,6 +266,8 @@ def correr(t):
     t.rpc(menor, 'resolve_guardian', g2, True)
     t.check('dos apoderados a la vez', t.rpc(mama, 'my_state')['players'][0]['id'] == pm)
     t.rpc(club, 'resolve_join', m2, True)
+    m3 = t.rpc(menor, 'my_state')['memberships'][0]['id']
+    t.check('con apoderado aceptado sí se une', bool(m3))
     t.check('ambos apoderados reciben el aviso del club', all(any('aceptó la incorporación' in n['text'] for n in t.rpc(u, 'my_state')['notifications']) for u in (papa, mama)))
     t.check('apoderado vinculado ve el club', len(t.rpc(papa, 'my_state')['clubs']) == 1)
     t.rpc(menor, 'remove_guardian', g2)
