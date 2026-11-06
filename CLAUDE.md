@@ -44,7 +44,8 @@ Las acciones de la UI viven en el objeto global `A` (`onclick="A.algo('id')"`).
 ## Requisitos de tiendas ya en la app
 Eliminar cuenta (`A.deleteAsk`), páginas públicas `#/legal/privacidad`, `terminos`, `eliminar-cuenta` y `contacto` (borradores, con correo de soporte pendiente), filtro de lenguaje, reportar y bloquear en muro y chat, y bandeja de reportes en Reclamos. `capacitor.config.json` y `package.json` preparan iOS y Android, pero aún no se han compilado.
 
-## Modo real (Supabase, región São Paulo)
+## Modo real (Supabase)
+- **Región:** se eligió São Paulo, pero el proyecto `lggjonkbcyayizdbeuim` quedó en `us-west-2` (Oregón). La región no se puede cambiar: requiere crear otro proyecto y migrar.
 - `config.js` trae la URL del proyecto (`lggjonkbcyayizdbeuim`) y la clave publicable, ambas públicas por diseño. Vacío, la app es solo demo. Nunca poner ahí una clave secreta.
 - Las cuentas demo funcionan siempre con datos locales; cualquier otro email usa la base. En modo real `S` es una copia en memoria, no se guarda en localStorage (`S.session.real`).
 - `supabase/migrations/`: esquema, RLS y funciones. El navegador solo lee por RLS; **toda escritura pasa por funciones SQL**, sin INSERT/UPDATE/DELETE directos. Nombre, RUT y fechas los bloquea un trigger.
