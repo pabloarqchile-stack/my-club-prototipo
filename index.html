@@ -280,6 +280,7 @@ svg.fill path{fill:currentColor}
   <div class="toasts" id="toasts" aria-live="polite"></div>
   <div id="layer"></div>
 </div>
+<script src="config.js"></script>
 <script>
 'use strict';
 /* ======================================================================
@@ -797,13 +798,14 @@ function seedMarket(s, D, T) {
 /* ======================================================================
    3. ESTADO
    ====================================================================== */
-const STORE_KEY = 'myclub-demo-v1';
+const STORE_KEY = 'myclub-demo-v1', SESSION_KEY = 'myclub-sesion-v1', REAL_UI_KEY = 'myclub-real-ui-v1';
+const CFG = window.MYCLUB_CONFIG || {}, HAS_DB = !!(CFG.url && CFG.key);
 let S;
 function load() {
   try { const raw = localStorage.getItem(STORE_KEY); if (raw) { const o = JSON.parse(raw); if (o && o.v === 3) return o; } } catch (e) { console.warn('Estado no disponible', e); }
   return seed();
 }
-function save() { try { localStorage.setItem(STORE_KEY, JSON.stringify(S)); return true; } catch (e) { console.warn('No se pudo guardar', e); return false; } }
+function save() { if (S.session.real) { try { localStorage.setItem(REAL_UI_KEY, JSON.stringify({ home: S.home })); } catch (e) { } return true; } try { localStorage.setItem(STORE_KEY, JSON.stringify(S)); return true; } catch (e) { console.warn('No se pudo guardar', e); return false; } }
 function commit(msg, kind) { save(); rerender(); if (msg) toast(msg, kind); }
 
 const player = id => S.players.find(p => p.id === id);
@@ -1256,6 +1258,7 @@ function render(nav) {
   if (!r.public && !S.session.loggedIn) return replaceTo('/login');
   if (r.path === '/login' && S.session.loggedIn) return replaceTo('/inicio');
   if (r.roles && !r.roles.includes(role())) return replaceTo('/inicio');
+  if (S.session.real && !REAL_OK.includes(r.path)) return replaceTo('/inicio');
   const view = $('#view'), top = view.scrollTop;
   let html;
   const gate = S.session.loggedIn && !r.public && gated() && !GATE_OK.includes(r.path);
@@ -1267,9 +1270,10 @@ function render(nav) {
     const title = typeof r.title === 'function' ? r.title(p) : r.title, c = unread();
     const rb = r.action && !gate ? r.action(p) : '';
     hdr.innerHTML = `${r.root ? `<span class="hb">${LOGO(34)}</span>` : `<button class="hb" onclick="A.back()" aria-label="Volver">${icon('back', 26)}</button>`}<div class="ttl">${esc(title)}</div>${rb}${S.session.loggedIn ? `<button class="hb" onclick="go('/notificaciones')" aria-label="Notificaciones">${icon('bell', 23)}${c ? `<span class="count">${c > 9 ? '9+' : c}</span>` : ''}</button>` : '<span class="hb ph"></span>'}`;
-    tb.innerHTML = (TABS[role()] || []).map(([k, l, ic, href]) => { const n = tabBadge(k); return `<button class="tab ${r.tab === k ? 'on' : ''}" onclick="go('${href}')" ${r.tab === k ? 'aria-current="page"' : ''}>${icon(ic, 24)}<span>${l}</span>${n ? `<span class="dot">${n}</span>` : ''}</button>`; }).join('');
+    tb.innerHTML = (TABS[role()] || []).filter(t => !S.session.real || realOk(t[3])).map(([k, l, ic, href]) => { const n = tabBadge(k); return `<button class="tab ${r.tab === k ? 'on' : ''}" onclick="go('${href}')" ${r.tab === k ? 'aria-current="page"' : ''}>${icon(ic, 24)}<span>${l}</span>${n ? `<span class="dot">${n}</span>` : ''}</button>`; }).join('');
   }
   view.innerHTML = html;
+  if (S.session.real) realPrune(view);
   if (nav) { view.scrollTop = 0; view.classList.remove('enter'); void view.offsetWidth; view.classList.add('enter'); } else view.scrollTop = top;
   if (r.after && !gate) r.after(p);
 }
@@ -1296,7 +1300,7 @@ const HOME = {
 const clubProps = () => S.proposals.filter(p => team(p.teamId).clubId === S.users.directivo.clubId);
 const HOME_BADGE = { aprobaciones: () => clubProps().filter(p => p.status === 'pendiente').length, solicitudes: () => { const c = S.users.directivo.clubId; return S.requests.filter(r => r.status === 'pendiente' && r.clubId === c).length + S.linkRequests.filter(r => r.status === 'pendiente' && r.clubId === c).length + S.transfers.filter(t => t.status === 'pendiente_autorizacion' && t.fromClub === c).length; }, reclamos: () => S.claims.filter(c => c.status === 'abierto' && c.clubId === S.users.directivo.clubId).length + S.reports.filter(r => r.status === 'abierto' && r.clubId === S.users.directivo.clubId).length };
 function homeLayout(r) {
-  const defs = HOME[r], saved = S.home[r] || [];
+  const defs = HOME[r].filter(d => !S.session.real || realOk(d[4])), saved = S.home[r] || [];
   const out = saved.filter(x => defs.some(d => d[0] === x.id));
   defs.forEach(d => { if (!out.some(x => x.id === d[0])) out.push({ id: d[0], pinned: false, hidden: false }); });
   S.home[r] = out; return out;
@@ -1318,7 +1322,7 @@ function homeScreen() {
   const r = role();
   if (S.ui.editHome) return sec('Editar inicio') + homeEditor(r);
   const l = homeLayout(r).filter(x => !x.hidden), pins = l.filter(x => x.pinned), rest = l.filter(x => !x.pinned);
-  return HOME_SUMMARY[r]() + (pins.length ? sec('Fijados') + `<div class="card"><div class="grid">${pins.map(tile).join('')}</div></div>` : '') +
+  return (S.session.real ? realHome() : HOME_SUMMARY[r]()) + (pins.length ? sec('Fijados') + `<div class="card"><div class="grid">${pins.map(tile).join('')}</div></div>` : '') +
     secLink('Accesos', 'Editar inicio', 'A.homeEdit(true)') + (rest.length ? `<div class="card"><div class="grid">${rest.map(tile).join('')}</div></div>` : pins.length ? '' : empty('grid', 'Sin accesos visibles', 'Ocultaste todos los accesos.', btn('Editar inicio', 'A.homeEdit(true)')));
 }
 const HOME_SUMMARY = {};
@@ -1332,8 +1336,8 @@ A.login = () => {
 };
 route('/login', {
   public: true, bare: true, render: () => `<div class="login"><img class="brand" src="icons/logo.png" alt="My Club">
-    <div class="card">${inp('lg-em', 'Email', 'type="email" inputmode="email" value="demo@myclub.cl" autocomplete="off" autocapitalize="off"')}${inp('lg-pw', 'Clave', `type="password" value="demo" autocomplete="off" onkeydown="if(event.key==='Enter')A.login()"`)}<div class="err" id="lg-err"></div></div>
-    ${btn('INGRESAR', 'A.login()', 'naranjo')}<div class="mt8">${goBtn('REGISTRARSE', '/registro', 'calipso')}</div></div>`
+    <div class="card">${inp('lg-em', 'Email', `type="email" inputmode="email" ${HAS_DB ? '' : 'value="demo@myclub.cl"'} autocomplete="off" autocapitalize="off"`)}${inp('lg-pw', 'Clave', `type="password" ${HAS_DB ? '' : 'value="demo"'} autocomplete="off" onkeydown="if(event.key==='Enter')A.login()"`)}<div class="err" id="lg-err"></div></div>
+    ${btn('INGRESAR', 'A.login()', 'naranjo')}<div class="mt8">${goBtn('REGISTRARSE', '/registro', 'calipso')}</div>${HAS_DB ? `<div class="center mt12"><a class="small" href="#/recuperar">Olvidé mi clave</a></div>` : ''}</div>`
 });
 
 // --- Vinculación por ID de club ---
@@ -1351,7 +1355,7 @@ const dirRow = (cargo, fixed, name = '') => `<div class="row gap8 mb8 dir-row"><
 A.addCargo = () => { $('#dir-rows').insertAdjacentHTML('beforeend', dirRow('', false)); };
 function regForm(t) {
   const c = t === 'club';
-  let html = inp('rg-name', c ? 'Nombre del club' : t === 'proveedor' ? 'Nombre o razón social' : 'Nombre', 'autocomplete="off"') + inp('rg-rut', c ? 'RUT del club' : 'RUT', 'placeholder="12.345.678-5" autocomplete="off"') + inp('rg-email', 'Email', 'type="email" inputmode="email" autocomplete="off" autocapitalize="off"') + inp('rg-phone', 'Teléfono', 'type="tel" inputmode="tel" placeholder="+56 9 1234 5678" autocomplete="off"') + inp('rg-pass', 'Crear clave', 'type="password" autocomplete="new-password"', 'Prototipo: usa una clave de prueba, nunca una real.');
+  let html = inp('rg-name', c ? 'Nombre del club' : t === 'proveedor' ? 'Nombre o razón social' : 'Nombre', 'autocomplete="off"') + inp('rg-rut', c ? 'RUT del club' : 'RUT', 'placeholder="12.345.678-5" autocomplete="off"') + inp('rg-email', 'Email', 'type="email" inputmode="email" autocomplete="off" autocapitalize="off"') + inp('rg-phone', 'Teléfono', 'type="tel" inputmode="tel" placeholder="+56 9 1234 5678" autocomplete="off"') + inp('rg-pass', 'Crear clave', 'type="password" autocomplete="new-password"', HAS_DB ? 'Mínimo 8 caracteres.' : 'Prototipo: usa una clave de prueba, nunca una real.');
   if (c) html += inp('rg-date', 'Fecha de constitución', 'type="date"') + inp('rg-num', 'Registro deportivo número', 'autocomplete="off"') + `<div class="field"><label>Directorio (mínimo 3 cargos)</label><div id="dir-rows">${['Presidente', 'Vicepresidente', 'Tesorero', 'Secretario', 'Director'].map(x => dirRow(x, true)).join('')}</div>${btn('Agregar cargo', 'A.addCargo()', 'ghost', 'plus')}</div>`;
   if (t === 'jugador') html += inp('rg-birth', 'Fecha de nacimiento', 'type="date"', 'Los menores de edad solo pueden ser registrados por su apoderado.') + `<div class="row"><div class="sp">${inp('rg-height', 'Estatura en cm (opcional)', 'type="number" inputmode="numeric" min="50" max="250"')}</div><div class="sp">${select('rg-size', 'Talla (opcional)', [['', 'Sin indicar'], 'XS', 'S', 'M', 'L', 'XL', 'XXL'], '')}</div></div>` + linkBox('lk', true);
   if (['apoderado', 'entrenador'].includes(t)) html += linkBox('lk', false);
@@ -1407,12 +1411,12 @@ route('/registro', {
 });
 
 // --- Cuentas sin club o sin pupilos: pantalla para completar lo que falta ---
-const GATE_OK = ['/perfil', '/notificaciones', '/vincular', '/a/registrar-hijo'];
+const GATE_OK = ['/perfil', '/perfil/editar', '/notificaciones', '/vincular', '/a/registrar-hijo', '/nueva-clave'];
 A.linkSend = () => { if (!_link) return toast('Primero toca VINCULAR AL CLUB', 'warn'); const r = requestLink(acct(), _link.clubId); if (r.error) return toast(r.error, 'warn'); _link = null; commit('Solicitud enviada al club'); };
 A.simLink = id => { resolveLink(id, true); commit('Club vinculado (simulación)'); };
 function linkPanel() {
   const a = acct(), pend = myLinks(a).filter(r => r.status === 'pendiente'), cl = a.clubId && club(a.clubId), mine = role() === 'apoderado' ? (myGuardian().clubs || []).map(club) : cl ? [cl] : [];
-  return (mine.length ? sec('Clubes vinculados') + list(mine.map(c => li({ ic: 'building', title: esc(c.name), sub: 'ID ' + c.code, right: badge('Vinculado', 'ok') }))) : '') + (pend.length ? sec('Solicitudes pendientes') + pend.map(r => `<div class="card"><div class="row"><div class="sp"><div class="b">${esc(club(r.clubId).short)}</div><div class="small muted">Enviada el ${fDate(r.date)}</div></div>${badge('Pendiente', 'warn')}</div><div class="mt12">${btn('Simular aprobación del club', `A.simLink('${r.id}')`, 's2 sm')}</div></div>`).join('') : '') + `<div class="card">${linkBox('lv', false)}<div class="mt8">${btn('Enviar solicitud', 'A.linkSend()', 'ok')}</div></div>`;
+  return (mine.length ? sec('Clubes vinculados') + list(mine.map(c => li({ ic: 'building', title: esc(c.name), sub: 'ID ' + c.code, right: badge('Vinculado', 'ok') }))) : '') + (pend.length ? sec('Solicitudes pendientes') + pend.map(r => `<div class="card"><div class="row"><div class="sp"><div class="b">${esc(club(r.clubId).short)}</div><div class="small muted">Enviada el ${fDate(r.date)}</div></div>${badge('Pendiente', 'warn')}</div>${S.session.real ? '' : `<div class="mt12">${btn('Simular aprobación del club', `A.simLink('${r.id}')`, 's2 sm')}</div>`}</div>`).join('') : '') + `<div class="card">${linkBox('lv', false)}<div class="mt8">${btn('Enviar solicitud', 'A.linkSend()', 'ok')}</div></div>`;
 }
 function gateScreen() {
   if (needsKid()) return empty('users', 'Aún no tienes pupilos', 'Registra a tu hijo o hija para ver sus cuotas, actividades y mensajes.', goBtn('Registrar a un hijo', '/a/registrar-hijo', 'ok', 'userplus')) + linkPanel();
@@ -1446,14 +1450,14 @@ route('/perfil', {
     if (r === 'jugador') items = list([li({ ic: 'cv', color: 'teal', title: 'Mi currículum deportivo', href: '/j/cv' }), li({ ic: 'id', color: 'green', title: 'Credencial federada', href: '/j/credencial' }), li({ ic: 'clipboard', color: 'indigo', title: 'Mis trámites', href: '/tramites' })]);
     if (r === 'apoderado') items = list([li({ ic: 'users', title: 'Mis pupilos', href: '/a/pupilos' }), li({ ic: 'userplus', color: 'yellow', title: 'Registrar a un hijo', href: '/a/registrar-hijo' }), li({ ic: 'clipboard', color: 'indigo', title: 'Trámites', href: '/tramites' })]);
     if (['apoderado', 'entrenador'].includes(r)) items += list([li({ ic: 'building', color: 'teal', title: 'Vincular al club', href: '/vincular' })]);
-    if (r === 'federacion') items = sec('Ámbito de la vista') + `<div class="card">${select('f-sp', 'Federación', SPORT_LIST.map(s => [s, FED_NAMES[s]]), S.ui.fedSport, `onchange="A.ui('fedSport',this.value)"`)}${select('f-sc', 'Ver como', [['nacional', 'Federación (nacional)'], ...S.associations.map(a => [a.id, a.name])], S.ui.fedScope, `onchange="A.ui('fedScope',this.value)"`, 'Las asociaciones usan la misma vista, limitada a su región.')}</div>`;
-    if (r === 'proveedor') items = sec('Empresa activa (demo)') + `<div class="card">${select('p-em', 'Empresa', S.providers.map(p => [p.id, `${p.name} · ${p.cat}`]), S.ui.provId, `onchange="A.ui('provId',this.value)"`)}</div>`;
+    if (r === 'federacion' && !S.session.real) items = sec('Ámbito de la vista') + `<div class="card">${select('f-sp', 'Federación', SPORT_LIST.map(s => [s, FED_NAMES[s]]), S.ui.fedSport, `onchange="A.ui('fedSport',this.value)"`)}${select('f-sc', 'Ver como', [['nacional', 'Federación (nacional)'], ...S.associations.map(a => [a.id, a.name])], S.ui.fedScope, `onchange="A.ui('fedScope',this.value)"`, 'Las asociaciones usan la misma vista, limitada a su región.')}</div>`;
+    if (r === 'proveedor' && !S.session.real) items = sec('Empresa activa (demo)') + `<div class="card">${select('p-em', 'Empresa', S.providers.map(p => [p.id, `${p.name} · ${p.cat}`]), S.ui.provId, `onchange="A.ui('provId',this.value)"`)}</div>`;
     const shown = acc.type === 'club' ? acc.name : m.name;
     return `<div class="card center"><div style="display:flex;justify-content:center;margin-bottom:8px">${acc.type === 'club' ? clubLogo(club(acc.clubId), 72) : avatar(shown, 72, myPhoto(acc))}</div><h3>${esc(shown)}</h3><div class="muted small">${esc(profileSub())}</div><div class="mt8 row wrap gap8" style="justify-content:center">${badge(typeLabel(acc.type))}${badge('ID ' + acc.id, 'mute')}</div>${extra ? `<div class="small muted mt8">${esc(extra)}</div>` : ''}</div>
     ${goBtn('Editar perfil', '/perfil/editar', 's2', 'edit')}<div class="mt8"></div>
-    ${btn('Cambiar de rol', 'A.roleSheet()', '', 'swap')}<div class="mt12"></div>${items}${clubInfo}
-    ${sec('Modo demo')}<div class="card"><div class="row"><span class="ic c-gray">${icon('fast', 20)}</span><div class="sp"><div class="b">Simular paso del tiempo</div><div class="small muted">Fecha demo: ${fLong(today())}</div></div></div>${timeBtns()}</div>
-    ${list([li({ ic: 'info', color: 'teal', title: 'Agregar a pantalla de inicio', on: 'A.installHelp()' }), li({ ic: 'chat', color: 'green', title: 'Ayuda y contacto', href: '/legal/contacto' }), li({ ic: 'shield', color: 'blue', title: 'Política de privacidad', href: '/legal/privacidad' }), li({ ic: 'doc', color: 'gray', title: 'Términos de uso', href: '/legal/terminos' }), li({ ic: 'refresh', color: 'orange', title: 'Restablecer demo', sub: 'Borra localStorage', on: 'A.resetDemo()' }), li({ ic: 'logout', color: 'gray', title: 'Cerrar sesión', on: 'A.logout()' }), li({ ic: 'trash', color: 'red', title: 'Eliminar mi cuenta', on: 'A.deleteAsk()' })])}<div class="center tiny muted">My Club · prototipo MVP · datos ficticios</div>`;
+    ${S.session.real ? '' : btn('Cambiar de rol', 'A.roleSheet()', '', 'swap')}<div class="mt12"></div>${items}${clubInfo}
+    ${S.session.real ? '' : `${sec('Modo demo')}<div class="card"><div class="row"><span class="ic c-gray">${icon('fast', 20)}</span><div class="sp"><div class="b">Simular paso del tiempo</div><div class="small muted">Fecha demo: ${fLong(today())}</div></div></div>${timeBtns()}</div>`}
+    ${list([li({ ic: 'info', color: 'teal', title: 'Agregar a pantalla de inicio', on: 'A.installHelp()' }), li({ ic: 'chat', color: 'green', title: 'Ayuda y contacto', href: '/legal/contacto' }), li({ ic: 'shield', color: 'blue', title: 'Política de privacidad', href: '/legal/privacidad' }), li({ ic: 'doc', color: 'gray', title: 'Términos de uso', href: '/legal/terminos' }), ...(S.session.real ? [] : [li({ ic: 'refresh', color: 'orange', title: 'Restablecer demo', sub: 'Borra localStorage', on: 'A.resetDemo()' })]), li({ ic: 'logout', color: 'gray', title: 'Cerrar sesión', on: 'A.logout()' }), li({ ic: 'trash', color: 'red', title: 'Eliminar mi cuenta', on: 'A.deleteAsk()' })])}${S.session.real ? '' : '<div class="center tiny muted">My Club · prototipo MVP · datos ficticios</div>'}`;
   }
 });
 
@@ -1960,7 +1964,7 @@ A.regKid = () => {
   sheet('Solicitud enviada', `<p class="center" style="margin:0 0 16px">${MSG_INCORPORACION}</p>${btn('Entendido', 'closeSheet()')}`);
 };
 route('/a/registrar-hijo', {
-  title: 'Registrar a un hijo', roles: ['apoderado'], render: () => note('Solo el apoderado puede registrar a un menor de edad.') + `<div class="card">${inp('rh-name', 'Nombre completo', 'autocomplete="off"')}${inp('rh-rut', 'RUT del menor', 'placeholder="23.456.789-K" autocomplete="off"')}${inp('rh-birth', 'Fecha de nacimiento', 'type="date"')}${select('rh-sex', 'Sexo', [['F', 'Femenino'], ['M', 'Masculino']], 'F')}${select('rh-rel', 'Parentesco', ['Madre', 'Padre', 'Abuela', 'Abuelo', 'Tutora legal', 'Tutor legal'], 'Madre')}${select('rh-club', 'Club', S.clubs.map(c => [c.id, c.short]), 'halcones', 'onchange="A.rhClub()"')}${select('rh-sport', 'Deporte', club('halcones').sports, 'Fútbol')}<div class="err" id="rh-err"></div></div>${btn('Registrar y solicitar incorporación', 'A.regKid()', 'ok')}`
+  title: 'Registrar a un hijo', roles: ['apoderado'], render: () => note('Solo el apoderado puede registrar a un menor de edad.') + `<div class="card">${inp('rh-name', 'Nombre completo', 'autocomplete="off"')}${inp('rh-rut', 'RUT del menor', 'placeholder="23.456.789-K" autocomplete="off"')}${inp('rh-birth', 'Fecha de nacimiento', 'type="date"')}${select('rh-sex', 'Sexo', [['F', 'Femenino'], ['M', 'Masculino']], 'F')}${select('rh-rel', 'Parentesco', ['Madre', 'Padre', 'Abuela', 'Abuelo', 'Tutora legal', 'Tutor legal'], 'Madre')}${S.session.real ? linkBox('rh', true) : `${select('rh-club', 'Club', S.clubs.map(c => [c.id, c.short]), 'halcones', 'onchange="A.rhClub()"')}${select('rh-sport', 'Deporte', club('halcones').sports, 'Fútbol')}`}<div class="err" id="rh-err"></div></div>${btn('Registrar y solicitar incorporación', 'A.regKid()', 'ok')}`
 });
 route('/a/reportes', {
   title: 'Reportes', roles: ['apoderado'], render: () => {
@@ -2510,16 +2514,249 @@ route('/legal/:doc', {
   }
 });
 
+/* ======================================================================
+   15. MODO REAL: SUPABASE
+   Con config.js vacío nada de esto se activa. Las cuentas demo siguen
+   funcionando igual, con sus datos locales. En modo real, S es una copia en
+   memoria de lo que la base permite ver, y cada cambio pasa por el servidor.
+   ====================================================================== */
+const SB = {
+  s: null,
+  load() { try { this.s = JSON.parse(localStorage.getItem(SESSION_KEY)); } catch (e) { this.s = null; } return this.s; },
+  keep(x) { this.s = x; try { if (x) localStorage.setItem(SESSION_KEY, JSON.stringify(x)); else localStorage.removeItem(SESSION_KEY); } catch (e) { } },
+  fromAuth(r) { return { access_token: r.access_token, refresh_token: r.refresh_token, expires_at: r.expires_at || Math.floor(Date.now() / 1000) + (r.expires_in || 3600), user: r.user }; },
+  async req(path, { method = 'POST', body, auth = true } = {}) {
+    const h = { apikey: CFG.key, 'Content-Type': 'application/json' };
+    if (auth && this.s) h.Authorization = 'Bearer ' + this.s.access_token;
+    let res;
+    try { res = await fetch(CFG.url + path, { method, headers: h, body: body === undefined ? undefined : JSON.stringify(body) }); }
+    catch (e) { const x = new Error('Sin conexión. Revisa tu internet e inténtalo de nuevo.'); x.offline = true; throw x; }
+    const txt = await res.text(); let d = null; try { d = txt ? JSON.parse(txt) : null; } catch (e) { }
+    if (!res.ok) { const c = d && (d.error_code || d.code || d.error), x = new Error(AUTH_MSG[c] || (d && (d.message || d.msg || d.error_description)) || 'No pudimos completar la operación.'); x.status = res.status; x.code = c; throw x; }
+    return d;
+  },
+  async fresh() {
+    if (!this.s) return;
+    if (this.s.expires_at - Date.now() / 1000 > 60) return;
+    try { this.keep(this.fromAuth(await this.req('/auth/v1/token?grant_type=refresh_token', { body: { refresh_token: this.s.refresh_token }, auth: false }))); }
+    catch (e) { if (!e.offline) this.keep(null); throw e; }
+  },
+  async rpc(fn, args = {}) { await this.fresh(); return this.req('/rest/v1/rpc/' + fn, { body: args, auth: !!this.s }); },
+  async signIn(email, password) { this.keep(this.fromAuth(await this.req('/auth/v1/token?grant_type=password', { body: { email, password }, auth: false }))); },
+  async signUp(email, password, reg) { const r = await this.req('/auth/v1/signup?redirect_to=' + encodeURIComponent(appUrl()), { body: { email, password, data: { reg } }, auth: false }); if (r && r.access_token) this.keep(this.fromAuth(r)); return !!(r && r.access_token); },
+  async signOut() { try { await this.req('/auth/v1/logout', {}); } catch (e) { } this.keep(null); },
+  recover(email) { return this.req('/auth/v1/recover?redirect_to=' + encodeURIComponent(appUrl()), { body: { email }, auth: false }); },
+  async updateUser(body) { await this.fresh(); return this.req('/auth/v1/user', { method: 'PUT', body }); }
+};
+const AUTH_MSG = {
+  invalid_credentials: 'Email o clave incorrectos.', invalid_grant: 'Email o clave incorrectos.', email_not_confirmed: 'Confirma tu email antes de ingresar: te enviamos un enlace.',
+  weak_password: 'La clave es muy débil: usa al menos 8 caracteres.', user_already_exists: 'Ese email ya está registrado.', email_exists: 'Ese email ya está registrado.',
+  over_email_send_rate_limit: 'Enviamos demasiados correos. Espera unos minutos e inténtalo de nuevo.', over_request_rate_limit: 'Demasiados intentos. Espera unos minutos.'
+};
+const appUrl = () => location.href.split('#')[0];
+
+// Pantallas conectadas a la base. El resto no se muestra hasta tener su propia etapa.
+const REAL_OK = ['/login', '/registro', '/recuperar', '/nueva-clave', '/inicio', '/perfil', '/perfil/editar', '/notificaciones', '/vincular', '/unirme', '/club/:id', '/legal/:doc', '/a/pupilos', '/a/registrar-hijo', '/e/plantel', '/d/deportes', '/d/solicitudes', '/d/jugadores'];
+const realOk = path => { const m = match(path); return !!m && REAL_OK.includes(m.r.path); };
+function realPrune(root) {
+  $$('[onclick^="go(\'"]', root).forEach(el => { const p = el.getAttribute('onclick').match(/^go\('([^']+)'/); if (p && !realOk(p[1])) el.remove(); });
+}
+
+// Transforma lo que entrega my_state() en la forma que ya usan las pantallas.
+function blankState() {
+  const s = seed();
+  Object.keys(s).forEach(k => { if (Array.isArray(s[k]) && k !== 'expenseCats') s[k] = []; });
+  return s;
+}
+function hydrate(d, ui) {
+  const s = blankState(), me_ = d.account, type = me_.type, r = type === 'club' ? 'directivo' : type, day = x => (x || '').slice(0, 10), uid_ = me_.user_id;
+  s.clubs = d.clubs.map(c => ({ id: c.id, code: c.code, name: c.name, short: c.short, rut: c.rut, city: c.city || '', region: c.region || '', sports: c.sports, color: c.color, logo: c.logo, founded: +c.constituted.slice(0, 4), socios: c.board.length, constituted: c.constituted, regNumber: c.reg_number, email: c.email, phone: c.phone, address: c.address, web: c.web, ig: c.ig, desc: c.descr, board: c.board, ownerId: c.owner_id }));
+  s.teams = d.teams.map(t => ({ id: t.id, clubId: t.club_id, sport: t.sport, name: t.name, category: t.category, sex: t.sex, coach: t.coach }));
+  s.players = d.players.map(p => ({ id: p.id, first: p.name.split(' ')[0], name: p.name, sex: p.sex, birth: p.birth, rut: p.rut, email: p.email || '', phone: p.phone || '', position: p.position || '', city: p.city, height: p.height, size: p.size || '', photo: p.photo, accountId: p.account_id, guardianId: p.guardian_id, rel: p.rel }));
+  s.memberships = d.memberships.map(m => ({ id: m.id, playerId: m.player_id, clubId: m.club_id, sport: m.sport, teamId: m.team_id, status: m.status, since: day(m.resolved_at || m.created_at), until: null, federated: false }));
+  s.requests = d.memberships.filter(m => m.status === 'pendiente' || m.resolved_at).map(m => ({ id: m.id, playerId: m.player_id, clubId: m.club_id, sport: m.sport, membershipId: m.id, date: day(m.created_at), status: m.status === 'pendiente' ? 'pendiente' : m.status === 'rechazada' ? 'rechazada' : 'aceptada', note: m.note || '' }));
+  const toAcc = a => ({ id: a.public_id, uid: a.user_id, type: a.type, role: a.type === 'club' ? 'directivo' : a.type, name: a.name, rut: a.rut, email: a.email, phone: a.phone, date: day(a.created_at), photo: a.photo, city: a.city, specialty: a.specialty, web: a.web, sport: a.sport });
+  s.accounts = d.accounts.map(toAcc);
+  const pubId = id => (s.accounts.find(a => a.uid === id) || {}).id;
+  s.linkRequests = d.links.map(l => ({ id: l.id, accountId: pubId(l.account_id), clubId: l.club_id, date: day(l.created_at), status: l.status, resolvedAt: day(l.resolved_at) }));
+  const a = s.accounts.find(x => x.uid === uid_), accepted = s.linkRequests.filter(l => l.accountId === a.id && l.status === 'aceptada').map(l => l.clubId);
+  s.notifs = d.notifications.map(n => ({ id: n.id, to: r, text: n.text, date: day(n.created_at), read: n.read, href: n.href, clubId: null }));
+  if (type === 'jugador') a.refId = (s.players.find(p => p.accountId === uid_) || {}).id;
+  if (type === 'apoderado') { a.refId = 'g_' + a.id; s.guardians = [{ id: a.refId, name: a.name, rut: a.rut, email: a.email, clubs: accepted, kids: s.players.filter(p => p.guardianId === uid_).map(p => ({ playerId: p.id, rel: p.rel || 'Apoderado' })) }]; }
+  if (type === 'club') { const c = s.clubs.find(x => x.ownerId === uid_); a.clubId = c.id; a.profile = { name: (c.board[0] || {}).name || a.name, cargo: 'Cuenta del club' }; }
+  if (type === 'entrenador') { a.clubId = accepted[0] || null; a.profile = { name: a.name, by: a.name, clubId: null, sport: null, teams: [] }; }
+  if (type === 'federacion') a.profile = { name: a.name, cargo: 'Representante' };
+  if (type === 'proveedor') { a.refId = 'pv_' + a.id; s.providers = [{ id: a.refId, name: a.name, cat: me_.category, region: me_.region || '', city: me_.city || '', web: me_.web || '', ig: me_.ig || '', desc: me_.descr || '', photo: me_.photo, rating: 5, items: [] }]; }
+  s.session = { loggedIn: true, real: true, role: r, accountId: a.id, homeId: a.id };
+  s.ui = { ...s.ui, ...(ui || {}), kid: (ui && ui.kid) || null, regType: null };
+  try { s.home = (JSON.parse(localStorage.getItem(REAL_UI_KEY)) || {}).home || {}; } catch (e) { }
+  return { s, a };
+}
+function useState_(d, ui) { const { s, a } = hydrate(d, ui); S = s; applyAccount(a); }
+async function refreshReal() { useState_(await SB.rpc('my_state'), S.ui); rerender(); }
+
+// Primer ingreso tras confirmar el email: crea la cuenta con los datos del formulario.
+async function enterReal() {
+  let d = await SB.rpc('my_state'), created = null;
+  if (!d.account) {
+    const reg = ((SB.s.user || {}).user_metadata || {}).reg;
+    if (!reg) throw new Error('Tu cuenta no tiene datos de registro. Regístrate de nuevo.');
+    try { created = (await SB.rpc('register_account', { p: reg })).publicId; }
+    catch (e) { if (e.status >= 400 && e.status < 500 && e.status !== 401) { await SB.rpc('delete_my_account').catch(() => { }); SB.keep(null); } throw e; }
+    d = await SB.rpc('my_state');
+  }
+  useState_(d, null);
+  return created;
+}
+function afterEnter(created) {
+  NAV.length = 0; replaceTo('/inicio');
+  if (created) setTimeout(() => sheet('Registro completado', `<p class="center" style="margin:0">Tu ID de ${typeLabel(acct().type)} es</p><div class="center big mb12" id="new-id">${created}</div>${btn('Entendido', 'closeSheet()')}`), 350);
+}
+const realDo = async (fn, msg) => { try { await fn(); await refreshReal(); if (msg) toast(msg); return true; } catch (e) { toast(e.message, 'bad'); return false; } };
+
+// Reemplaza una acción solo en modo real: la versión demo queda intacta.
+const real = (name, fn, when = () => S.session.real) => { const demo = A[name]; A[name] = (...x) => when() ? fn(...x) : demo(...x); };
+const openReg = () => HAS_DB && (!S.session.loggedIn || S.session.real);
+
+real('login', async () => {
+  const e = $('#lg-err'); e.textContent = '';
+  try { await SB.signIn(val('lg-em').toLowerCase(), $('#lg-pw').value); afterEnter(await enterReal()); } catch (x) { e.textContent = x.message; }
+}, () => HAS_DB && !S.accounts.some(a => a.demo && a.email === val('lg-em').toLowerCase()));
+real('logout', async () => { await SB.signOut(); S = load(); NAV.length = 0; replaceTo('/login'); });
+real('linkCheck', async (p, sport) => {
+  const box = $('#' + p + '-res'); _link = null;
+  try {
+    const c = await SB.rpc('find_club', { p_code: val(p + '-id') });
+    if (!c) { box.innerHTML = `<div class="err">No encontramos un club con ese ID.</div>`; return; }
+    if (sport && !c.sports.length) { box.innerHTML = `<div class="err">${esc(c.short)} aún no tiene deportes habilitados.</div>`; return; }
+    _link = { clubId: c.id }; box.innerHTML = note(`Club encontrado: <b>${esc(c.name)}</b>.`, 'ok', 'check') + (sport ? select(p + '-sport', 'Deporte', c.sports) : '');
+  } catch (e) { box.innerHTML = `<div class="err">${esc(e.message)}</div>`; }
+}, openReg);
+real('completeReg', async () => {
+  const t = S.ui.regType, err = m => { const e = $('#rg-err'); e.textContent = m; e.scrollIntoView({ block: 'center' }); };
+  const name = val('rg-name'), rut = val('rg-rut'), email = val('rg-email').toLowerCase(), phone = val('rg-phone'), pass = $('#rg-pass').value;
+  if (!name || !rut || !email || !phone || !pass) return err('Completa nombre, RUT, email, teléfono y clave.');
+  if (!validRut(rut)) return err('El RUT no es válido.');
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return err('El email no es válido.');
+  if (pass.length < 8) return err('La clave debe tener al menos 8 caracteres.');
+  if (val('lk-id') && !_link) return err('Toca VINCULAR AL CLUB para confirmar el ID, o bórralo.');
+  if (!$('#rg-legal').checked) return err('Debes aceptar los Términos de uso y la Política de privacidad.');
+  const reg = { type: t, name, rut: normRut(rut), phone, consent: true };
+  if (t === 'club') {
+    reg.board = $$('.dir-row').map(r => ({ cargo: $('.dir-c', r).value.trim(), name: $('.dir-n', r).value.trim() })).filter(x => x.cargo && x.name);
+    reg.constituted = val('rg-date'); reg.regNumber = val('rg-num');
+    if (!reg.constituted || !reg.regNumber) return err('Indica la fecha de constitución y el registro deportivo.');
+    if (reg.board.length < 3) return err('El directorio requiere mínimo 3 cargos con nombre.');
+  }
+  if (t === 'jugador') {
+    reg.birth = val('rg-birth'); reg.height = val('rg-height'); reg.size = val('rg-size');
+    if (!reg.birth) return err('Indica tu fecha de nacimiento.');
+    if (ageOf(reg.birth) < 18) return err('Los menores de edad solo pueden ser registrados por su apoderado.');
+  }
+  if (t === 'federacion') reg.sport = val('rg-sport');
+  if (t === 'proveedor') reg.cat = val('rg-cat');
+  if (_link) reg.link = { clubId: _link.clubId, sport: val('lk-sport') };
+  try {
+    const open = await SB.signUp(email, pass, reg);
+    S.ui.regType = null; _link = null; save();
+    if (open) return afterEnter(await enterReal());
+    NAV.length = 0; replaceTo('/login');
+    setTimeout(() => sheet('Confirma tu email', `<p class="center" style="margin:0 0 16px">Te enviamos un enlace a <b>${esc(email)}</b>. Ábrelo y luego ingresa con tu clave para terminar el registro.</p>${btn('Entendido', 'closeSheet()')}`), 350);
+  } catch (e) { err(e.message); }
+}, () => HAS_DB);
+real('linkSend', () => { if (!_link) return toast('Primero toca VINCULAR AL CLUB', 'warn'); const c = _link.clubId; _link = null; return realDo(() => SB.rpc('request_link', { p_club: c }), 'Solicitud enviada al club'); });
+real('join', async () => {
+  if (!_link) return toast('Primero toca VINCULAR AL CLUB', 'warn');
+  try { await SB.rpc('request_join', { p_player: subj().id, p_club: _link.clubId, p_sport: val('jn-sport'), p_note: val('jn-note') }); } catch (e) { $('#jn-err').textContent = e.message; return; }
+  _link = null; await refreshReal(); go('/inicio'); sheet('Solicitud enviada', `<p class="center" style="margin:0 0 16px">${MSG_INCORPORACION}</p>${btn('Entendido', 'closeSheet()')}`);
+});
+real('regKid', async () => {
+  const name = val('rh-name'), rut = val('rh-rut'), birth = val('rh-birth'), err = t => { $('#rh-err').textContent = t; };
+  if (!name || !rut || !birth) return err('Completa nombre, RUT y fecha de nacimiento.');
+  if (!validRut(rut)) return err('El RUT no es válido.');
+  if (ageOf(birth) >= 18) return err('Solo los menores de 18 años se registran por apoderado. Un adulto se registra por sí mismo.');
+  if (val('rh-id') && !_link) return err('Toca VINCULAR AL CLUB para confirmar el ID, o bórralo.');
+  try {
+    const id = await SB.rpc('register_kid', { p: { name, rut: normRut(rut), birth, sex: val('rh-sex'), rel: val('rh-rel'), clubId: _link ? _link.clubId : '', sport: _link ? val('rh-sport') : '' } });
+    const joined = !!_link; _link = null; S.ui.kid = id; await refreshReal(); go('/a/pupilos');
+    if (joined) sheet('Solicitud enviada', `<p class="center" style="margin:0 0 16px">${MSG_INCORPORACION}</p>${btn('Entendido', 'closeSheet()')}`); else toast('Pupilo registrado');
+  } catch (e) { err(e.message); }
+});
+real('req', (id, ok) => realDo(() => SB.rpc('resolve_join', { p_id: id, p_ok: ok }), ok ? 'Deportista aceptado: ahora está Hábil' : 'Solicitud rechazada'));
+real('lnk', (id, ok) => realDo(() => SB.rpc('resolve_link', { p_id: id, p_ok: ok }), ok ? 'Vinculación aceptada' : 'Vinculación rechazada'));
+real('doAddSport', () => { const s = val('ds-s'); if (!s) return; closeSheet(); return realDo(() => SB.rpc('add_sport', { p_sport: s }), s + ' agregado al club'); });
+real('addTeam', sp => { const n = val('dt-n'); if (!n) return toast('Escribe un nombre', 'warn'); const p = { sport: sp, name: n, category: val('dt-c'), sex: val('dt-x'), coach: val('dt-e') }; closeSheet(); return realDo(() => SB.rpc('add_team', { p }), 'Equipo creado'); });
+real('setCoach', id => { const n = val('dc-n'); if (!n) return; closeSheet(); return realDo(() => SB.rpc('set_team_coach', { p_team: id, p_coach: n }), 'Entrenador asignado'); });
+real('readAll', () => realDo(() => SB.rpc('mark_notifs_read', { p_id: null }), 'Notificaciones leídas'));
+real('openNotif', async id => { const n = S.notifs.find(x => x.id === id), to = realOk(n.href) ? n.href : '/inicio'; try { await SB.rpc('mark_notifs_read', { p_id: id }); n.read = true; } catch (e) { } go(to); });
+real('pickPhoto', async inp => {
+  const f = inp.files[0], logo = acct().type === 'club'; if (!f) return;
+  try { const data = await readImage(f, logo ? 256 : 320, logo ? 'image/png' : 'image/jpeg'); await realDo(() => SB.rpc('set_photo', { p_data: data }), logo ? 'Logo actualizado en todas las cuentas del club' : 'Foto actualizada'); }
+  catch (e) { toast('No se pudo leer esa imagen', 'bad'); }
+});
+real('delPhoto', () => realDo(() => SB.rpc('set_photo', { p_data: null }), 'Imagen quitada'));
+real('saveProfile', async () => {
+  const a = acct(), err = m => { const b = $('#ed-err'); b.textContent = m; b.scrollIntoView({ block: 'center' }); }, email = val('ed-email').toLowerCase(), phone = val('ed-phone');
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return err('El email no es válido.');
+  if (!phone) return err('Indica un teléfono.');
+  const p = { email, phone, height: val('ed-height'), size: val('ed-size'), position: val('ed-pos'), city: val('ed-city'), region: val('ed-region'), specialty: val('ed-spec'), web: val('ed-web'), ig: val('ed-ig'), desc: val('ed-desc'), regNumber: val('ed-num'), address: val('ed-addr') };
+  if (a.type === 'club') { p.board = $$('.dir-row').map(r => ({ cargo: $('.dir-c', r).value.trim(), name: $('.dir-n', r).value.trim() })).filter(x => x.cargo && x.name); if (p.board.length < 3) return err('El directorio requiere mínimo 3 cargos con nombre.'); }
+  try {
+    const changed = email !== a.email;
+    if (changed) await SB.updateUser({ email });
+    await SB.rpc('update_profile', { p }); await refreshReal(); go('/perfil'); toast(changed ? 'Perfil actualizado. Confirma el enlace enviado a tu nuevo email.' : 'Perfil actualizado');
+  } catch (e) { err(e.message); }
+});
+real('deleteDo', async () => {
+  const e = $('#del-err'), mail = (SB.s.user || {}).email || acct().email;
+  try { await SB.signIn(mail, $('#del-pw').value); } catch (x) { e.textContent = 'La clave no es correcta.'; return; }
+  try { await SB.rpc('delete_my_account'); SB.keep(null); S = load(); NAV.length = 0; closeSheet(); replaceTo('/login'); toast('Tu cuenta fue eliminada'); } catch (x) { e.textContent = x.message; }
+});
+
+// --- Recuperar clave ---
+A.recover = async () => {
+  const em = val('rc-em').toLowerCase(), e = $('#rc-err'); e.textContent = '';
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)) { e.textContent = 'El email no es válido.'; return; }
+  try { await SB.recover(em); replaceTo('/login'); toast('Si el email existe, te enviamos un enlace'); } catch (x) { e.textContent = x.message; }
+};
+route('/recuperar', { public: true, title: 'Recuperar clave', noTabs: true, render: () => `<div class="card">${inp('rc-em', 'Email', 'type="email" inputmode="email" autocomplete="off" autocapitalize="off"')}<div class="err" id="rc-err"></div></div>${btn('Enviar enlace', 'A.recover()', 'naranjo')}` });
+A.newPass = async () => {
+  const p = $('#np-pw').value, e = $('#np-err'); e.textContent = '';
+  if (p.length < 8) { e.textContent = 'La clave debe tener al menos 8 caracteres.'; return; }
+  try { await SB.updateUser({ password: p }); NAV.length = 0; replaceTo('/inicio'); toast('Clave actualizada'); } catch (x) { e.textContent = x.message; }
+};
+route('/nueva-clave', { title: 'Nueva clave', noTabs: true, render: () => `<div class="card">${inp('np-pw', 'Nueva clave', 'type="password" autocomplete="new-password"', 'Mínimo 8 caracteres.')}<div class="err" id="np-err"></div></div>${btn('Guardar clave', 'A.newPass()', 'ok')}` });
+
+// --- Inicio en modo real: solo datos verdaderos de la cuenta ---
+function realHome() {
+  const a = acct(), r = role(), cl = (a.clubId && club(a.clubId)) || club(linkedClubs()[0] && linkedClubs()[0].id);
+  const hero = `<div class="card hero"><div class="row">${r === 'directivo' ? clubLogo(club(a.clubId), 48) : avatar(a.name, 48, myPhoto(a))}<div class="sp"><div class="b" style="font-size:18px">${esc(a.name)}</div><div class="small muted">${typeLabel(a.type)} · ID ${a.id}</div></div></div></div>`;
+  if (r === 'directivo') return hero + `<div class="kpis">${kpi('Deportistas', clubMembers(a.clubId).length)}${kpi('Por resolver', HOME_BADGE.solicitudes())}</div>` + (club(a.clubId).sports.length ? '' : note('Agrega tus deportes y equipos para que los deportistas puedan vincularse.'));
+  if (r === 'jugador') { const ms = activeMems(a.refId); return hero + (ms.length ? list(ms.map(m => li({ av: clubLogo(club(m.clubId), 42), title: esc(club(m.clubId).short), sub: m.sport, right: stBadge(m.status), href: '/club/' + m.clubId }))) : '') + goBtn('Unirme a un club', '/unirme', 'ok', 'building') + '<div class="mt8"></div>'; }
+  if (r === 'apoderado' || r === 'entrenador') return hero + (cl ? list([clubRow(cl)]) : '');
+  return hero + note('Tu cuenta está activa. Te avisaremos cuando las herramientas de tu perfil estén disponibles.');
+}
+
 // @@PANTALLAS@@
 
 /* ======================================================================
    ARRANQUE
    ====================================================================== */
-S = load();
-processDeadlines();
-save();
-NAV.push(location.hash || '#/inicio');
-render(true);
+async function boot() {
+  S = load();
+  processDeadlines();
+  save();
+  // Enlaces de Supabase (confirmar email o recuperar clave) traen la sesión en el hash.
+  const q = new URLSearchParams(location.hash.slice(1));
+  if (HAS_DB && q.get('access_token')) { SB.keep(SB.fromAuth({ access_token: q.get('access_token'), refresh_token: q.get('refresh_token'), expires_at: +q.get('expires_at') || 0, expires_in: +q.get('expires_in') || 3600 })); history.replaceState(null, '', location.pathname + location.search + (q.get('type') === 'recovery' ? '#/nueva-clave' : '#/inicio')); }
+  if (HAS_DB && (SB.s || SB.load())) {
+    try { if (!SB.s.user) SB.s.user = await SB.req('/auth/v1/user', { method: 'GET' }); const created = await enterReal(); if (created) setTimeout(() => afterEnter(created), 0); }
+    catch (e) { if (!e.offline) SB.keep(null); setTimeout(() => toast(e.message, 'bad'), 300); }
+  }
+  NAV.push(location.hash || '#/inicio');
+  render(true);
+}
+boot();
 const NATIVO = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
 if (NATIVO && window.Capacitor.Plugins.App) window.Capacitor.Plugins.App.addListener('backButton', () => { if ($('.sheet')) closeSheet(); else if (NAV.length > 1) A.back(); else window.Capacitor.Plugins.App.exitApp(); });
 if (!NATIVO && 'serviceWorker' in navigator && location.protocol.startsWith('http')) navigator.serviceWorker.register('sw.js').catch(e => console.warn('SW no registrado', e));

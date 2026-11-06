@@ -2,13 +2,13 @@
 
 ## Objetivo
 Prototipo navegable e interactivo de **My Club**, app para administrar clubes deportivos, asociaciones y
-federaciones de Chile (todos los deportes). Sirve para visualizar y validar el producto. **Sin backend**:
-datos de ejemplo y persistencia en `localStorage` (clave `myclub-demo-v1`, con versión de estado 3).
+federaciones de Chile (todos los deportes). Sirve para visualizar y validar el producto. El **modo demo** usa datos de ejemplo
+en `localStorage` (clave `myclub-demo-v1`, versión de estado 3). El **modo real** usa Supabase (ver abajo).
 
 ## Formato (obligatorio)
 - Logo: `tools/logo-original.png`; `tools/generar_iconos.py` genera `icons/logo.png`, `icons/escudo.png` y los íconos de instalación.
 - PWA instalable en iPhone, sin frameworks, sin CDN ni recursos externos, sin paso de compilación.
-- Archivos: `index.html` (HTML + CSS + JS juntos), `manifest.webmanifest`, `sw.js` (caché offline), `icons/` (180, 192, 512 px).
+- Archivos: `index.html` (HTML + CSS + JS juntos), `config.js` (conexión), `manifest.webmanifest`, `sw.js` (caché offline), `icons/` (180, 192, 512 px).
 - Mobile-first 390 × 844, zonas seguras `env(safe-area-inset-*)`, metas Apple, a pantalla completa desde la pantalla de inicio.
 - Navegación por hash (`#/ruta`). En escritorio se ve centrado como un teléfono.
 - Todo en español de Chile; montos `$25.000`.
@@ -44,8 +44,15 @@ Las acciones de la UI viven en el objeto global `A` (`onclick="A.algo('id')"`).
 ## Requisitos de tiendas ya en la app
 Eliminar cuenta (`A.deleteAsk`), páginas públicas `#/legal/privacidad`, `terminos`, `eliminar-cuenta` y `contacto` (borradores, con correo de soporte pendiente), filtro de lenguaje, reportar y bloquear en muro y chat, y bandeja de reportes en Reclamos. `capacitor.config.json` y `package.json` preparan iOS y Android, pero aún no se han compilado.
 
-## Límite actual importante
-No hay servidor: todo vive en localStorage del dispositivo, incluso logos y fotos. Lo que se comparte entre cuentas solo se comparte en ese dispositivo. Para operar falta la base de datos real. `../MyClub_Guia_Publicacion_Tiendas.pdf` trae las check lists de publicación.
+## Modo real (Supabase, región São Paulo)
+- `config.js` trae la URL del proyecto y la clave pública. Vacío, la app es solo demo. Nunca poner ahí una clave secreta.
+- Las cuentas demo funcionan siempre con datos locales; cualquier otro email usa la base. En modo real `S` es una copia en memoria, no se guarda en localStorage (`S.session.real`).
+- `supabase/migrations/`: esquema, RLS y funciones. El navegador solo lee por RLS; **toda escritura pasa por funciones SQL**, sin INSERT/UPDATE/DELETE directos. Nombre, RUT y fechas los bloquea un trigger.
+- Sección 15 de `index.html`: cliente `SB` (fetch, sin SDK ni dependencias), `hydrate()` y `real(nombre, fn)`, que reemplaza una acción de `A` solo en modo real sin tocar la versión demo.
+- **Etapa 1 conectada:** cuentas, recuperación de clave, perfil y foto, ficha y logo del club, deportes y equipos, vínculos, incorporación, pupilos, plantel y avisos, eliminar cuenta.
+- **Lista `REAL_OK`:** solo esas rutas existen en modo real; el resto se oculta hasta conectarse. Al conectar un módulo: migración nueva, funciones, `hydrate()`, `real()` y agregar la ruta a `REAL_OK`.
+- **Falta conectar:** calendario y asistencia, cobros y pagos, muro, mensajes (con su moderación), votaciones, bajas, transferencias, préstamos, torneos, federación y proveedor. Las fotos viven en la base como dataURL pequeños.
+- `../MyClub_Guia_Publicacion_Tiendas.pdf` trae las check lists de publicación.
 
 ## Roles y usuarios demo
 | Rol | Usuario demo | Pestañas |
@@ -106,4 +113,6 @@ Una federación por deporte, 2 asociaciones regionales (Biobío, Valparaíso), ~
 Servir con `python3 -m http.server 8123` y, con `pip install playwright`:
 - `python tools/recorrido.py`: abre cada pantalla por rol a 390 × 844 @3x, revisa consola y desbordes, y guarda capturas en `/screenshots`.
 - `python tools/flujos.py`: prueba con clics las reglas de negocio, cuentas, logo, moderación y modo sin conexión (105 comprobaciones) y el modo sin conexión.
+- `python tools/probar_base.py`: aplica las migraciones en un Postgres local y prueba permisos por rol (102 comprobaciones).
+- `python tools/flujos_real.py`: navegador → API emulada → Postgres, con cada usuario en un contexto separado (38 comprobaciones). Auth y REST son emulados: no reemplaza probar contra el proyecto real.
 Al cambiar archivos, subir `CACHE` en `sw.js`.

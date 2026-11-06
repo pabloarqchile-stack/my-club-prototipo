@@ -3,7 +3,7 @@
 Prototipo navegable para administrar clubes deportivos, asociaciones y federaciones de Chile.
 **Versión publicada:** https://pabloarqchile-stack.github.io/my-club-prototipo/
 
-No tiene servidor: los datos son de ejemplo y los cambios se guardan en el navegador (localStorage).
+Tiene dos modos: **demo**, con datos de ejemplo guardados en el navegador, y **real**, con base de datos en Supabase. El modo real se activa al completar `config.js`.
 Pagos, QR, chats, carga de archivos y escaneo son simulados.
 
 ## Cuentas de demostración
@@ -84,7 +84,18 @@ npx cap add android
 
 Luego `npm run ios` o `npm run android` abre el proyecto nativo.
 
-**Importante:** esta app aún no tiene servidor. Los datos viven en cada dispositivo, así que no está lista para operar con clubes reales ni para enviarse a las tiendas.
+**Importante:** el modo real cubre por ahora cuentas, clubes, vínculos, plantel y avisos. Calendario, pagos, mensajes y los demás módulos siguen solo en el demo, y en modo real no se muestran. Aún no está lista para enviarse a las tiendas.
+
+## Conectar la base de datos
+
+1. En Supabase, crea un proyecto en la región **South America (São Paulo)**. Guarda la contraseña de la base en un gestor de contraseñas.
+2. En **SQL Editor**, pega y ejecuta `supabase/migrations/20261106120000_nucleo.sql`.
+3. En **Authentication → URL Configuration**, usa como Site URL y Redirect URL la dirección pública de la app.
+4. En **Authentication → Providers → Email**, deja activa la confirmación de email y pide una clave de 8 caracteres como mínimo.
+5. Copia la Project URL y la Publishable key en `config.js`, y sube `CACHE` en `sw.js`. **Nunca** pongas ahí la clave secreta.
+6. Antes de abrir el registro al público, configura un correo propio en **Authentication → SMTP**. El correo incluido en Supabase solo llega a miembros del proyecto, con un máximo de 2 mensajes por hora.
+
+Pruebas: `python tools/probar_base.py` (permisos en Postgres local) y `python tools/flujos_real.py` (navegador con API emulada).
 
 ## Cómo está organizada
 
