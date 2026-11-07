@@ -120,5 +120,5 @@ Con `pip install playwright`, las pruebas del demo levantan solas una copia con 
 - `python tools/recorrido.py`: abre cada pantalla por rol a 390 × 844 @3x, revisa consola y desbordes, y guarda capturas en `/screenshots`.
 - `python tools/flujos.py`: prueba con clics las reglas de negocio, cuentas, logo, moderación y modo sin conexión (115 comprobaciones) y el modo sin conexión.
 - `python tools/probar_base.py`: aplica las migraciones en un Postgres local y prueba permisos por rol (152 comprobaciones).
-- `python tools/flujos_real.py`: navegador → API emulada → Postgres, con cada usuario en un contexto separado (86 comprobaciones, recorre todas las pantallas de cada perfil). Auth y REST son emulados: no reemplaza probar contra el proyecto real.
+- `python tools/flujos_real.py`: navegador → API emulada → Postgres, con cada usuario en un contexto separado (92 comprobaciones, recorre todas las pantallas de cada perfil). Auth y REST son emulados: no reemplaza probar contra el proyecto real.
 Al cambiar archivos, subir `CACHE` en `sw.js`. El service worker usa primero la red: la caché es solo para abrir sin conexión.

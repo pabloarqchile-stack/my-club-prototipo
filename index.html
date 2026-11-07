@@ -1269,7 +1269,8 @@ function render(nav) {
   if (r.roles && !r.roles.includes(role())) return replaceTo('/inicio');
   const view = $('#view'), top = view.scrollTop;
   let html;
-  const gate = S.session.loggedIn && !r.public && gated() && !GATE_OK.includes(r.path);
+  // En una cuenta real el Inicio siempre muestra todos los accesos, aunque falte vincularse.
+  const gate = S.session.loggedIn && !r.public && gated() && !GATE_OK.includes(r.path) && !(S.session.real && r.path === '/inicio');
   try { html = gate ? gateScreen() : r.render(p); } catch (e) { console.error(e); html = empty('alert', 'No pudimos abrir esta pantalla', esc(e.message), goBtn('Volver al inicio', '/inicio')); }
   $('#phone').className = r.bare ? 'bare' : '';
   const hdr = $('#hdr'), tb = $('#tabbar');
@@ -2813,6 +2814,8 @@ function realHome() {
   const hero = `<div class="card hero"><div class="row">${r === 'directivo' ? clubLogo(club(a.clubId), 48) : avatar(a.name, 48, myPhoto(a))}<div class="sp"><div class="b" style="font-size:18px">${esc(a.name)}</div><div class="small muted">${typeLabel(a.type)} · ID ${a.id}</div></div></div></div>`;
   if (r === 'directivo') return hero + `<div class="kpis">${kpi('Deportistas', clubMembers(a.clubId).length)}${kpi('Por resolver', HOME_BADGE.solicitudes())}</div>` + (club(a.clubId).sports.length ? '' : note('Agrega tus deportes y equipos para que los deportistas puedan vincularse.'));
   if (r === 'jugador') { const ms = activeMems(a.refId); return hero + (ms.length ? list(ms.map(m => li({ av: clubLogo(club(m.clubId), 42), title: esc(club(m.clubId).short), sub: m.sport, right: stBadge(m.status), href: '/club/' + m.clubId }))) : '') + (myGuardianLinks().some(l => l.status === 'pendiente') ? goBtn('Revisar solicitud de apoderado', '/apoderados', 'naranjo', 'users') + '<div class="mt8"></div>' : isMinorAcc() && !myGuardianLinks().length ? note(`Eres menor de edad: dale tu ID <b>${a.id}</b> a tu apoderado para que se vincule.${needsGuardian() ? ' Lo necesitas para unirte a un club.' : ''}`) : '') + (needsGuardian() ? '' : goBtn('Unirme a un club', '/unirme', 'ok', 'building') + '<div class="mt8"></div>'); }
+  if (r === 'apoderado' && needsKid()) return hero + note('Registra a tu hijo o hija, o vincúlate con su ID, para ver sus cuotas, actividades y mensajes.') + goBtn('Registrar a un hijo', '/a/registrar-hijo', 'ok', 'userplus') + '<div class="mt8"></div>' + goBtn('Vincular a un hijo con su ID', '/a/vincular-pupilo', 's2', 'id') + '<div class="mt8"></div>';
+  if (r === 'entrenador' && needsClub()) return hero + note(a.clubId ? 'Tu club aún no tiene equipos. Cuando el club cree uno podrás usar todas estas secciones.' : 'Vincúlate a un club para usar todas estas secciones. El club debe aprobar tu solicitud.') + (a.clubId ? '' : goBtn('Vincular al club', '/vincular', 'ok', 'building') + '<div class="mt8"></div>');
   if (r === 'apoderado' || r === 'entrenador') return hero + (cl ? list([clubRow(cl)]) : '');
   return hero;
 }

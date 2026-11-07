@@ -1,6 +1,6 @@
 // Service worker de My Club: permite abrir la app sin conexión.
 // Sube la versión al cambiar archivos para que los teléfonos reciban la actualización.
-const CACHE = 'myclub-v13';
+const CACHE = 'myclub-v14';
 const FILES = ['./', './index.html', './config.js', './manifest.webmanifest', './icons/logo.png', './icons/escudo.png', './icons/icon-180.png', './icons/icon-192.png', './icons/icon-512.png'];
 
 self.addEventListener('install', e => {

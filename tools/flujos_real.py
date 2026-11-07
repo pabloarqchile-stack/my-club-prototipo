@@ -359,7 +359,7 @@ def correr(br, check, errores):
     apo.cerrar_hoja()
     apo.entrar('carla@real.cl')
     apo.cerrar_hoja()
-    check('apoderado sin pupilos ve cómo seguir', 'Aún no tienes pupilos' in apo.texto())
+    check('apoderado sin pupilos ve cómo seguir', 'Registra a tu hijo' in apo.texto())
     apo.ir('/a/registrar-hijo')
     apo.f('#rh-name', 'Sofía Real')
     apo.f('#rh-rut', rut(23456789))
@@ -502,6 +502,25 @@ def correr(br, check, errores):
                 datos.append(ruta)
         check(f'{nombre}: {len(info["rutas"])} pantallas abren: {malas[:6]}', not malas)
         check(f'{nombre}: sin datos inventados: {datos[:6]}', not datos)
+
+    # --- Cuentas recién creadas, sin club ni pupilos: igual ven todos sus accesos ---
+    for tipo, nombre_, r_, email_ in (('apoderado', 'Ana Nueva', rut(16000001), 'ana@real.cl'), ('entrenador', 'Beto Nuevo', rut(16000002), 'beto@real.cl'), ('jugador', 'Cata Nueva', rut(16000003), 'cata@real.cl')):
+        nuevo = Telefono(br, errores)
+        nuevo.registrar(tipo, nombre_, r_, email_, extra=(lambda tel: tel.f('#rg-birth', '1990-01-01')) if tipo == 'jugador' else None)
+        nuevo.p.wait_for_timeout(500)
+        nuevo.cerrar_hoja()
+        nuevo.entrar(email_)
+        nuevo.cerrar_hoja()
+        info = nuevo.p.evaluate('''() => ({ home: HOME[role()].length, tabs: TABS[role()].length })''')
+        check(f'{tipo} nuevo ve todos sus accesos', nuevo.p.locator('#view .tile').count() == info['home'] and nuevo.p.locator('#tabbar .tab').count() == info['tabs'])
+        rotas = []
+        for i in range(info['home']):
+            nuevo.ir('/inicio')
+            nuevo.p.locator('#view .tile').nth(i).click()
+            nuevo.p.wait_for_timeout(120)
+            if 'No pudimos abrir' in nuevo.p.inner_text('#view'):
+                rotas.append(i)
+        check(f'{tipo} nuevo abre todos sus accesos: {rotas}', not rotas)
 
     # --- RUT repetido: el email queda libre para reintentar ---
     otro = Telefono(br, errores)
