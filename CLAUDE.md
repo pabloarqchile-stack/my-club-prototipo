@@ -46,7 +46,7 @@ Las acciones de la UI viven en el objeto global `A` (`onclick="A.algo('id')"`).
 Eliminar cuenta (`A.deleteAsk`), páginas públicas `#/legal/privacidad`, `terminos`, `eliminar-cuenta` y `contacto` (borradores, con correo de soporte pendiente), filtro de lenguaje, reportar y bloquear en muro y chat, y bandeja de reportes en Reclamos. `capacitor.config.json` y `package.json` preparan iOS y Android, pero aún no se han compilado.
 
 ## Modo real (Supabase)
-- **Proyecto:** `plehacherjnbhnodykmy`, región `sa-east-1` (São Paulo), organización MY CLUB, repositorio conectado. Reemplazó a `lggjonkbcyayizdbeuim` (Oregón, organización Sebanto). Las migraciones se aplicaron a mano en SQL Editor.
+- **Proyecto:** `plehacherjnbhnodykmy`, región `sa-east-1` (São Paulo), organización MY CLUB, repositorio conectado. Reemplazó a un proyecto en Oregón, ya eliminado. Las migraciones se aplicaron a mano en SQL Editor.
 - `config.js` trae la URL del proyecto (`plehacherjnbhnodykmy`) y la clave publicable, ambas públicas por diseño. Vacío, la app es solo demo. Nunca poner ahí una clave secreta.
 - Las cuentas demo funcionan siempre con datos locales; cualquier otro email usa la base. En modo real `S` es una copia en memoria, no se guarda en localStorage (`S.session.real`).
 - `supabase/migrations/`: esquema, RLS y funciones. El navegador solo lee por RLS; **toda escritura pasa por funciones SQL**, sin INSERT/UPDATE/DELETE directos. Nombre, RUT y fechas los bloquea un trigger.
