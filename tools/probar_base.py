@@ -21,7 +21,7 @@ AUTH = """
 create role anon nologin; create role authenticated nologin; create role service_role nologin bypassrls;
 create schema auth; grant usage on schema auth to anon, authenticated;
 create table auth.users (id uuid primary key default gen_random_uuid(), email text unique, encrypted_password text, raw_user_meta_data jsonb);
-create function auth.uid() returns uuid language sql stable as $$ select nullif(current_setting('request.jwt.claims', true)::jsonb ->> 'sub', '')::uuid $$;
+create function auth.uid() returns uuid language sql stable as $$ select nullif(nullif(current_setting('request.jwt.claims', true), '')::jsonb ->> 'sub', '')::uuid $$;
 create function auth.jwt() returns jsonb language sql stable as $$ select current_setting('request.jwt.claims', true)::jsonb $$;
 grant execute on function auth.uid(), auth.jwt() to anon, authenticated;
 """
@@ -313,6 +313,150 @@ def correr(t):
     t.rechaza_rpc('registro falla entero si el vínculo falla', fallido, 'register_account',
                   (J({**base, 'type': 'jugador', 'rut': RUTS['prov'], 'name': 'Fallido', 'birth': '1980-01-01', 'link': {'clubId': cid, 'sport': 'Remo'}}),))
     t.check('sin cuenta a medias', t.rpc(fallido, 'my_state')['account'] is None)
+
+    # --- Módulos: cada dato con sus reglas de lectura y escritura ---
+    def guarda(u, kind, rid, data):
+        return t.rpc(u, 'save_records', J({'up': [{'kind': kind, 'id': rid, 'data': data}]}))
+
+    def niega(nombre, u, kind, rid, data):
+        t.rechaza_rpc(nombre, u, 'save_records', (J({'up': [{'kind': kind, 'id': rid, 'data': data}]}),), 'permiso')
+
+    def ve(u, kind, rid):
+        return any(r['kind'] == kind and r['id'] == rid for r in t.rpc(u, 'my_state')['records'])
+
+    def dato(u, kind, rid):
+        return next(r['data'] for r in t.rpc(u, 'my_state')['records'] if r['kind'] == kind and r['id'] == rid)
+
+    t.rechaza_rpc('tipo de dato inventado', club, 'save_records', (J({'up': [{'kind': 'hack', 'id': 'x', 'data': {}}]}),), 'no válido')
+    t.rechaza_rpc('anónimo no guarda', None, 'save_records', (J({'up': []}),))
+    ev = {'id': 'e1', 'clubId': cid, 'teamId': team, 'title': 'Partido', 'present': [], 'date': '2026-12-01'}
+    niega('deportista no crea eventos', dep, 'events', 'e1', ev)
+    niega('otro club no crea eventos ajenos', club2, 'events', 'e1', ev)
+    guarda(ent, 'events', 'e1', ev)
+    t.check('deportista del club ve el evento', ve(dep, 'events', 'e1'))
+    t.check('ajeno no ve el evento', not ve(ajeno, 'events', 'e1'))
+    guarda(dep, 'events', 'e1', {**ev, 'present': [str(pid)]})
+    t.check('deportista marca asistencia', dato(club, 'events', 'e1')['present'] == [str(pid)])
+    niega('deportista no cambia el evento', dep, 'events', 'e1', {**ev, 'title': 'Hackeado'})
+    niega('ajeno no marca asistencia', ajeno, 'events', 'e1', {**ev, 'present': ['x']})
+    guarda(club, 'movements', 'm1', {'id': 'm1', 'clubId': cid, 'type': 'egreso', 'amount': 1000})
+    t.check('finanzas visibles para el club', ve(club, 'movements', 'm1'))
+    t.check('finanzas ocultas al deportista', not ve(dep, 'movements', 'm1'))
+    t.check('finanzas ocultas al entrenador', not ve(ent, 'movements', 'm1'))
+    niega('entrenador no registra finanzas', ent, 'movements', 'm2', {'id': 'm2', 'clubId': cid, 'amount': 1})
+    niega('finanzas en club ajeno', club2, 'movements', 'm3', {'id': 'm3', 'clubId': cid, 'amount': 1})
+    ch = {'id': 'c1', 'playerId': str(pid), 'clubId': cid, 'concept': 'Cuota', 'kind': 'mensual', 'amount': 20000, 'status': 'pendiente'}
+    niega('deportista no crea cuotas', dep, 'charges', 'c1', ch)
+    guarda(club, 'charges', 'c1', ch)
+    t.check('deportista ve su cobro', ve(dep, 'charges', 'c1'))
+    t.check('ajeno no ve el cobro', not ve(ajeno, 'charges', 'c1'))
+    niega('deportista no se marca pagado', dep, 'charges', 'c1', {**ch, 'status': 'pagado'})
+    guarda(club, 'charges', 'c2', {**ch, 'id': 'c2', 'amount': 5000})
+    t.rechaza_rpc('deportista no registra pago manual', dep, 'record_manual_payment', (['c1'], 'Efectivo'), 'Solo el club')
+    t.rechaza_rpc('otro club no registra pago', club2, 'record_manual_payment', (['c1'], 'Efectivo'), 'Solo el club')
+    rc = t.rpc(club, 'record_manual_payment', ['c1'], 'Efectivo')
+    t.check('pago manual marca el cobro', dato(dep, 'charges', 'c1')['status'] == 'pagado')
+    t.check('deportista ve su comprobante', dato(dep, 'receipts', rc)['amount'] == 20000)
+    t.check('pago genera ingreso del club', any(r['kind'] == 'movements' and r['data'].get('category') == 'Cuotas mensuales' for r in t.rpc(club, 'my_state')['records']))
+    t.check('pago no se aplica dos veces', t.rpc(club, 'record_manual_payment', ['c1'], 'Efectivo') is None)
+    t.rechaza_rpc('ajeno no inicia pago', ajeno, 'start_payment', (['c2'],), 'no están disponibles')
+    t.rechaza_rpc('no inicia pago de cobro pagado', dep, 'start_payment', (['c1'],), 'no están disponibles')
+    pg = t.rpc(dep, 'start_payment', ['c2'])
+    t.check('pago en línea toma el monto del servidor', pg['amount'] == 5000)
+    t.rechaza('deportista no confirma pagos', dep, 'select public.confirm_payment(%s, 5000, %s)', (pg['id'], 'x'), 'permission denied')
+    t.rechaza('anónimo no confirma pagos', None, 'select public.confirm_payment(%s, 5000, %s)', (pg['id'], 'x'), 'permission denied')
+    with t.c.cursor() as q:
+        try:
+            q.execute('select public.confirm_payment(%s, 1, %s)', (pg['id'], 'x'))
+            t.check('rechaza monto distinto', False)
+        except psycopg2.Error:
+            t.check('rechaza monto distinto', True)
+        t.c.rollback()
+        q.execute('select public.confirm_payment(%s, 5000, %s)', (pg['id'], 'mp-1'))
+        t.c.commit()
+    t.check('confirmación marca el cobro', dato(dep, 'charges', 'c2')['status'] == 'pagado')
+    pas = {'id': 'c3', 'playerId': str(pid), 'clubId': cid, 'kind': 'matricula', 'amount': 1, 'status': 'pendiente'}
+    niega('deportista no crea matrículas', dep, 'charges', 'c3', pas)
+    post = {'id': 'po1', 'clubId': cid, 'text': 'Hola', 'likes': [], 'comments': []}
+    niega('ajeno no publica en el muro', ajeno, 'posts', 'po1', post)
+    guarda(dep, 'posts', 'po1', post)
+    t.check('entrenador ve la publicación', ve(ent, 'posts', 'po1'))
+    guarda(ent, 'posts', 'po1', {**post, 'likes': ['e']})
+    niega('otro no edita el texto ajeno', ajeno, 'posts', 'po1', {**post, 'text': 'x'})
+    chat = {'id': 'ch1', 'type': 'directo', 'title': 'x', 'members': [str(pid), 'E00000001'], 'msgs': []}
+    guarda(dep, 'chats', 'ch1', chat)
+    t.check('participante ve el chat', ve(ent, 'chats', 'ch1'))
+    t.check('ajeno no ve el chat', not ve(ajeno, 'chats', 'ch1'))
+    niega('ajeno no sobrescribe un chat agregándose', ajeno, 'chats', 'ch1', {**chat, 'members': chat['members'] + [t.rpc(ajeno, 'my_state')['account']['public_id']]})
+
+    # --- Estados de deportistas ---
+    mm = t.rpc(dep, 'my_state')['memberships'][0]['id']
+    es = lambda st: J([{'id': mm, 'status': st, 'teamId': team}])
+    t.rechaza_rpc('ajeno no cambia estados', ajeno, 'save_memberships', (es('suspendido'),), 'permiso')
+    t.rpc(dep, 'save_memberships', es('suspendido'))
+    t.rechaza_rpc('deportista no se reactiva solo', dep, 'save_memberships', (es('habil'),), 'permiso')
+    t.rpc(club, 'save_memberships', es('habil'))
+    t.check('club reactiva', t.rpc(dep, 'my_state')['memberships'][0]['status'] == 'habil')
+
+    # --- Categorías y matrícula ---
+    t.rechaza_rpc('otro club no edita categorías', club2, 'update_team', (J({'id': team, 'name': 'X'}),), 'Solo el club')
+    t.rpc(club, 'update_team', J({'id': team, 'name': 'Adulto A', 'category': 'Adulto', 'sex': 'Mixto'}))
+    t.check('categoría editada', t.rpc(dep, 'my_state')['teams'][0]['name'] == 'Adulto A')
+    t.rechaza_rpc('categoría con deportistas no se elimina', club, 'delete_team', (team,), 'tiene deportistas')
+    vacia = t.rpc(club, 'add_team', J({'sport': 'Fútbol', 'name': 'Sub-15', 'category': 'Sub-15', 'sex': 'Mixto'}))
+    t.rechaza_rpc('otro club no elimina categorías', club2, 'delete_team', (vacia,), 'Solo el club')
+    t.rpc(club, 'set_sport_matricula', 'Fútbol', 30000)
+    equipos = t.rpc(club, 'my_state')['teams']
+    t.check('matrícula en todas las categorías del deporte', all(x['matricula'] == 30000 for x in equipos if x['sport'] == 'Fútbol'))
+    mats = [r for r in t.rpc(dep, 'my_state')['records'] if r['kind'] == 'charges' and r['data']['kind'] == 'matricula']
+    t.check('matrícula se carga al deportista', len(mats) == 1 and mats[0]['data']['amount'] == 30000 and mats[0]['data']['status'] == 'pendiente')
+    t.rpc(club, 'update_team', J({'id': team, 'name': 'Adulto A', 'matricula': 25000}))
+    t.check('monto editable por categoría', dato(dep, 'charges', mats[0]['id'])['amount'] == 25000)
+    t.check('otra categoría conserva su monto', next(x for x in t.rpc(club, 'my_state')['teams'] if x['id'] == vacia)['matricula'] == 30000)
+    t.rpc(club, 'record_manual_payment', [mats[0]['id']], 'Efectivo')
+    t.rpc(club, 'update_team', J({'id': team, 'name': 'Adulto A', 'matricula': 99000}))
+    t.check('cobro pagado no cambia de monto', dato(dep, 'charges', mats[0]['id'])['amount'] == 25000)
+    t.check('tampoco se cobra dos veces', len([r for r in t.rpc(dep, 'my_state')['records'] if r['kind'] == 'charges' and r['data']['kind'] == 'matricula']) == 1)
+    t.rpc(club, 'delete_team', vacia)
+    t.check('categoría vacía eliminada', not any(x['id'] == vacia for x in t.rpc(club, 'my_state')['teams']))
+    t.rpc(club, 'set_sport_matricula', 'Fútbol', 40000)
+    pend = [m for m in t.rpc(club, 'my_state')['memberships'] if m['status'] == 'pendiente' and m['team_id'] == team]
+    t.rpc(club, 'resolve_join', pend[0]['id'], True)
+    t.check('deportista aceptado después recibe su matrícula', any(r['kind'] == 'charges' and r['data']['kind'] == 'matricula' and r['data']['amount'] == 40000 and r['data']['playerId'] == pend[0]['player_id'] for r in t.rpc(club, 'my_state')['records']))
+    guarda(dep, 'docs', 'MC-AAAA-BBBB', {'code': 'MC-AAAA-BBBB', 'type': 'Certificado', 'title': 'x', 'holder': 'Deportista Uno'})
+    t.check('documento se verifica por código', t.rpc(None, 'verify_doc', 'mc-aaaa-bbbb')['holder'] == 'Deportista Uno')
+    t.check('documentos ajenos no se listan', not ve(ajeno, 'docs', 'MC-AAAA-BBBB'))
+
+    # --- Avisos, directorio y perfiles externos ---
+    t.rpc(dep, 'send_notifs', J([{'to': ['directivo'], 'text': 'Aviso del deportista', 'clubId': cid}]))
+    t.check('aviso llega al club', any(n['text'] == 'Aviso del deportista' for n in t.rpc(club, 'my_state')['notifications']))
+    t.rpc(ajeno, 'send_notifs', J([{'to': ['directivo'], 'text': 'Spam', 'clubId': cid}]))
+    t.check('ajeno no envía avisos al club', not any(n['text'] == 'Spam' for n in t.rpc(club, 'my_state')['notifications']))
+    t.rpc(club, 'send_notifs', J([{'to': ['jugador'], 'text': 'Aviso a todos', 'clubId': cid}]))
+    t.check('aviso a deportistas del club', any(n['text'] == 'Aviso a todos' for n in t.rpc(dep, 'my_state')['notifications']))
+    t.check('directorio para buscar clubes', len(t.rpc(ajeno, 'my_state')['directory']['clubs']) >= 1)
+    t.check('directorio sin datos sensibles', all('rut' not in c and 'phone' not in c for c in t.rpc(ajeno, 'my_state')['directory']['clubs']))
+    t.rechaza('anónimo no ve directorio', None, 'select public.directory()', texto='permission denied')
+    t.rechaza('anónimo no lee registros', None, 'select * from public.records', texto='permission denied')
+    t.rechaza('nadie escribe registros directo', club, "insert into public.records (kind, id, data) values ('docs', 'x', '{}')", texto='permission denied')
+    t.rechaza('pagos cerrados por API', club, 'select * from public.payments', texto='permission denied')
+    fe, fe2, pv = t.usuario('fe@prueba.cl'), t.usuario('fe2@prueba.cl'), t.usuario('pv@prueba.cl')
+    t.rpc(fe, 'register_account', J({**base, 'type': 'federacion', 'rut': rut(17000001), 'name': 'Fed Fútbol', 'sport': 'Fútbol'}))
+    t.rpc(pv, 'register_account', J({**base, 'type': 'proveedor', 'rut': rut(17000002), 'name': 'Prov Uno', 'cat': 'Alimentación'}))
+    cm = {'id': 'co1', 'sport': 'Fútbol', 'title': 'Comunicado'}
+    niega('club no publica comunicados', club, 'communiques', 'co1', cm)
+    niega('federación no publica en otro deporte', fe, 'communiques', 'co2', {**cm, 'id': 'co2', 'sport': 'Remo'})
+    guarda(fe, 'communiques', 'co1', cm)
+    t.check('todos leen comunicados', ve(ajeno, 'communiques', 'co1'))
+    pid_ = 'pv_' + t.rpc(pv, 'my_state')['account']['public_id']
+    guarda(pv, 'providers', pid_, {'id': pid_, 'name': 'Prov Uno', 'items': []})
+    niega('nadie edita un proveedor ajeno', club, 'providers', pid_, {'id': pid_, 'name': 'Hack'})
+    qt = {'id': 'q1', 'providerId': pid_, 'clubId': cid, 'status': 'solicitada'}
+    niega('deportista no pide cotizaciones del club', dep, 'quotes', 'q1', qt)
+    guarda(club, 'quotes', 'q1', qt)
+    t.check('proveedor ve la cotización', ve(pv, 'quotes', 'q1'))
+    t.check('otro no ve la cotización', not ve(ajeno, 'quotes', 'q1'))
+    guarda(pv, 'quotes', 'q1', {**qt, 'status': 'enviada'})
 
     # --- Eliminar cuenta ---
     t.rpc(apo, 'delete_my_account')

@@ -810,7 +810,7 @@ function load() {
   try { const raw = localStorage.getItem(STORE_KEY); if (raw) { const o = JSON.parse(raw); if (o && o.v === 3) { o.guardianLinks = o.guardianLinks || []; return o; } } } catch (e) { console.warn('Estado no disponible', e); }
   return seed();
 }
-function save() { if (S.session.real) { try { localStorage.setItem(REAL_UI_KEY, JSON.stringify({ home: S.home })); } catch (e) { } return true; } try { localStorage.setItem(STORE_KEY, JSON.stringify(S)); return true; } catch (e) { console.warn('No se pudo guardar', e); return false; } }
+function save() { if (S.session.real) { try { localStorage.setItem(REAL_UI_KEY, JSON.stringify({ home: S.home })); } catch (e) { } syncSoon(); return true; } try { localStorage.setItem(STORE_KEY, JSON.stringify(S)); return true; } catch (e) { console.warn('No se pudo guardar', e); return false; } }
 function commit(msg, kind) { save(); rerender(); if (msg) toast(msg, kind); }
 
 const player = id => S.players.find(p => p.id === id);
@@ -831,8 +831,8 @@ function me() {
   const r = role();
   if (r === 'jugador') { const p = player(S.users.jugador); return { id: p.id, name: p.name }; }
   if (r === 'apoderado') { const g = myGuardian(); return { id: g.id, name: g.name }; }
-  if (r === 'entrenador') return { id: 'coach', name: coach().name };
-  if (r === 'directivo') return { id: 'directivo', name: S.users.directivo.name };
+  if (r === 'entrenador') return { id: S.session.real ? acct().id : 'coach', name: coach().name };
+  if (r === 'directivo') return { id: S.session.real ? acct().id : 'directivo', name: S.users.directivo.name };
   if (r === 'federacion') return { id: 'fed', name: S.users.federacion.name };
   const p = provider(S.ui.provId); return { id: p.id, name: p.name };
 }
@@ -851,7 +851,7 @@ const pendingCharges = pid => S.charges.filter(c => c.playerId === pid && c.stat
 const debtCharges = (pid, cid) => pendingCharges(pid).filter(c => c.due < today() && (!cid || c.clubId === cid));
 const debtOf = (pid, cid) => sum(debtCharges(pid, cid), c => c.amount);
 const openSep = (pid, cid, sp) => S.separations.find(x => x.playerId === pid && x.clubId === cid && x.sport === sp && ['en_plazo', 'reclamo'].includes(x.status));
-function notify(to, text, href = '/inicio', clubId = null) { [].concat(to).forEach(r => S.notifs.unshift({ id: uid('n'), to: r, text, date: today(), read: false, href, clubId })); }
+function notify(to, text, href = '/inicio', clubId = null, ref = null) { if (S.session.real) return realNotify(to, text, href, clubId, ref); [].concat(to).forEach(r => S.notifs.unshift({ id: uid('n'), to: r, text, date: today(), read: false, href, clubId })); }
 const myNotifs = () => S.notifs.filter(n => n.to === role() && (isDemo() || !/^n\d+$/.test(n.id)) && (!n.clubId || !['directivo', 'entrenador'].includes(n.to) || n.clubId === S.users[n.to].clubId));
 const unread = () => myNotifs().filter(n => !n.read).length;
 const nextSeq = () => ++S.seq;
@@ -934,7 +934,7 @@ function paidHooks(c) {
   if (c.kind === 'prestamo') { const l = S.loans.find(x => x.id === m.loanId); if (l) l.paidAt = today(); }
   if (c.kind === 'proveedor') {
     const q = S.quotes.find(x => x.id === m.quoteId);
-    if (q) { q.status = 'pagada'; q.paidAt = today(); notify('proveedor', `Pago recibido de ${club(q.clubId).short}: ${clp(q.amount)}, neto ${clp(netOf(q))} tras comisión.`, '/p/cotizacion/' + q.id); }
+    if (q) { q.status = 'pagada'; q.paidAt = today(); notify('proveedor', `Pago recibido de ${club(q.clubId).short}: ${clp(q.amount)}, neto ${clp(netOf(q))} tras comisión.`, '/p/cotizacion/' + q.id, q.clubId, q.providerId); }
     S.movements.push({ id: uid('mv'), clubId: c.clubId, type: 'egreso', category: 'Implementos', concept: c.concept, amount: c.amount, date: today() });
   } else if (['mensual', 'extraordinaria', 'matricula'].includes(c.kind)) {
     S.movements.push({ id: uid('mv'), clubId: c.clubId, type: 'ingreso', category: c.kind === 'matricula' ? 'Matrículas' : c.kind === 'mensual' ? 'Cuotas mensuales' : 'Inscripciones', concept: c.concept, amount: c.amount, date: today() });
@@ -980,7 +980,7 @@ function requestJoin(pid, clubId, sport, teamId, note) {
 function resolveRequest(id, accept) {
   const r = S.requests.find(x => x.id === id); const m = S.memberships.find(x => x.id === r.membershipId);
   r.status = accept ? 'aceptada' : 'rechazada'; r.resolvedAt = today();
-  if (accept) { m.status = 'habil'; m.since = today(); if (!m.teamId) { const t = S.teams.find(x => x.clubId === r.clubId && x.sport === r.sport); if (t) m.teamId = t.id; } }
+  if (accept) { m.status = 'habil'; m.since = today(); if (!m.teamId) { const t = S.teams.find(x => x.clubId === r.clubId && x.sport === r.sport); if (t) m.teamId = t.id; } const t = team(m.teamId); if (t) chargeMatricula(t, m.playerId); }
   else S.memberships = S.memberships.filter(x => x.id !== m.id);
   notify(['jugador', 'apoderado'], `${club(r.clubId).short} ${accept ? 'aceptó' : 'rechazó'} la solicitud de ${player(r.playerId).name} en ${r.sport}.`, '/tramites');
 }
@@ -1231,7 +1231,7 @@ const hbars = (items, fmt = v => thou(v)) => { const m = Math.max(1, ...items.ma
 
 // --- Encabezado de documento imprimible ---
 const docHead = (issuer, sub, c) => `<div class="dh"><span class="lg">${c ? clubLogo(c, 42) : LOGO(42)}</span><div><div style="font-weight:700">${esc(issuer)}</div><div style="font-size:12px;color:#667085">${esc(sub)}</div></div></div>`;
-const docVer = code => S.session.real ? `<div class="ver"><div><b>Borrador</b><br>La verificación de documentos estará disponible próximamente. Este documento aún no tiene validez.</div></div>` : `<div class="ver">${qrLink(code, 84)}<div><b>Documento verificable</b><br>Código: ${code}<br>Escanea el QR o ingresa el código en My Club → Verificar. Prototipo: QR de ejemplo, documento sin validez legal.</div></div>`;
+const docVer = code => S.session.real ? `<div class="ver"><div><b>Documento registrado</b><br>Código: ${code}<br>Ingresa este código en My Club → Verificar para comprobarlo.</div></div>` : `<div class="ver">${qrLink(code, 84)}<div><b>Documento verificable</b><br>Código: ${code}<br>Escanea el QR o ingresa el código en My Club → Verificar. Prototipo: QR de ejemplo, documento sin validez legal.</div></div>`;
 
 /* ======================================================================
    6. RUTAS (núcleo)
@@ -1281,7 +1281,7 @@ function render(nav) {
     hdr.innerHTML = `${r.root ? `<span class="hb">${LOGO(34)}</span>` : `<button class="hb" onclick="A.back()" aria-label="Volver">${icon('back', 26)}</button>`}<div class="ttl">${esc(title)}</div>${rb}${S.session.loggedIn ? `<button class="hb" onclick="go('/notificaciones')" aria-label="Notificaciones">${icon('bell', 23)}${c ? `<span class="count">${c > 9 ? '9+' : c}</span>` : ''}</button>` : '<span class="hb ph"></span>'}`;
     tb.innerHTML = (TABS[role()] || []).map(([k, l, ic, href]) => { const n = tabBadge(k); return `<button class="tab ${r.tab === k ? 'on' : ''}" onclick="go('${href}')" ${r.tab === k ? 'aria-current="page"' : ''}>${icon(ic, 24)}<span>${l}</span>${n ? `<span class="dot">${n}</span>` : ''}</button>`; }).join('');
   }
-  view.innerHTML = S.session.real && !gate && !REAL_OK.includes(r.path) ? note(MSG_PENDIENTE, 'warn', 'clock') + html : html;
+  view.innerHTML = html;
   if (nav) { view.scrollTop = 0; view.classList.remove('enter'); void view.offsetWidth; view.classList.add('enter'); } else view.scrollTop = top;
   if (r.after && !gate) r.after(p);
 }
@@ -1548,9 +1548,10 @@ function myChats() {
   return S.chats.filter(c => c.members.includes(id) && !(c.type === 'directo' && myBlocks().includes(c.title)));
 }
 const lastMsg = c => c.msgs[c.msgs.length - 1];
+const chatName = c => { if (!c.names) return c.title; const o = c.members.find(x => x !== me().id); return c.names[o] || c.title; };
 function chatRows(l) {
   if (!l.length) return empty('chat', 'Sin conversaciones', 'Cuando tengas chats aparecerán aquí.');
-  return list(l.map(c => { const m = lastMsg(c); return li({ av: avatar(c.title, 42), title: esc(c.title), sub: m ? esc(`${m.from === me().id ? 'Tú' : m.name.split(' ')[0]}: ${m.text}`).slice(0, 60) : 'Sin mensajes', href: '/chat/' + c.id }); }));
+  return list(l.map(c => { const m = lastMsg(c); return li({ av: avatar(chatName(c), 42), title: esc(chatName(c)), sub: m ? esc(`${m.from === me().id ? 'Tú' : m.name.split(' ')[0]}: ${m.text}`).slice(0, 60) : 'Sin mensajes', href: '/chat/' + c.id }); }));
 }
 const MSG_ACTION = { entrenador: ['Nuevo mensaje masivo', '/e/masivo'], directivo: ['Nuevo mensaje masivo', '/d/masivo'] };
 A.newChat = () => {
@@ -1559,7 +1560,7 @@ A.newChat = () => {
 };
 A.openDirect = pid => {
   const mid = me().id; let c = S.chats.find(x => x.type === 'directo' && x.members.includes(mid) && x.members.includes(pid));
-  if (!c) { c = { id: uid('ch'), type: 'directo', title: player(pid).name, members: [mid, pid], msgs: [] }; S.chats.push(c); save(); }
+  if (!c) { c = { id: uid('ch'), type: 'directo', title: player(pid).name, members: [mid, pid], names: { [mid]: me().name, [pid]: player(pid).name }, msgs: [] }; S.chats.push(c); save(); }
   closeSheet(); go('/chat/' + c.id);
 };
 route('/mensajes', {
@@ -1578,7 +1579,7 @@ const REPLIES = ['¡Dale! 👍', 'Perfecto, nos vemos allá', 'Gracias por avisa
 A.send = id => {
   const inp = $('#ch-in'), text = inp.value.trim(); if (!text || !limpio(text)) return;
   const c = S.chats.find(x => x.id === id), m = me(); c.msgs.push({ from: m.id, name: m.name, text, time: nowTime(), date: today() }); inp.value = ''; save(); rerender();
-  if (c.type === 'directo') setTimeout(() => { const other = c.members.find(x => x !== m.id), p = player(other); if (!p) return; c.msgs.push({ from: other, name: p.name, text: REPLIES[Math.floor(Math.random() * REPLIES.length)], time: nowTime(), date: today() }); save(); if (location.hash === '#/chat/' + id) rerender(); }, 1300);
+  if (c.type === 'directo' && !S.session.real) setTimeout(() => { const other = c.members.find(x => x !== m.id), p = player(other); if (!p) return; c.msgs.push({ from: other, name: p.name, text: REPLIES[Math.floor(Math.random() * REPLIES.length)], time: nowTime(), date: today() }); save(); if (location.hash === '#/chat/' + id) rerender(); }, 1300);
 };
 route('/chat/:id', {
   title: p => { const c = S.chats.find(x => x.id === p.id); return c ? c.title : 'Chat'; }, noTabs: true,
@@ -1620,6 +1621,7 @@ route('/pagar/:ids', {
   title: 'Pagar', noTabs: true, render: p => {
     const l = p.ids.split(',').map(i => S.charges.find(c => c.id === i)).filter(Boolean), pay = S.ui.payMethod || 'webpay';
     if (!l.length) return empty('card', 'Cobro no encontrado', '', goBtn('Volver', '/inicio'));
+    if (S.session.real) return `<div class="card"><div class="small muted">Total a pagar</div><div class="big">${clp(sum(l, c => c.amount))}</div>${l.map(c => `<div class="row small mt8"><span class="sp">${esc(c.concept)}</span><b>${clp(c.amount)}</b></div>`).join('')}</div>${role() === 'directivo' ? `<div class="mt8">${btn('Registrar pago recibido', `A.manualSheet('${p.ids}')`, 'ok', 'check')}</div>` : btn('Pagar con Mercado Pago', `A.pay('${p.ids}')`, 'ok', 'card') + '<div class="hint center mt8">Serás dirigido a Mercado Pago para completar el pago.</div>'}`;
     const opt = (k, n, s) => `<button class="li" onclick="A.setMethod('${k}')" aria-pressed="${pay === k}"><span class="ic c-${k === 'webpay' ? 'red' : 'blue'}">${icon('card', 20)}</span><span class="tx"><span class="t">${n}</span><span class="s">${s}</span></span>${pay === k ? `<span style="color:var(--accent)">${icon('check', 22)}</span>` : ''}</button>`;
     return simNote('pasarela de ejemplo. No se pide ningún dato de tarjeta ni se realiza un cargo real.') + `<div class="card"><div class="small muted">Total a pagar</div><div class="big">${clp(sum(l, c => c.amount))}</div>${l.map(c => `<div class="row small mt8"><span class="sp">${esc(c.concept)}</span><b>${clp(c.amount)}</b></div>`).join('')}</div>${sec('Medio de pago')}<div class="list">${opt('webpay', 'Webpay (ejemplo)', 'Débito o crédito simulado')}${opt('mp', 'Mercado Pago (ejemplo)', 'Saldo o tarjeta simulada')}</div>${btn(`Pagar ${clp(sum(l, c => c.amount))}`, `A.pay('${p.ids}')`, 'ok', 'lock')}`;
   }
@@ -1627,12 +1629,14 @@ route('/pagar/:ids', {
 route('/comprobante/:id', {
   title: 'Comprobante', noTabs: true, render: p => {
     const r = S.receipts.find(x => x.id === p.id); if (!r) return empty('receipt', 'Comprobante no encontrado', '', goBtn('Ir al inicio', '/inicio'));
-    return `<div class="center noprint mb12"><div class="ic c-green" style="width:64px;height:64px;border-radius:50%;margin:4px auto 8px">${icon('check', 34)}</div><h2>Pago aprobado</h2></div><div class="docp">${docHead('My Club', 'Comprobante de pago simulado')}<h2>Comprobante N° ${r.number}</h2><dl class="kv"><dt>Fecha</dt><dd>${fMed(r.date)}</dd><dt>Pagador</dt><dd>${esc(r.payer)}</dd><dt>Beneficiario</dt><dd>${esc(r.payee)}</dd><dt>Medio</dt><dd>${esc(r.method)}</dd></dl><table>${r.items.map(i => `<tr><td>${esc(i.concept)}</td><td style="text-align:right">${clp(i.amount)}</td></tr>`).join('')}<tr><th>Total</th><th style="text-align:right;color:#101828">${clp(r.amount)}</th></tr></table>${docVer(r.code)}</div><div class="noprint">${btn('Descargar o imprimir', 'window.print()', 's2', 'print')}<div class="mt8">${goBtn('Volver al inicio', '/inicio')}</div></div>`;
+    return `<div class="center noprint mb12"><div class="ic c-green" style="width:64px;height:64px;border-radius:50%;margin:4px auto 8px">${icon('check', 34)}</div><h2>Pago aprobado</h2></div><div class="docp">${docHead('My Club', S.session.real ? 'Comprobante de pago' : 'Comprobante de pago simulado')}<h2>Comprobante N° ${r.number}</h2><dl class="kv"><dt>Fecha</dt><dd>${fMed(r.date)}</dd><dt>Pagador</dt><dd>${esc(r.payer)}</dd><dt>Beneficiario</dt><dd>${esc(r.payee)}</dd><dt>Medio</dt><dd>${esc(r.method)}</dd></dl><table>${r.items.map(i => `<tr><td>${esc(i.concept)}</td><td style="text-align:right">${clp(i.amount)}</td></tr>`).join('')}<tr><th>Total</th><th style="text-align:right;color:#101828">${clp(r.amount)}</th></tr></table>${docVer(r.code)}</div><div class="noprint">${btn('Descargar o imprimir', 'window.print()', 's2', 'print')}<div class="mt8">${goBtn('Volver al inicio', '/inicio')}</div></div>`;
   }
 });
+const _docs = {};
 route('/verificar/:code', {
   title: 'Verificar documento', noTabs: true, render: p => {
     const d = S.docs.find(x => x.code === p.code);
+    if (!d && HAS_DB && !_docs[p.code]) { SB.rpc('verify_doc', { p_code: p.code }).then(x => { if (x) { _docs[p.code] = x; if (!S.docs.some(y => y.code === x.code)) S.docs.push(x); rerender(); } }).catch(() => { }); }
     return d ? `<div class="card center"><div class="ic c-green" style="width:64px;height:64px;border-radius:50%;margin:0 auto 10px">${icon('shield', 34)}</div><h2>Documento válido</h2><p class="muted small">Código ${esc(p.code)}</p></div>${list([li({ title: 'Tipo', sub: esc(d.type) }), li({ title: 'Detalle', sub: esc(d.title) }), li({ title: 'Titular', sub: esc(d.holder) }), li({ title: 'Emitido', sub: fMed(d.date) })])}${simNote('verificación contra los datos de este dispositivo.')}` : `<div class="card center"><div class="ic c-red" style="width:64px;height:64px;border-radius:50%;margin:0 auto 10px">${icon('x', 34)}</div><h2>No encontrado</h2><p class="muted small">El código ${esc(p.code)} no está registrado.</p></div>`;
   }
 });
@@ -1760,7 +1764,7 @@ A.resolveClaim = (id, ok) => {
   c.status = 'resuelto'; c.resolution = r; c.accepted = ok;
   const sep = c.sepId && S.separations.find(x => x.id === c.sepId);
   if (sep) ok ? annulSeparation(sep, 'reclamo acogido por el directorio') : finalizeSeparation(sep, 'reclamo rechazado por el directorio');
-  notify(['jugador', 'apoderado'], `Tu reclamo "${c.subject}" fue ${ok ? 'acogido' : 'rechazado'}.`, sep ? '/plazo/' + sep.id : '/inicio');
+  notify(['jugador', 'apoderado'], `Tu reclamo "${c.subject}" fue ${ok ? 'acogido' : 'rechazado'}.`, sep ? '/plazo/' + sep.id : '/inicio', c.clubId, c.playerId);
   closeSheet(); commit(ok ? 'Reclamo acogido' : 'Reclamo rechazado');
 };
 function sepDoc(x) {
@@ -1899,7 +1903,7 @@ route('/marketplace', {
   }
 });
 A.quoteSheet = id => sheet('Pedir cotización', `${inp('qt-t', 'Qué necesitas', 'placeholder="Ej: 20 balones N°5" autocomplete="off"')}${area('qt-d', 'Detalle', 'Cantidad, fechas y lugar de entrega')}${btn('Enviar solicitud', `A.sendQuote('${id}')`, 'ok')}`);
-A.sendQuote = id => { const t = val('qt-t'); if (!t) return toast('Indica qué necesitas', 'warn'); const q = { id: uid('q'), providerId: id, clubId: myClubId(), by: `${me().name} (${ROLES[role()].label})`, title: t, detail: val('qt-d'), date: today(), status: 'solicitada', items: [], amount: 0 }; S.quotes.unshift(q); notify('proveedor', `Nueva solicitud de cotización: ${t}.`, '/p/cotizacion/' + q.id); closeSheet(); save(); go('/cotizacion/' + q.id); toast('Solicitud enviada al proveedor'); };
+A.sendQuote = id => { const t = val('qt-t'); if (!t) return toast('Indica qué necesitas', 'warn'); const q = { id: uid('q'), providerId: id, clubId: myClubId(), by: `${me().name} (${ROLES[role()].label})`, title: t, detail: val('qt-d'), date: today(), status: 'solicitada', items: [], amount: 0 }; S.quotes.unshift(q); notify('proveedor', `Nueva solicitud de cotización: ${t}.`, '/p/cotizacion/' + q.id, q.clubId, id); closeSheet(); save(); go('/cotizacion/' + q.id); toast('Solicitud enviada al proveedor'); };
 A.link = t => toast('Enlace de ejemplo: ' + t, 'warn');
 function venueCard(p, v, editable) {
   const hs = ['18:00', '19:00', '20:00', '21:00'], ds = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
@@ -2173,12 +2177,35 @@ function pickSport() {
   return same(OLIMPICOS_LISTA) || n;
 }
 A.doAddSport = () => { const s = pickSport(); if (!s) return; club(cid()).sports.push(s); closeSheet(); commit(s + ' agregado al club'); };
-A.teamSheet = sp => sheet('Nuevo equipo o categoría', `${inp('dt-n', 'Nombre', `value="${sp} Sub-13" autocomplete="off"`)}${select('dt-c', 'Categoría', CATEGORIAS, 'Sub-13')}${select('dt-x', 'Sexo', ['Masculino', 'Femenino', 'Mixto'], 'Mixto')}${inp('dt-e', 'Entrenador', 'value="Por asignar" autocomplete="off"')}${btn('Crear equipo', `A.addTeam('${sp}')`, 'ok')}`);
-A.addTeam = sp => { const n = val('dt-n'); if (!n) return toast('Escribe un nombre', 'warn'); S.teams.push({ id: uid('t'), clubId: cid(), sport: sp, name: n, category: val('dt-c'), sex: val('dt-x'), coach: val('dt-e') || 'Por asignar' }); closeSheet(); commit('Equipo creado'); };
+A.teamSheet = sp => sheet('Nuevo equipo o categoría', `${inp('dt-n', 'Nombre', `value="${sp} Sub-13" autocomplete="off"`)}${select('dt-c', 'Categoría', CATEGORIAS, 'Sub-13')}${select('dt-x', 'Sexo', ['Masculino', 'Femenino', 'Mixto'], 'Mixto')}${inp('dt-e', 'Entrenador', 'value="Por asignar" autocomplete="off"')}${inp('dt-m', 'Matrícula', `type="number" inputmode="numeric" min="0" value="${sportMatricula(sp)}"`)}${btn('Crear equipo', `A.addTeam('${sp}')`, 'ok')}`);
+A.addTeam = sp => { const n = val('dt-n'); if (!n) return toast('Escribe un nombre', 'warn'); S.teams.push({ id: uid('t'), clubId: cid(), sport: sp, name: n, category: val('dt-c'), sex: val('dt-x'), coach: val('dt-e') || 'Por asignar', matricula: +val('dt-m') || 0 }); closeSheet(); commit('Equipo creado'); };
+// --- Matrícula: se define por deporte, llega a todas sus categorías y cada categoría puede tener su monto ---
+const sportTeams = sp => S.teams.filter(t => t.clubId === cid() && t.sport === sp);
+const sportMatricula = sp => { const t = sportTeams(sp)[0]; return t ? t.matricula || 0 : 0; };
+function chargeMatricula(t, pid) {
+  if (!(t.matricula > 0)) return;
+  const y = today().slice(0, 4);
+  if (S.charges.some(c => c.kind === 'matricula' && c.teamId === t.id && c.playerId === pid && c.year === y)) return;
+  addCharge({ playerId: pid, clubId: t.clubId, teamId: t.id, year: y, concept: `Matrícula ${y} · ${t.name}`, kind: 'matricula', amount: t.matricula });
+}
+function setMatricula(t, monto) {
+  t.matricula = monto;
+  S.charges.filter(c => c.kind === 'matricula' && c.teamId === t.id && c.status === 'pendiente').forEach(c => { c.amount = monto; });
+  teamMembers(t.id).forEach(m => chargeMatricula(t, m.playerId));
+}
+A.matSheet = sp => sheet(`Matrícula de ${sp}`, `<p class="center muted small" style="margin:0 0 12px">Se aplica a todas las categorías y a sus deportistas. Después puedes ajustar cada categoría.</p>${inp('dm-a', 'Monto de la matrícula', `type="number" inputmode="numeric" min="0" value="${sportMatricula(sp)}"`)}<div class="err mb8" id="dm-err"></div>${btn('Aplicar a todo el deporte', `A.saveMat('${sp}')`, 'ok')}`);
+A.saveMat = sp => { const v = val('dm-a'); if (v === '' || +v < 0) { $('#dm-err').textContent = 'Indica un monto válido.'; return; } sportTeams(sp).forEach(t => setMatricula(t, +v)); closeSheet(); commit('Matrícula aplicada a todas las categorías'); };
+A.teamSheetEdit = id => { const t = team(id); sheet('Editar categoría', `${inp('te-n', 'Nombre', `value="${esc(t.name)}" autocomplete="off"`)}${select('te-c', 'Categoría', CATEGORIAS, t.category)}${select('te-x', 'Sexo', ['Masculino', 'Femenino', 'Mixto'], t.sex)}${inp('te-e', 'Entrenador', `value="${esc(t.coach)}" autocomplete="off"`)}${inp('te-m', 'Matrícula de esta categoría', `type="number" inputmode="numeric" min="0" value="${t.matricula || 0}"`)}<div class="err mb8" id="te-err"></div>${btn('Guardar', `A.saveTeam('${id}')`, 'ok')}<div class="mt8">${btn('Eliminar categoría', `A.delTeamSheet('${id}')`, 'danger', 'trash')}</div>`); };
+A.saveTeam = id => {
+  const n = val('te-n'), m = val('te-m'); if (!n) { $('#te-err').textContent = 'Escribe un nombre.'; return; } if (m === '' || +m < 0) { $('#te-err').textContent = 'Indica un monto válido.'; return; }
+  const t = team(id); Object.assign(t, { name: n, category: val('te-c'), sex: val('te-x'), coach: val('te-e') || 'Por asignar' }); setMatricula(t, +m); closeSheet(); commit('Categoría actualizada');
+};
+A.delTeamSheet = id => { const t = team(id); if (teamMembers(id).length || S.memberships.some(m => m.teamId === id && m.status === 'pendiente')) { closeSheet(); return toast('Esta categoría tiene deportistas. Muévelos a otra antes de eliminarla.', 'warn'); } confirmSheet('Eliminar categoría', `Se eliminará ${esc(t.name)}. Esta acción no se puede deshacer.`, 'Eliminar', `A.delTeam('${id}')`, 'danger'); };
+A.delTeam = id => { S.teams = S.teams.filter(t => t.id !== id); closeSheet(); commit('Categoría eliminada'); };
 A.coachSheet = id => { const t = team(id); sheet('Asignar entrenador', `<p class="center muted small" style="margin:0 0 12px">${esc(t.name)}</p>${inp('dc-n', 'Entrenador', `value="${esc(t.coach)}" autocomplete="off"`)}${btn('Asignar', `A.setCoach('${id}')`, 'ok')}`); };
 A.setCoach = id => { const n = val('dc-n'); if (!n) return; team(id).coach = n; closeSheet(); commit('Entrenador asignado'); };
 route('/d/deportes', {
-  title: 'Deportes del club', roles: ['directivo'], render: () => club(cid()).sports.map(sp => { const ts = S.teams.filter(t => t.clubId === cid() && t.sport === sp); return secLink(`${SPORTS[sp]} ${sp}`, 'Agregar equipo', `A.teamSheet('${sp}')`) + (ts.length ? list(ts.map(t => li({ ic: 'users', title: esc(t.name), sub: `${t.category} · ${t.sex} · ${teamMembers(t.id).length} deportistas<br>Entrenador: ${esc(t.coach)}`, on: `A.coachSheet('${t.id}')` }))) : '<p class="center muted small">Aún sin equipos</p>'); }).join('') + '<div class="mt12"></div>' + btn('Agregar deporte', 'A.addSport()', 'ok', 'plus')
+  title: 'Deportes del club', roles: ['directivo'], render: () => club(cid()).sports.map(sp => { const ts = S.teams.filter(t => t.clubId === cid() && t.sport === sp); return secLink(`${SPORTS[sp]} ${sp}`, 'Agregar equipo', `A.teamSheet('${sp}')`) + (ts.length ? list(ts.map(t => li({ ic: 'users', title: esc(t.name), sub: `${t.category} · ${t.sex} · ${teamMembers(t.id).length} deportistas<br>Entrenador: ${esc(t.coach)}<br>Matrícula: ${clp(t.matricula || 0)}`, on: `A.teamSheetEdit('${t.id}')` }))) + btn(`Matrícula de ${esc(sp)}`, `A.matSheet('${sp}')`, 's2 sm', 'money') + '<div class="mt8"></div>' : '<p class="center muted small">Aún sin equipos</p>'); }).join('') + '<div class="mt12"></div>' + btn('Agregar deporte', 'A.addSport()', 'ok', 'plus')
 });
 // --- Finanzas ---
 function dashboardTab() {
@@ -2198,9 +2225,12 @@ A.addIncome = () => {
 A.discountSheet = () => sheet('Descuento, promoción, convenio o beca', `${select('dc-k', 'Tipo', ['Descuento', 'Promoción', 'Convenio', 'Beca'], 'Descuento')}${inp('dc-m', 'Nombre', 'autocomplete="off"')}${inp('dc-v', 'Valor', 'type="number" inputmode="numeric"')}${select('dc-u', 'Unidad', [['%', 'Porcentaje'], ['$', 'Pesos']], '%')}${inp('dc-t', 'Aplica a', 'autocomplete="off"')}${btn('Guardar', 'A.addDiscount()', 'ok')}`);
 A.addDiscount = () => { const n = val('dc-m'), v = +val('dc-v'); if (!n || !v) return toast('Indica nombre y valor', 'warn'); S.discounts.unshift({ id: uid('ds'), kind: val('dc-k'), name: n, value: v, unit: val('dc-u'), target: val('dc-t') || 'Todos' }); closeSheet(); commit('Beneficio creado'); };
 const dVal = d => d.unit === '%' ? d.value + '%' : clp(d.value);
+A.manualSheet = ids => sheet('Registrar pago recibido', `<p class="center muted small" style="margin:0 0 12px">Úsalo cuando el pago se hizo fuera de la app.</p>${select('mp-m', 'Medio de pago', ['Efectivo', 'Transferencia', 'Cheque', 'Otro'], 'Efectivo')}${btn('Registrar pago', `A.manualPay('${ids}')`, 'ok')}`);
+A.manualPay = ids => { const rid = payCharges(ids.split(','), val('mp-m')); closeSheet(); if (!rid) return toast('Estos cobros ya estaban pagados', 'warn'); save(); replaceTo('/comprobante/' + rid); toast('Pago registrado'); };
+const pendRows = () => S.charges.filter(c => c.clubId === cid() && c.playerId && c.status === 'pendiente');
 function incomeTab() {
   const l = moves().filter(x => x.type === 'ingreso').sort((a, b) => b.date.localeCompare(a.date)).slice(0, 8);
-  return btn('Crear ingreso', 'A.incomeSheet()', 'ok', 'plus') + sec('Conceptos de cobro') + list(S.incomeItems.map(i => li({ ic: 'money', color: 'green', title: esc(i.name), sub: `${esc(i.kind)} · ${esc(i.target)}`, right: `<b>${clp(i.amount)}</b>` }))) + secLink('Descuentos y becas', 'Agregar', 'A.discountSheet()') + list(S.discounts.map(d => li({ ic: 'tag', color: 'purple', title: esc(d.name), sub: `${esc(d.kind)} · ${esc(d.target)}`, right: `<b>${dVal(d)}</b>` }))) + sec('Últimos ingresos') + list(l.map(m => li({ title: esc(m.concept), sub: `${esc(m.category)} · ${fDate(m.date)}`, right: `<b style="color:var(--atext)">${clp(m.amount)}</b>` })));
+  return btn('Crear ingreso', 'A.incomeSheet()', 'ok', 'plus') + (pendRows().length ? sec('Cobros pendientes') + list(pendRows().slice(0, 30).map(c => li({ title: esc(c.concept), sub: `${esc((player(c.playerId) || {}).name || '')} · vence ${fDate(c.due)}`, right: `<b>${clp(c.amount)}</b>`, on: `A.manualSheet('${c.id}')` }))) : '') + sec('Conceptos de cobro') + list(S.incomeItems.map(i => li({ ic: 'money', color: 'green', title: esc(i.name), sub: `${esc(i.kind)} · ${esc(i.target)}`, right: `<b>${clp(i.amount)}</b>` }))) + secLink('Descuentos y becas', 'Agregar', 'A.discountSheet()') + list(S.discounts.map(d => li({ ic: 'tag', color: 'purple', title: esc(d.name), sub: `${esc(d.kind)} · ${esc(d.target)}`, right: `<b>${dVal(d)}</b>` }))) + sec('Últimos ingresos') + list(l.map(m => li({ title: esc(m.concept), sub: `${esc(m.category)} · ${fDate(m.date)}`, right: `<b style="color:var(--atext)">${clp(m.amount)}</b>` })));
 }
 A.expenseSheet = () => sheet('Registrar egreso', `${select('eg-c', 'Categoría', S.expenseCats)}${inp('eg-n', 'Concepto', 'autocomplete="off"')}${inp('eg-a', 'Monto', 'type="number" inputmode="numeric"')}${inp('eg-d', 'Fecha', `type="date" value="${today()}"`)}${btn('Registrar egreso', 'A.addExpense()', 'ok')}`);
 A.addExpense = () => { const n = val('eg-n'), a = +val('eg-a'); if (!n || !a) return toast('Indica concepto y monto', 'warn'); S.movements.push({ id: uid('mv'), clubId: cid(), type: 'egreso', category: val('eg-c'), concept: n, amount: a, date: val('eg-d') || today() }); closeSheet(); commit('Egreso registrado'); };
@@ -2629,7 +2659,8 @@ const SB = {
   async signUp(email, password, reg) { const r = await this.req('/auth/v1/signup?redirect_to=' + encodeURIComponent(appUrl()), { body: { email, password, data: { reg } }, auth: false }); if (r && r.access_token) this.keep(this.fromAuth(r)); return !!(r && r.access_token); },
   async signOut() { try { await this.req('/auth/v1/logout', {}); } catch (e) { } this.keep(null); },
   recover(email) { return this.req('/auth/v1/recover?redirect_to=' + encodeURIComponent(appUrl()), { body: { email }, auth: false }); },
-  async updateUser(body) { await this.fresh(); return this.req('/auth/v1/user', { method: 'PUT', body }); }
+  async updateUser(body) { await this.fresh(); return this.req('/auth/v1/user', { method: 'PUT', body }); },
+  async fn(name, body) { await this.fresh(); return this.req('/functions/v1/' + name, { body }); }
 };
 const AUTH_MSG = {
   invalid_credentials: 'Email o clave incorrectos.', invalid_grant: 'Email o clave incorrectos.', email_not_confirmed: 'Confirma tu email antes de ingresar: te enviamos un enlace.',
@@ -2638,9 +2669,6 @@ const AUTH_MSG = {
 };
 const appUrl = () => location.href.split('#')[0];
 
-// Pantallas que ya guardan en la base. Todos ven los mismos menús; las demás se abren vacías y avisan.
-const MSG_PENDIENTE = 'Sección en preparación: puedes revisarla, pero todavía no guarda información.';
-const REAL_OK = ['/login', '/registro', '/recuperar', '/nueva-clave', '/inicio', '/perfil', '/perfil/editar', '/notificaciones', '/vincular', '/unirme', '/club/:id', '/legal/:doc', '/a/pupilos', '/a/registrar-hijo', '/a/vincular-pupilo', '/apoderados', '/e/plantel', '/d/deportes', '/d/solicitudes', '/d/jugadores'];
 const realOk = path => !!match(path);
 
 // Transforma lo que entrega my_state() en la forma que ya usan las pantallas.
@@ -2657,9 +2685,12 @@ function blankState() {
 function hydrate(d, ui) {
   const s = blankState(), me_ = d.account, type = me_.type, r = type === 'club' ? 'directivo' : type, day = x => (x || '').slice(0, 10), uid_ = me_.user_id;
   s.clubs = d.clubs.map(c => ({ id: c.id, code: c.code, name: c.name, short: c.short, rut: c.rut, city: c.city || '', region: c.region || '', sports: c.sports, color: c.color, logo: c.logo, founded: +c.constituted.slice(0, 4), socios: c.board.length, constituted: c.constituted, regNumber: c.reg_number, email: c.email, phone: c.phone, address: c.address, web: c.web, ig: c.ig, desc: c.descr, board: c.board, ownerId: c.owner_id }));
-  s.teams = d.teams.map(t => ({ id: t.id, clubId: t.club_id, sport: t.sport, name: t.name, category: t.category, sex: t.sex, coach: t.coach }));
+  s.teams = d.teams.map(t => ({ id: t.id, clubId: t.club_id, sport: t.sport, name: t.name, category: t.category, sex: t.sex, coach: t.coach, matricula: t.matricula || 0 }));
+  // Directorio: otros clubes y equipos se ven con sus datos públicos, para transferencias, torneos y marketplace.
+  (d.directory || { clubs: [], teams: [] }).clubs.forEach(c => { if (!s.clubs.some(x => x.id === c.id)) s.clubs.push({ ...c, rut: '', logo: null, board: [], socios: 0, founded: '', constituted: null, city: c.city || '', region: c.region || '' }); });
+  (d.directory || { clubs: [], teams: [] }).teams.forEach(t => { if (!s.teams.some(x => x.id === t.id)) s.teams.push({ id: t.id, clubId: t.club_id, sport: t.sport, name: t.name, category: t.category, sex: t.sex, coach: t.coach, matricula: 0 }); });
   s.players = d.players.map(p => ({ id: p.id, first: p.name.split(' ')[0], name: p.name, sex: p.sex, birth: p.birth, rut: p.rut, email: p.email || '', phone: p.phone || '', position: p.position || '', city: p.city, height: p.height, size: p.size || '', photo: p.photo, accountId: p.account_id, guardianId: p.guardian_id, rel: p.rel }));
-  s.memberships = d.memberships.map(m => ({ id: m.id, playerId: m.player_id, clubId: m.club_id, sport: m.sport, teamId: m.team_id, status: m.status, since: day(m.resolved_at || m.created_at), until: null, federated: false }));
+  s.memberships = d.memberships.map(m => ({ id: m.id, playerId: m.player_id, clubId: m.club_id, sport: m.sport, teamId: m.team_id, status: m.status, since: day(m.resolved_at || m.created_at), until: m.until, federated: !!m.federated, number: m.number }));
   s.requests = d.memberships.filter(m => m.status === 'pendiente' || m.resolved_at).map(m => ({ id: m.id, playerId: m.player_id, clubId: m.club_id, sport: m.sport, membershipId: m.id, date: day(m.created_at), status: m.status === 'pendiente' ? 'pendiente' : m.status === 'rechazada' ? 'rechazada' : 'aceptada', note: m.note || '' }));
   const toAcc = a => ({ id: a.public_id, uid: a.user_id, type: a.type, role: a.type === 'club' ? 'directivo' : a.type, name: a.name, rut: a.rut, email: a.email, phone: a.phone, date: day(a.created_at), photo: a.photo, city: a.city, specialty: a.specialty, web: a.web, sport: a.sport });
   s.accounts = d.accounts.map(toAcc);
@@ -2674,13 +2705,64 @@ function hydrate(d, ui) {
   if (type === 'entrenador') { a.clubId = accepted[0] || null; a.profile = { name: a.name, by: a.name, clubId: null, sport: null, teams: [] }; }
   if (type === 'federacion') a.profile = { name: a.name, cargo: 'Representante' };
   if (type === 'proveedor') { a.refId = 'pv_' + a.id; s.providers = [{ id: a.refId, name: a.name, cat: me_.category, region: me_.region || '', city: me_.city || '', web: me_.web || '', ig: me_.ig || '', desc: me_.descr || '', photo: me_.photo, rating: 5, items: [] }]; }
+  (d.names || []).forEach(p => { if (!s.players.some(x => x.id === p.id)) s.players.push({ id: p.id, name: p.name, first: p.name.split(' ')[0], birth: '2000-01-01', rut: '', email: '', phone: '', position: '' }); });
+  // Módulos guardados en la base
+  (d.records || []).forEach(r => {
+    if (SYNC.includes(r.kind)) s[r.kind].push(r.data);
+    else if (r.kind === 'settings') s.settings = { ...s.settings, ...r.data };
+    else if (r.kind === 'expenseCats') s.expenseCats = r.data.list;
+    else if (r.kind === 'fichaFields') s.fichaFields = r.data;
+    else if (r.kind === 'fedConfig') s.fedConfig[r.id] = r.data;
+    else if (r.kind === 'prefs') { if (r.data.provPrefs) s.provPrefs = r.data.provPrefs; s.blocks = r.data.blocks || {}; }
+    else if (r.kind === 'providers') { const i = s.providers.findIndex(x => x.id === r.id); if (i >= 0) s.providers[i] = { ...s.providers[i], ...r.data }; else s.providers.push(r.data); }
+  });
+  s.att = {}; s.events.forEach(e => { if (e.attendance) s.att[e.id] = e.attendance; });
+  // Clubes por región según el directorio: las demás cifras crecen con el uso real.
+  SPORT_LIST.forEach(sp => { const reg = {}; s.clubs.filter(c => c.sports.includes(sp) && c.region).forEach(c => { reg[c.region] = reg[c.region] || { clubs: 0, fed: 0, nofed: 0 }; reg[c.region].clubs++; }); s.fedStats[sp] = { reg, cat: {} }; });
   s.session = { loggedIn: true, real: true, role: r, accountId: a.id, homeId: a.id };
   s.ui = { ...s.ui, ...(ui || {}), kid: (ui && ui.kid) || null, regType: null };
   try { s.home = (JSON.parse(localStorage.getItem(REAL_UI_KEY)) || {}).home || {}; } catch (e) { }
   return { s, a };
 }
-function useState_(d, ui) { const { s, a } = hydrate(d, ui); S = s; applyAccount(a); }
-async function refreshReal() { useState_(await SB.rpc('my_state'), S.ui); rerender(); }
+function useState_(d, ui) { const { s, a } = hydrate(d, ui); S = s; applyAccount(a); _snap = snapshot(); if (a.type === 'proveedor' && !(d.records || []).some(r => r.kind === 'providers' && r.id === a.refId)) { delete _snap['providers|' + a.refId]; syncSoon(); } }
+// Cada cambio se compara con lo último recibido de la base, y solo se envía la diferencia.
+const SYNC = ['events', 'charges', 'receipts', 'credentials', 'separations', 'claims', 'transfers', 'loans', 'movements', 'incomeItems', 'discounts', 'proposals', 'assemblies', 'polls', 'posts', 'chats', 'broadcasts', 'routines', 'staff', 'quotes', 'communiques', 'fedCharges', 'clubUploads', 'tournaments', 'reports', 'docs'];
+let _snap = {}, _memb = {}, _colaAvisos = [], _syncT = null, _syncing = Promise.resolve();
+function rowsNow() {
+  const out = {}, put = (kind, id, data) => { out[kind + '|' + id] = { kind, id, data }; }, a = acct();
+  SYNC.forEach(k => S[k].forEach(x => { const id = x.id || x.code; if (id) put(k, id, k === 'events' ? { ...x, attendance: S.att[x.id] || x.attendance || {} } : x); }));
+  if (a.type === 'club') { put('settings', a.clubId, { ...S.settings, clubId: a.clubId }); put('expenseCats', a.clubId, { list: S.expenseCats, clubId: a.clubId }); }
+  if (a.type === 'federacion') { put('fedConfig', a.sport, S.fedConfig[a.sport]); put('fichaFields', 'global', S.fichaFields); }
+  if (a.type === 'proveedor') put('providers', a.refId, provider(a.refId));
+  put('prefs', a.id, { provPrefs: S.provPrefs, blocks: S.blocks });
+  return out;
+}
+const membRows = () => Object.fromEntries(S.memberships.filter(m => m.status !== 'pendiente').map(m => [m.id, JSON.stringify({ id: m.id, playerId: m.playerId, clubId: m.clubId, sport: m.sport, teamId: m.teamId, status: m.status, number: m.number, federated: m.federated, until: m.until })]));
+function snapshot() { const o = {}, r = rowsNow(); Object.keys(r).forEach(k => { o[k] = JSON.stringify(r[k].data); }); _memb = membRows(); return o; }
+function syncSoon() { clearTimeout(_syncT); _syncT = setTimeout(syncNow, 0); }
+function syncNow() {
+  if (!S.session.real) return;
+  const now = rowsNow(), up = [], del = [], next = {};
+  Object.keys(now).forEach(k => { const j = JSON.stringify(now[k].data); next[k] = j; if (_snap[k] !== j) up.push(now[k]); });
+  Object.keys(_snap).forEach(k => { if (!now[k]) { const i = k.indexOf('|'); del.push({ kind: k.slice(0, i), id: k.slice(i + 1) }); } });
+  const mNow = membRows(), mUp = Object.keys(mNow).filter(k => _memb[k] !== mNow[k]).map(k => JSON.parse(mNow[k])), avisos = _colaAvisos;
+  if (!up.length && !del.length && !mUp.length && !avisos.length) return;
+  _snap = next; _memb = mNow; _colaAvisos = [];
+  _syncing = _syncing.then(async () => {
+    if (up.length || del.length) await SB.rpc('save_records', { p: { up, del } });
+    if (mUp.length) await SB.rpc('save_memberships', { p: mUp });
+    if (avisos.length) await SB.rpc('send_notifs', { p: avisos });
+  }).catch(async e => { toast(e.message, 'bad'); try { useState_(await SB.rpc('my_state'), S.ui); rerender(); } catch (x) { } });
+}
+function realNotify(to, text, href, clubId, ref) {
+  const roles = [].concat(to), prov = roles.includes('proveedor') ? ref : null, pid = (!prov && ref) || (S.players.find(p => p.rut && text.includes(p.name)) || {}).id || null;
+  _colaAvisos.push({ to: roles, text, href, clubId: clubId || (myClubs()[0]) || null, playerId: pid, providerId: prov });
+}
+async function refreshReal() { clearTimeout(_syncT); syncNow(); await _syncing; useState_(await SB.rpc('my_state'), S.ui); rerender(); }
+// Trae lo nuevo de otras personas sin interrumpir a quien está escribiendo.
+const puedeRefrescar = () => S.session.real && !document.hidden && !$('.sheet') && !['INPUT', 'TEXTAREA', 'SELECT'].includes((document.activeElement || {}).tagName);
+setInterval(() => { if (puedeRefrescar()) refreshReal().catch(() => { }); }, 30000);
+document.addEventListener('visibilitychange', () => { if (puedeRefrescar()) refreshReal().catch(() => { }); });
 
 // Primer ingreso tras confirmar el email: crea la cuenta con los datos del formulario.
 async function enterReal() {
@@ -2699,7 +2781,7 @@ function afterEnter(created) {
   NAV.length = 0; replaceTo('/inicio');
   if (created) setTimeout(() => sheet('Registro completado', `<p class="center" style="margin:0">Tu ID de ${typeLabel(acct().type)} es</p><div class="center big mb12" id="new-id">${created}</div>${btn('Entendido', 'closeSheet()')}`), 350);
 }
-const realDo = async (fn, msg) => { try { await fn(); await refreshReal(); if (msg) toast(msg); return true; } catch (e) { toast(e.message, 'bad'); return false; } };
+const realDo = async (fn, msg) => { try { await _syncing; await fn(); await refreshReal(); if (msg) toast(msg); return true; } catch (e) { toast(e.message, 'bad'); return false; } };
 
 // Reemplaza una acción solo en modo real: la versión demo queda intacta.
 const real = (name, fn, when = () => S.session.real) => { const demo = A[name]; A[name] = (...x) => when() ? fn(...x) : demo(...x); };
@@ -2766,7 +2848,17 @@ real('guardianRemove', id => realDo(() => SB.rpc('remove_guardian', { p_id: id }
 real('req', (id, ok) => realDo(() => SB.rpc('resolve_join', { p_id: id, p_ok: ok }), ok ? 'Deportista aceptado: ahora está Hábil' : 'Solicitud rechazada'));
 real('lnk', (id, ok) => realDo(() => SB.rpc('resolve_link', { p_id: id, p_ok: ok }), ok ? 'Vinculación aceptada' : 'Vinculación rechazada'));
 real('doAddSport', () => { const s = pickSport(); if (!s) return; closeSheet(); return realDo(() => SB.rpc('add_sport', { p_sport: s }), s + ' agregado al club'); });
-real('addTeam', sp => { const n = val('dt-n'); if (!n) return toast('Escribe un nombre', 'warn'); const p = { sport: sp, name: n, category: val('dt-c'), sex: val('dt-x'), coach: val('dt-e') }; closeSheet(); return realDo(() => SB.rpc('add_team', { p }), 'Equipo creado'); });
+real('addTeam', sp => { const n = val('dt-n'); if (!n) return toast('Escribe un nombre', 'warn'); const p = { sport: sp, name: n, category: val('dt-c'), sex: val('dt-x'), coach: val('dt-e') }, m = +val('dt-m') || 0; closeSheet(); return realDo(async () => { const id = await SB.rpc('add_team', { p }); if (m) await SB.rpc('update_team', { p: { id, name: n, matricula: m } }); }, 'Equipo creado'); });
+real('saveTeam', id => { const n = val('te-n'), m = val('te-m'); if (!n) { $('#te-err').textContent = 'Escribe un nombre.'; return; } if (m === '' || +m < 0) { $('#te-err').textContent = 'Indica un monto válido.'; return; } const p = { id, name: n, category: val('te-c'), sex: val('te-x'), coach: val('te-e') || 'Por asignar', matricula: +m }; closeSheet(); return realDo(() => SB.rpc('update_team', { p }), 'Categoría actualizada'); });
+real('delTeam', id => { closeSheet(); return realDo(() => SB.rpc('delete_team', { p_id: id }), 'Categoría eliminada'); });
+real('saveMat', sp => { const v = val('dm-a'); if (v === '' || +v < 0) { $('#dm-err').textContent = 'Indica un monto válido.'; return; } closeSheet(); return realDo(() => SB.rpc('set_sport_matricula', { p_sport: sp, p_amount: +v }), 'Matrícula aplicada a todas las categorías'); });
+real('manualPay', ids => { const m = val('mp-m'); closeSheet(); return realDo(async () => { const r = await SB.rpc('record_manual_payment', { p_ids: ids.split(','), p_method: m }); if (r) location.hash = '#/comprobante/' + r; }, 'Pago registrado'); });
+// Pago en línea: el servidor crea el cobro en Mercado Pago y confirma el resultado. El navegador nunca marca nada como pagado.
+real('pay', async ids => {
+  const o = overlay('Conectando con Mercado Pago…');
+  try { const r = await SB.fn('mp-crear-pago', { ids: ids.split(','), back: appUrl() }); location.href = r.url; }
+  catch (e) { o.remove(); toast([404, 503].includes(e.status) ? 'Los pagos en línea aún no están activados. Paga directamente a tu club.' : e.message, 'warn'); }
+});
 real('setCoach', id => { const n = val('dc-n'); if (!n) return; closeSheet(); return realDo(() => SB.rpc('set_team_coach', { p_team: id, p_coach: n }), 'Entrenador asignado'); });
 real('readAll', () => realDo(() => SB.rpc('mark_notifs_read', { p_id: null }), 'Notificaciones leídas'));
 real('openNotif', async id => { const n = S.notifs.find(x => x.id === id), to = realOk(n.href) ? n.href : '/inicio'; try { await SB.rpc('mark_notifs_read', { p_id: id }); n.read = true; } catch (e) { } go(to); });
@@ -2822,16 +2914,17 @@ function realHome() {
 
 // Solo se ingresan datos con una sesión de una cuenta creada. Quien revisa la app con el usuario demo
 // solo consulta, y en una cuenta real una acción que aún no tiene base de datos avisa: nunca finge guardar.
-const SOLO_VER = new Set('back ui homeEdit homeMove homeFlag homeReset login logout completeReg recover newPass linkSearch linkPick linkCheck addCargo regType installHelp openNotif roleSheet setRole demoPick resetDemo doReset time rhClub pickKid addSport sportOther deleteAsk tfUpd certUpd bajaDebt loanType qtLine qtTotal showCom showReceipt playVideo comments claimView chatMenu toggleCh setMethod tpl csvSample addOption'.split(' '));
-const CON_BASE = new Set('linkSend readAll join regKid doAddSport addTeam setCoach req lnk pickPhoto delPhoto saveProfile deleteDo guardianSend guardianResolve guardianRemove'.split(' '));
+const SOLO_VER = new Set('back ui homeEdit homeMove homeFlag homeReset login logout completeReg recover newPass linkSearch linkPick linkCheck addCargo regType installHelp openNotif roleSheet setRole demoPick resetDemo doReset time rhClub pickKid addSport sportOther deleteAsk tfUpd certUpd bajaDebt loanType qtLine qtTotal showCom showReceipt playVideo comments claimView chatMenu toggleCh setMethod tpl csvSample addOption delTeamSheet'.split(' '));
+// Funciones que solo existen para simular en el demo. La carga masiva crearía deportistas sin cuenta ni apoderado.
+const SOLO_DEMO = new Set('time simLink simReply simJoin simVotes asmSim csvSample csvImport resetDemo doReset scan'.split(' '));
 const MSG_CREA_CUENTA = 'Estás en el modo demo: crea una cuenta para ingresar datos.';
+const MSG_SOLO_DEMO = 'Esta función no está disponible en cuentas reales.';
 const soloConsulta = () => HAS_DB && S.session.loggedIn && !S.session.real;
 Object.keys(A).forEach(k => {
-  if (SOLO_VER.has(k) || /Sheet$/.test(k)) return;
-  const f = A[k];
+  const libre = SOLO_VER.has(k) || /Sheet$/.test(k), f = A[k];
   A[k] = (...x) => {
-    if (soloConsulta()) { closeSheet(); return toast(MSG_CREA_CUENTA, 'warn'); }
-    if (S.session.real && !CON_BASE.has(k)) { closeSheet(); return toast(MSG_PENDIENTE, 'warn'); }
+    if (S.session.real && SOLO_DEMO.has(k)) { closeSheet(); return toast(MSG_SOLO_DEMO, 'warn'); }
+    if (!libre && soloConsulta()) { closeSheet(); return toast(MSG_CREA_CUENTA, 'warn'); }
     return f(...x);
   };
 });

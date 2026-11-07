@@ -75,6 +75,8 @@ class Api(http.server.BaseHTTPRequestHandler):
         cuerpo = json.loads(self.rfile.read(n) or '{}')
         url = urlparse(self.path)
         with LOCK:
+            if url.path.startswith('/functions/'):
+                return self.responder(404, {'message': 'Función no desplegada'})
             if url.path.startswith('/rest/v1/rpc/'):
                 return self.rpc(url.path.rsplit('/', 1)[1], cuerpo)
             return self.auth(metodo, url, cuerpo)
@@ -125,7 +127,7 @@ class Api(http.server.BaseHTTPRequestHandler):
     def rpc(self, fn, args):
         u = self.uid()
         nombres = ', '.join(f'{k} => %s' for k in args)
-        vals = [json.dumps(v) if isinstance(v, (dict, list)) else v for v in args.values()]
+        vals = [v if k == 'p_ids' else json.dumps(v) if isinstance(v, (dict, list)) else v for k, v in args.items()]
         try:
             with self.db.cursor() as q:
                 q.execute("select set_config('request.jwt.claims', %s, true), set_config('role', %s, true)",
@@ -254,11 +256,7 @@ def correr(br, check, errores):
     check('club tiene los mismos menús que el demo', all(x in pestanas for x in ('Inicio', 'Finanzas', 'Aprobaciones', 'Mensajes', 'Perfil')))
     club.ir('/d/finanzas')
     t = club.texto()
-    check('pantalla sin base avisa y queda vacía', 'todavía no guarda' in t and '$0' in t and 'Honorarios' not in t)
-    antes = club.p.evaluate('S.movements.length')
-    club.p.evaluate("A.addExpense()")
-    club.p.wait_for_timeout(200)
-    check('acción sin base no finge guardar', club.p.evaluate('S.movements.length') == antes and 'todavía no guarda' in club.p.inner_text('#toasts'))
+    check('finanzas parte vacía', '$0' in t and 'Honorarios' not in t and 'todavía no guarda' not in t)
 
     # --- Logo, deportes y equipos ---
     club.ir('/perfil/editar')
@@ -502,6 +500,98 @@ def correr(br, check, errores):
                 datos.append(ruta)
         check(f'{nombre}: {len(info["rutas"])} pantallas abren: {malas[:6]}', not malas)
         check(f'{nombre}: sin datos inventados: {datos[:6]}', not datos)
+
+    # --- Módulos conectados: lo que registra una persona lo ve otra en su teléfono, y persiste ---
+    def recarga(tel, ruta):
+        tel.ir(ruta)
+        tel.p.reload()
+        tel.p.wait_for_timeout(700)
+        return tel.texto()
+
+    def hoja(tel, accion, campos, enviar):
+        tel.p.evaluate(accion)
+        tel.p.wait_for_timeout(200)
+        for sel, v in campos.items():
+            if tel.p.locator(sel).evaluate('e => e.tagName') == 'SELECT':
+                tel.p.select_option(sel, v)
+            else:
+                tel.p.fill(sel, v)
+        tel.p.evaluate(enviar)
+        tel.p.wait_for_timeout(600)
+
+    # Categorías y matrícula
+    club.ir('/d/deportes')
+    equipo = club.p.evaluate("S.teams.find(t => t.name === 'Fútbol Adulto').id")
+    hoja(club, f"A.matSheet('Fútbol')", {'#dm-a': '30000'}, "A.saveMat('Fútbol')")
+    check('matrícula aplicada a la categoría', '$30.000' in recarga(club, '/d/deportes'))
+    check('matrícula cargada al deportista', '$30.000' in recarga(dep, '/pagos'))
+    hoja(club, f"A.teamSheetEdit('{equipo}')", {'#te-n': 'Fútbol Primera', '#te-m': '25000'}, f"A.saveTeam('{equipo}')")
+    t = recarga(club, '/d/deportes')
+    check('categoría editada con su monto', 'Fútbol Primera' in t and '$25.000' in t)
+    check('el cobro pendiente toma el monto nuevo', '$25.000' in recarga(dep, '/pagos'))
+    hoja(club, "A.teamSheet('Fútbol')", {'#dt-n': 'Fútbol Sub-13'}, "A.addTeam('Fútbol')")
+    nuevo_eq = club.p.evaluate("S.teams.find(t => t.name === 'Fútbol Sub-13').id")
+    check('categoría nueva hereda la matrícula del deporte', club.p.evaluate(f"team('{nuevo_eq}').matricula") == 25000)
+    club.p.evaluate(f"A.delTeamSheet('{equipo}')")
+    club.p.wait_for_timeout(300)
+    check('categoría con deportistas no se elimina', 'tiene deportistas' in club.p.inner_text('#toasts'))
+    club.p.evaluate(f"A.delTeam('{nuevo_eq}')")
+    club.p.wait_for_timeout(600)
+    check('categoría vacía se elimina', 'Fútbol Sub-13' not in recarga(club, '/d/deportes'))
+
+    # Finanzas y pagos
+    hoja(club, 'A.expenseSheet()', {'#eg-n': 'Arriendo cancha', '#eg-a': '45000'}, 'A.addExpense()')
+    recarga(club, '/d/finanzas')
+    check('egreso guardado en la base', club.p.evaluate("S.movements.some(m => m.concept === 'Arriendo cancha')"))
+    dep.ir('/pagos')
+    check('deportista no ve las finanzas del club', dep.p.evaluate("S.movements.length") == 0)
+    cobro = dep.p.evaluate("S.charges.find(c => c.kind === 'matricula').id")
+    dep.ir('/pagar/' + cobro)
+    check('botón de Mercado Pago listo', 'Pagar con Mercado Pago' in dep.texto() and 'Webpay' not in dep.texto())
+    dep.tap('Pagar con Mercado Pago')
+    dep.p.wait_for_timeout(500)
+    check('sin activar avisa y no marca pagado', 'aún no están activados' in dep.p.inner_text('#toasts') and dep.p.evaluate(f"S.charges.find(c => c.id === '{cobro}').status") == 'pendiente')
+    club.p.reload()
+    club.p.wait_for_timeout(700)
+    hoja(club, f"A.manualSheet('{cobro}')", {'#mp-m': 'Transferencia'}, f"A.manualPay('{cobro}')")
+    club.p.wait_for_timeout(500)
+    check('club registra el pago y emite comprobante', 'Comprobante' in club.texto())
+    recarga(dep, '/pagos')
+    check('deportista ve su cobro pagado', dep.p.evaluate(f"S.charges.find(c => c.id === '{cobro}').status") == 'pagado')
+    check('pago entra a las finanzas del club', club.p.evaluate("(async () => { await refreshReal(); return S.movements.some(m => m.category === 'Matrículas'); })()"))
+
+    # Calendario y asistencia
+    ent.ir('/e/nuevo-evento')
+    ent.p.evaluate("""() => { const hoy = addDays(today(), 3); S.events.push({ id: uid('e'), type: 'partido', clubId: curTeam().clubId, sport: curTeam().sport, teamId: curTeam().id, date: hoy, time: '10:00', place: 'Cancha 1', title: 'Partido real', cited: [], present: [], result: null, stats: {}, rival: 'Rival' }); save(); }""")
+    ent.p.wait_for_timeout(500)
+    check('deportista ve el evento del entrenador', 'Partido real' in recarga(dep, '/calendario'))
+    check('apoderado ve el evento de su pupilo', 'Partido real' in recarga(apo, '/calendario') or apo.p.evaluate("S.events.some(e => e.title === 'Partido real')"))
+
+    # Muro y mensajes
+    dep.ir('/muro')
+    dep.p.evaluate("""() => { S.posts.unshift({ id: uid('po'), by: me().name, clubId: myClubs()[0], official: false, date: today(), text: 'Hola equipo real', media: null, likes: [], likesBase: 0, comments: [] }); save(); }""")
+    dep.p.wait_for_timeout(500)
+    check('publicación llega a otra persona', ent.p.evaluate("(async () => { await refreshReal(); return S.posts.some(p => p.text === 'Hola equipo real'); })()"))
+    dep.p.evaluate("""() => { const c = { id: uid('ch'), type: 'directo', title: 'Tomás Real', members: [me().id, 'E00000001'], names: { [me().id]: me().name, E00000001: 'Tomás Real' }, msgs: [] }; S.chats.push(c); save(); location.hash = '#/chat/' + c.id; }""")
+    dep.p.wait_for_timeout(600)
+    dep.f('#ch-in', 'Mensaje de prueba')
+    dep.p.evaluate("A.send(location.hash.split('/')[2])")
+    dep.p.wait_for_timeout(1800)
+    check('chat real no inventa respuestas', dep.p.evaluate("S.chats[0].msgs.length") == 1)
+    check('el otro recibe el mensaje', ent.p.evaluate("(async () => { await refreshReal(); return S.chats.some(c => c.msgs.some(m => m.text === 'Mensaje de prueba')); })()"))
+
+    # Federación y proveedor
+    fed.p.evaluate("""() => { S.communiques.unshift({ id: uid('co'), sport: acct().sport, scope: 'nacional', title: 'Comunicado real', body: 'Texto', date: today() }); save(); }""")
+    fed.p.wait_for_timeout(500)
+    check('comunicado de la federación persiste', 'Comunicado real' in recarga(fed, '/f/comunicados'))
+    pro.p.evaluate("""() => { myProv().items.push({ id: uid('it'), name: 'Balones', price: 15000, desc: '' }); save(); }""")
+    pro.p.wait_for_timeout(500)
+    check('catálogo llega al marketplace del club', club.p.evaluate("(async () => { await refreshReal(); return S.providers.some(p => (p.items || []).some(i => i.name === 'Balones')); })()"))
+
+    # Permisos desde la propia app
+    dep.p.evaluate("""() => { S.movements.push({ id: 'hack', clubId: myClubs()[0], type: 'ingreso', amount: 1, concept: 'Hack', category: 'x', date: today() }); save(); }""")
+    dep.p.wait_for_timeout(800)
+    check('la base rechaza finanzas escritas por un deportista', 'permiso' in dep.p.inner_text('#toasts').lower() and not dep.p.evaluate("S.movements.some(m => m.id === 'hack')"))
 
     # --- Cuentas recién creadas, sin club ni pupilos: igual ven todos sus accesos ---
     for tipo, nombre_, r_, email_ in (('apoderado', 'Ana Nueva', rut(16000001), 'ana@real.cl'), ('entrenador', 'Beto Nuevo', rut(16000002), 'beto@real.cl'), ('jugador', 'Cata Nueva', rut(16000003), 'cata@real.cl')):

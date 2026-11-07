@@ -86,7 +86,7 @@ Luego `npm run ios` o `npm run android` abre el proyecto nativo.
 
 **Modo demo:** usuario `demo`, clave `demo`. Permite elegir cualquier perfil y consultar todas las funciones con datos inventados. Para ingresar datos hay que crear una cuenta.
 
-**Importante:** el modo real muestra los mismos menús en todos los perfiles, con la información vacía. Por ahora guardan cuentas, clubes, vínculos, plantel y avisos. Calendario, pagos, mensajes y los demás módulos se pueden abrir, pero avisan que aún no guardan. Aún no está lista para enviarse a las tiendas.
+**Importante:** las cuentas creadas guardan todos los módulos en la base de datos. Faltan por activar los pagos en línea, las notificaciones al teléfono y el QR escaneable. Aún no está lista para enviarse a las tiendas.
 
 ## Conectar la base de datos
 
@@ -98,6 +98,13 @@ Luego `npm run ios` o `npm run android` abre el proyecto nativo.
 6. Antes de abrir el registro al público, configura un correo propio en **Authentication → SMTP**. El correo incluido en Supabase solo llega a miembros del proyecto, con un máximo de 2 mensajes por hora.
 
 La app ya está conectada a su proyecto de Supabase. Las pruebas del demo usan una copia sin conexión y no tocan la base real.
+
+## Activar Mercado Pago
+
+1. Crea tu aplicación en Mercado Pago Developers y copia el Access Token. Usa primero las credenciales de prueba.
+2. En Supabase, abre **Edge Functions → Secrets** y agrega `MP_ACCESS_TOKEN`. Nunca lo pongas en `config.js`.
+3. Despliega `supabase/functions/mp-crear-pago` y `supabase/functions/mp-webhook`. La segunda debe ir sin verificación de JWT, porque la llama Mercado Pago.
+4. Haz un pago de prueba y revisa que el cobro quede pagado y se emita el comprobante.
 
 Pruebas: `python tools/probar_base.py` (permisos en Postgres local) y `python tools/flujos_real.py` (navegador con API emulada).
 
