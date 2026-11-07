@@ -206,6 +206,22 @@ def correr(br, check, errores):
     check('ingreso sin datos precargados', club.p.input_value('#lg-em') == '' and club.p.input_value('#lg-pw') == '')
 
     # --- El demo sigue funcionando junto a la base ---
+    club.entrar('demo', 'demo')
+    check('ingreso demo único pide elegir perfil', 'Modo demo' in club.texto() and club.p.locator('.sheet .li').count() == 6)
+    club.p.locator('.sheet button.li', has_text='Club').first.click()
+    club.p.wait_for_timeout(400)
+    check('demo entra al perfil elegido con datos inventados', club.p.evaluate('role()') == 'directivo' and 'Halcones' in club.texto())
+    antes = club.p.evaluate('S.movements.length')
+    club.p.evaluate("A.addExpense()")
+    club.p.wait_for_timeout(200)
+    check('demo no permite ingresar datos', club.p.evaluate('S.movements.length') == antes and 'crea una cuenta' in club.p.inner_text('#toasts'))
+    club.p.evaluate("A.doAddSport()")
+    club.p.wait_for_timeout(200)
+    check('demo tampoco usa la base', club.p.evaluate('!!S.session.real') is False and 'crea una cuenta' in club.p.inner_text('#toasts'))
+    club.ir('/d/finanzas')
+    check('demo muestra la función con sus datos', 'No pudimos abrir' not in club.texto() and 'todavía no guarda' not in club.texto())
+    club.p.evaluate('A.logout()')
+    club.p.wait_for_timeout(300)
     club.entrar('demo@myclub.cl', 'demo')
     check('cuenta demo entra con datos de ejemplo', 'Matías' in club.texto())
     club.ir('/perfil')
@@ -235,9 +251,14 @@ def correr(br, check, errores):
     t = club.texto()
     check('no aparece ningún dato inventado', not any(x in t for x in ('Halcones', 'Matías', 'Patricia', 'Ingresos del mes')))
     pestanas = club.p.inner_text('#tabbar')
-    check('sin pestañas no conectadas', 'Finanzas' not in pestanas and 'Mensajes' not in pestanas and 'Perfil' in pestanas)
+    check('club tiene los mismos menús que el demo', all(x in pestanas for x in ('Inicio', 'Finanzas', 'Aprobaciones', 'Mensajes', 'Perfil')))
     club.ir('/d/finanzas')
-    check('pantalla no conectada vuelve al inicio', club.p.evaluate('location.hash') == '#/inicio')
+    t = club.texto()
+    check('pantalla sin base avisa y queda vacía', 'todavía no guarda' in t and '$0' in t and 'Honorarios' not in t)
+    antes = club.p.evaluate('S.movements.length')
+    club.p.evaluate("A.addExpense()")
+    club.p.wait_for_timeout(200)
+    check('acción sin base no finge guardar', club.p.evaluate('S.movements.length') == antes and 'todavía no guarda' in club.p.inner_text('#toasts'))
 
     # --- Logo, deportes y equipos ---
     club.ir('/perfil/editar')
@@ -450,7 +471,7 @@ def correr(br, check, errores):
     fed.cerrar_hoja()
     fed.entrar('fed@real.cl')
     fed.cerrar_hoja()
-    check('federación sin datos inventados', 'F00000001' in fed.texto() and 'Dashboard' not in fed.p.inner_text('#tabbar'))
+    check('federación sin datos inventados', 'F00000001' in fed.texto() and 'Dashboard' in fed.p.inner_text('#tabbar'))
     pro = Telefono(br, errores)
     pro.registrar('proveedor', 'Proveedor Real', rut(15151515), 'prov@real.cl')
     pro.p.wait_for_timeout(500)
@@ -460,6 +481,27 @@ def correr(br, check, errores):
     check('proveedor con su propia cuenta', 'P00000001' in pro.texto() and 'Deportes Andes' not in pro.texto())
     pro.ir('/perfil')
     check('perfil de proveedor abre', 'Proveedor Real' in pro.texto() and 'No pudimos abrir' not in pro.texto())
+
+    # --- Todos los perfiles: mismos menús e íconos, pantallas vacías y sin datos inventados ---
+    inventado = ('Halcones', 'Matías', 'Carolina', 'Patricia', 'Rodrigo Saavedra', 'Deportes Andes', 'Atlético Biobío', 'Náutico', 'Contreras', 'Simular', 'simulad', 'de ejemplo', ' demo', 'Demo')
+    for nombre, tel in (('club', club), ('deportista', dep), ('apoderado', apo), ('entrenador', ent), ('federación', fed), ('proveedor', pro)):
+        info = tel.p.evaluate('''() => { const r = role(); return { tabs: TABS[r].length, tabsVistas: document.querySelectorAll('#tabbar .tab').length, home: HOME[r].length, rutas: ROUTES.filter(x => !x.public && !x.path.includes(':') && (!x.roles || x.roles.includes(r)) && x.path !== '/nueva-clave').map(x => x.path) }; }''')
+        check(f'{nombre}: todas las pestañas', info['tabs'] == info['tabsVistas'] == 5)
+        tel.ir('/inicio')
+        check(f'{nombre}: todos los accesos del inicio', tel.p.locator('#view .tile').count() == info['home'])
+        malas, datos = [], []
+        for ruta in info['rutas']:
+            tel.p.evaluate("r => { location.hash = '#' + r }", ruta)
+            tel.p.wait_for_timeout(90)
+            if tel.p.evaluate('location.hash') != '#' + ruta:
+                malas.append(ruta + ' (redirige)')
+            t = tel.p.inner_text('#view')
+            if 'No pudimos abrir' in t:
+                malas.append(ruta)
+            if any(x in t for x in inventado):
+                datos.append(ruta)
+        check(f'{nombre}: {len(info["rutas"])} pantallas abren: {malas[:6]}', not malas)
+        check(f'{nombre}: sin datos inventados: {datos[:6]}', not datos)
 
     # --- RUT repetido: el email queda libre para reintentar ---
     otro = Telefono(br, errores)

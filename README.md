@@ -84,7 +84,9 @@ npx cap add android
 
 Luego `npm run ios` o `npm run android` abre el proyecto nativo.
 
-**Importante:** el modo real cubre por ahora cuentas, clubes, vínculos, plantel y avisos. Calendario, pagos, mensajes y los demás módulos siguen solo en el demo, y en modo real no se muestran. Aún no está lista para enviarse a las tiendas.
+**Modo demo:** usuario `demo`, clave `demo`. Permite elegir cualquier perfil y consultar todas las funciones con datos inventados. Para ingresar datos hay que crear una cuenta.
+
+**Importante:** el modo real muestra los mismos menús en todos los perfiles, con la información vacía. Por ahora guardan cuentas, clubes, vínculos, plantel y avisos. Calendario, pagos, mensajes y los demás módulos se pueden abrir, pero avisan que aún no guardan. Aún no está lista para enviarse a las tiendas.
 
 ## Conectar la base de datos
 

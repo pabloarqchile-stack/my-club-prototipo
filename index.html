@@ -1231,7 +1231,7 @@ const hbars = (items, fmt = v => thou(v)) => { const m = Math.max(1, ...items.ma
 
 // --- Encabezado de documento imprimible ---
 const docHead = (issuer, sub, c) => `<div class="dh"><span class="lg">${c ? clubLogo(c, 42) : LOGO(42)}</span><div><div style="font-weight:700">${esc(issuer)}</div><div style="font-size:12px;color:#667085">${esc(sub)}</div></div></div>`;
-const docVer = code => `<div class="ver">${qrLink(code, 84)}<div><b>Documento verificable</b><br>Código: ${code}<br>Escanea el QR o ingresa el código en My Club → Verificar. Prototipo: QR de ejemplo, documento sin validez legal.</div></div>`;
+const docVer = code => S.session.real ? `<div class="ver"><div><b>Borrador</b><br>La verificación de documentos estará disponible próximamente. Este documento aún no tiene validez.</div></div>` : `<div class="ver">${qrLink(code, 84)}<div><b>Documento verificable</b><br>Código: ${code}<br>Escanea el QR o ingresa el código en My Club → Verificar. Prototipo: QR de ejemplo, documento sin validez legal.</div></div>`;
 
 /* ======================================================================
    6. RUTAS (núcleo)
@@ -1267,7 +1267,6 @@ function render(nav) {
   if (!r.public && !S.session.loggedIn) return replaceTo('/login');
   if (r.path === '/login' && S.session.loggedIn) return replaceTo('/inicio');
   if (r.roles && !r.roles.includes(role())) return replaceTo('/inicio');
-  if (S.session.real && !REAL_OK.includes(r.path)) return replaceTo('/inicio');
   const view = $('#view'), top = view.scrollTop;
   let html;
   const gate = S.session.loggedIn && !r.public && gated() && !GATE_OK.includes(r.path);
@@ -1279,10 +1278,9 @@ function render(nav) {
     const title = typeof r.title === 'function' ? r.title(p) : r.title, c = unread();
     const rb = r.action && !gate ? r.action(p) : '';
     hdr.innerHTML = `${r.root ? `<span class="hb">${LOGO(34)}</span>` : `<button class="hb" onclick="A.back()" aria-label="Volver">${icon('back', 26)}</button>`}<div class="ttl">${esc(title)}</div>${rb}${S.session.loggedIn ? `<button class="hb" onclick="go('/notificaciones')" aria-label="Notificaciones">${icon('bell', 23)}${c ? `<span class="count">${c > 9 ? '9+' : c}</span>` : ''}</button>` : '<span class="hb ph"></span>'}`;
-    tb.innerHTML = (TABS[role()] || []).filter(t => !S.session.real || realOk(t[3])).map(([k, l, ic, href]) => { const n = tabBadge(k); return `<button class="tab ${r.tab === k ? 'on' : ''}" onclick="go('${href}')" ${r.tab === k ? 'aria-current="page"' : ''}>${icon(ic, 24)}<span>${l}</span>${n ? `<span class="dot">${n}</span>` : ''}</button>`; }).join('');
+    tb.innerHTML = (TABS[role()] || []).map(([k, l, ic, href]) => { const n = tabBadge(k); return `<button class="tab ${r.tab === k ? 'on' : ''}" onclick="go('${href}')" ${r.tab === k ? 'aria-current="page"' : ''}>${icon(ic, 24)}<span>${l}</span>${n ? `<span class="dot">${n}</span>` : ''}</button>`; }).join('');
   }
-  view.innerHTML = html;
-  if (S.session.real) realPrune(view);
+  view.innerHTML = S.session.real && !gate && !REAL_OK.includes(r.path) ? note(MSG_PENDIENTE, 'warn', 'clock') + html : html;
   if (nav) { view.scrollTop = 0; view.classList.remove('enter'); void view.offsetWidth; view.classList.add('enter'); } else view.scrollTop = top;
   if (r.after && !gate) r.after(p);
 }
@@ -1309,7 +1307,7 @@ const HOME = {
 const clubProps = () => S.proposals.filter(p => team(p.teamId).clubId === S.users.directivo.clubId);
 const HOME_BADGE = { aprobaciones: () => clubProps().filter(p => p.status === 'pendiente').length, solicitudes: () => { const c = S.users.directivo.clubId; return S.requests.filter(r => r.status === 'pendiente' && r.clubId === c).length + S.linkRequests.filter(r => r.status === 'pendiente' && r.clubId === c).length + S.transfers.filter(t => t.status === 'pendiente_autorizacion' && t.fromClub === c).length; }, reclamos: () => S.claims.filter(c => c.status === 'abierto' && c.clubId === S.users.directivo.clubId).length + S.reports.filter(r => r.status === 'abierto' && r.clubId === S.users.directivo.clubId).length };
 function homeLayout(r) {
-  const defs = HOME[r].filter(d => !S.session.real || realOk(d[4])), saved = S.home[r] || [];
+  const defs = HOME[r], saved = S.home[r] || [];
   const out = saved.filter(x => defs.some(d => d[0] === x.id));
   defs.forEach(d => { if (!out.some(x => x.id === d[0])) out.push({ id: d[0], pinned: false, hidden: false }); });
   S.home[r] = out; return out;
@@ -1339,13 +1337,17 @@ route('/inicio', { title: () => 'Hola, ' + me().name.split(' ')[0], tab: 'inicio
 
 // --- Ingreso: solo email y clave ---
 A.login = () => {
-  const a = S.accounts.find(x => x.email === val('lg-em').toLowerCase());
+  const em = val('lg-em').toLowerCase(), unico = em === DEMO_USER, a = S.accounts.find(x => x.email === (unico ? 'demo@myclub.cl' : em));
   if (!a || a.pass !== hash(val('lg-pw'))) { $('#lg-err').textContent = 'Email o clave incorrectos.'; return; }
   S.session.loggedIn = true; S.session.homeId = a.id; applyAccount(a); save(); NAV.length = 0; replaceTo('/inicio');
+  if (unico) setTimeout(A.demoPick, 350);
 };
+// Modo demo: un solo usuario y clave (demo / demo) para recorrer todos los perfiles con datos inventados.
+const DEMO_USER = 'demo';
+A.demoPick = () => sheet('Modo demo', `<p class="small muted center" style="margin:-8px 0 12px">Datos inventados, solo para consultar. Para ingresar datos, crea una cuenta. Elige un perfil; puedes cambiarlo en Perfil → Cambiar de rol.</p>` + list(Object.entries(ROLES).map(([k, v]) => li({ ic: v.icon, title: v.label, sub: v.desc, on: `A.setRole('${k}')` }))));
 route('/login', {
   public: true, bare: true, render: () => `<div class="login"><img class="brand" src="icons/logo.png" alt="My Club">
-    <div class="card">${inp('lg-em', 'Email', `type="email" inputmode="email" ${HAS_DB ? '' : 'value="demo@myclub.cl"'} autocomplete="off" autocapitalize="off"`)}${inp('lg-pw', 'Clave', `type="password" ${HAS_DB ? '' : 'value="demo"'} autocomplete="off" onkeydown="if(event.key==='Enter')A.login()"`)}<div class="err" id="lg-err"></div></div>
+    <div class="card">${inp('lg-em', 'Email', `type="text" inputmode="email" ${HAS_DB ? '' : 'value="demo@myclub.cl"'} autocomplete="off" autocapitalize="off"`)}${inp('lg-pw', 'Clave', `type="password" ${HAS_DB ? '' : 'value="demo"'} autocomplete="off" onkeydown="if(event.key==='Enter')A.login()"`)}<div class="err" id="lg-err"></div></div>
     ${btn('INGRESAR', 'A.login()', 'naranjo')}<div class="mt8">${goBtn('REGISTRARSE', '/registro', 'calipso')}</div>${HAS_DB ? `<div class="center mt12"><a class="small" href="#/recuperar">Olvidé mi clave</a></div>` : ''}</div>`
 });
 
@@ -2138,7 +2140,7 @@ A.csvImport = () => { const t = curTeam(), ok = (S.ui.csv || []).filter(r => !r.
 route('/e/carga', {
   title: 'Carga masiva', roles: ['entrenador'], render: () => {
     const c = S.ui.csv, ok = c ? c.filter(r => !r.errs.length).length : 0;
-    return teamBar() + `<div class="card"><h3>1. Descarga la plantilla</h3><p class="small muted">CSV separado por punto y coma, listo para Excel.</p>${btn('Descargar plantilla', 'A.tpl()', 's2', 'download')}</div><div class="card"><h3>2. Sube el archivo</h3><p class="small muted">Validamos RUT, duplicados y campos obligatorios.</p><label class="btn s2" style="cursor:pointer">${icon('upload', 20)}Elegir archivo CSV<input type="file" accept=".csv,text/csv" hidden onchange="A.csvFile(this)"></label><div class="mt8">${btn('Usar archivo de ejemplo', 'A.csvSample()', 'ghost')}</div></div>` + (c ? `${sec('Resultado de la validación')}<div class="kpis">${kpi('Válidos', ok, 'atext')}${kpi('Con errores', c.length - ok, c.length - ok ? 'dtext' : '')}</div>${list(c.map(r => li({ ic: r.errs.length ? 'alert' : 'check', color: r.errs.length ? 'red' : 'green', title: esc(r.name || `Fila ${r.line}`), sub: r.errs.length ? `Fila ${r.line}: ${esc(r.errs.join(', '))}` : esc(r.rut) })))}${btn(`Importar ${ok} válidos`, 'A.csvImport()', 'ok')}` : '');
+    return teamBar() + `<div class="card"><h3>1. Descarga la plantilla</h3><p class="small muted">CSV separado por punto y coma, listo para Excel.</p>${btn('Descargar plantilla', 'A.tpl()', 's2', 'download')}</div><div class="card"><h3>2. Sube el archivo</h3><p class="small muted">Validamos RUT, duplicados y campos obligatorios.</p><label class="btn s2" style="cursor:pointer">${icon('upload', 20)}Elegir archivo CSV<input type="file" accept=".csv,text/csv" hidden onchange="A.csvFile(this)"></label>${S.session.real ? '' : `<div class="mt8">${btn('Usar archivo de ejemplo', 'A.csvSample()', 'ghost')}</div>`}</div>` + (c ? `${sec('Resultado de la validación')}<div class="kpis">${kpi('Válidos', ok, 'atext')}${kpi('Con errores', c.length - ok, c.length - ok ? 'dtext' : '')}</div>${list(c.map(r => li({ ic: r.errs.length ? 'alert' : 'check', color: r.errs.length ? 'red' : 'green', title: esc(r.name || `Fila ${r.line}`), sub: r.errs.length ? `Fila ${r.line}: ${esc(r.errs.join(', '))}` : esc(r.rut) })))}${btn(`Importar ${ok} válidos`, 'A.csvImport()', 'ok')}` : '');
   }
 });
 
@@ -2331,7 +2333,7 @@ route('/f/dashboard', {
   }
 });
 route('/f/clubes', {
-  title: 'Clubes', roles: ['federacion'], render: () => { const l = fClubs(); return scopeNote() + note(`${sum(fRegions(), ([, v]) => v.clubs)} clubes federados en total. Aquí se listan solo los clubes de ejemplo del prototipo.`) + (l.length ? list(l.map(c => li({ av: clubLogo(c, 40), title: esc(c.name), sub: `${esc(c.city)}, ${esc(c.region)} · RUT ${c.rut}`, right: badge('Federado', 'ok'), href: '/club/' + c.id }))) : empty('building', 'Sin clubes', 'No hay clubes de ejemplo de este deporte en este ámbito.')); }
+  title: 'Clubes', roles: ['federacion'], render: () => { const l = fClubs(); return scopeNote() + (S.session.real ? '' : note(`${sum(fRegions(), ([, v]) => v.clubs)} clubes federados en total. Aquí se listan solo los clubes de ejemplo del prototipo.`)) + (l.length ? list(l.map(c => li({ av: clubLogo(c, 40), title: esc(c.name), sub: `${esc(c.city)}, ${esc(c.region)} · RUT ${c.rut}`, right: badge('Federado', 'ok'), href: '/club/' + c.id }))) : empty('building', 'Sin clubes', 'No hay clubes de este deporte en este ámbito.')); }
 });
 A.addCom = () => {
   const t = val('co-t'), b = val('co-b'); if (!t || !b) return toast('Completa título y contenido', 'warn');
@@ -2436,7 +2438,7 @@ route('/p/torneos', {
   }
 });
 route('/p/pagos', {
-  title: 'Pagos recibidos', roles: ['proveedor'], render: () => { const l = paidQuotes(), br = sum(l, q => q.amount), ne = sum(l, netOf); return `<div class="kpis">${kpi('Ventas', clp(br))}${kpi('Neto', clp(ne), 'atext')}</div>${note(`My Club descuenta ${COMMISSION}% de comisión por venta. Pagos simulados.`)}${l.length ? list(l.map(q => li({ ic: 'money', color: 'green', title: esc(q.title), sub: `${esc(club(q.clubId).short)} · ${fDate(q.paidAt)}`, right: `<b>${clp(netOf(q))}</b>`, href: '/p/cotizacion/' + q.id }))) : empty('money', 'Sin pagos', 'Cuando un club pague una cotización aparecerá aquí.')}`; }
+  title: 'Pagos recibidos', roles: ['proveedor'], render: () => { const l = paidQuotes(), br = sum(l, q => q.amount), ne = sum(l, netOf); return `<div class="kpis">${kpi('Ventas', clp(br))}${kpi('Neto', clp(ne), 'atext')}</div>${S.session.real ? '' : note(`My Club descuenta ${COMMISSION}% de comisión por venta. Pagos simulados.`)}${l.length ? list(l.map(q => li({ ic: 'money', color: 'green', title: esc(q.title), sub: `${esc(club(q.clubId).short)} · ${fDate(q.paidAt)}`, right: `<b>${clp(netOf(q))}</b>`, href: '/p/cotizacion/' + q.id }))) : empty('money', 'Sin pagos', 'Cuando un club pague una cotización aparecerá aquí.')}`; }
 });
 
 /* ======================================================================
@@ -2635,17 +2637,20 @@ const AUTH_MSG = {
 };
 const appUrl = () => location.href.split('#')[0];
 
-// Pantallas conectadas a la base. El resto no se muestra hasta tener su propia etapa.
+// Pantallas que ya guardan en la base. Todos ven los mismos menús; las demás se abren vacías y avisan.
+const MSG_PENDIENTE = 'Sección en preparación: puedes revisarla, pero todavía no guarda información.';
 const REAL_OK = ['/login', '/registro', '/recuperar', '/nueva-clave', '/inicio', '/perfil', '/perfil/editar', '/notificaciones', '/vincular', '/unirme', '/club/:id', '/legal/:doc', '/a/pupilos', '/a/registrar-hijo', '/a/vincular-pupilo', '/apoderados', '/e/plantel', '/d/deportes', '/d/solicitudes', '/d/jugadores'];
-const realOk = path => { const m = match(path); return !!m && REAL_OK.includes(m.r.path); };
-function realPrune(root) {
-  $$('[onclick^="go(\'"]', root).forEach(el => { const p = el.getAttribute('onclick').match(/^go\('([^']+)'/); if (p && !realOk(p[1])) el.remove(); });
-}
+const realOk = path => !!match(path);
 
 // Transforma lo que entrega my_state() en la forma que ya usan las pantallas.
 function blankState() {
   const s = seed();
   Object.keys(s).forEach(k => { if (Array.isArray(s[k]) && k !== 'expenseCats') s[k] = []; });
+  // Nada inventado: valores federados y estadísticas parten en cero, y no quedan usuarios de ejemplo.
+  Object.keys(s.fedConfig).forEach(k => { Object.keys(s.fedConfig[k]).forEach(x => { s.fedConfig[k][x] = 0; }); });
+  Object.keys(s.fedStats).forEach(k => { s.fedStats[k] = { reg: {}, cat: {} }; });
+  s.att = {}; s.blocks = {};
+  s.users = { jugador: null, apoderado: null, entrenador: { name: '', by: '', clubId: null, sport: null, teams: [] }, directivo: { name: '', cargo: '', clubId: null }, federacion: { name: '', cargo: '' } };
   return s;
 }
 function hydrate(d, ui) {
@@ -2702,7 +2707,7 @@ const openReg = () => HAS_DB && (!S.session.loggedIn || S.session.real);
 real('login', async () => {
   const e = $('#lg-err'); e.textContent = '';
   try { await SB.signIn(val('lg-em').toLowerCase(), $('#lg-pw').value); afterEnter(await enterReal()); } catch (x) { e.textContent = x.message; }
-}, () => HAS_DB && !S.accounts.some(a => a.demo && a.email === val('lg-em').toLowerCase()));
+}, () => { const e = val('lg-em').toLowerCase(); return HAS_DB && e !== DEMO_USER && !S.accounts.some(a => a.demo && a.email === e); });
 real('logout', async () => { await SB.signOut(); S = load(); NAV.length = 0; replaceTo('/login'); });
 real('completeReg', async () => {
   const t = S.ui.regType, err = m => { const e = $('#rg-err'); e.textContent = m; e.scrollIntoView({ block: 'center' }); };
@@ -2809,8 +2814,24 @@ function realHome() {
   if (r === 'directivo') return hero + `<div class="kpis">${kpi('Deportistas', clubMembers(a.clubId).length)}${kpi('Por resolver', HOME_BADGE.solicitudes())}</div>` + (club(a.clubId).sports.length ? '' : note('Agrega tus deportes y equipos para que los deportistas puedan vincularse.'));
   if (r === 'jugador') { const ms = activeMems(a.refId); return hero + (ms.length ? list(ms.map(m => li({ av: clubLogo(club(m.clubId), 42), title: esc(club(m.clubId).short), sub: m.sport, right: stBadge(m.status), href: '/club/' + m.clubId }))) : '') + (myGuardianLinks().some(l => l.status === 'pendiente') ? goBtn('Revisar solicitud de apoderado', '/apoderados', 'naranjo', 'users') + '<div class="mt8"></div>' : isMinorAcc() && !myGuardianLinks().length ? note(`Eres menor de edad: dale tu ID <b>${a.id}</b> a tu apoderado para que se vincule.${needsGuardian() ? ' Lo necesitas para unirte a un club.' : ''}`) : '') + (needsGuardian() ? '' : goBtn('Unirme a un club', '/unirme', 'ok', 'building') + '<div class="mt8"></div>'); }
   if (r === 'apoderado' || r === 'entrenador') return hero + (cl ? list([clubRow(cl)]) : '');
-  return hero + note('Tu cuenta está activa. Te avisaremos cuando las herramientas de tu perfil estén disponibles.');
+  return hero;
 }
+
+// Solo se ingresan datos con una sesión de una cuenta creada. Quien revisa la app con el usuario demo
+// solo consulta, y en una cuenta real una acción que aún no tiene base de datos avisa: nunca finge guardar.
+const SOLO_VER = new Set('back ui homeEdit homeMove homeFlag homeReset login logout completeReg recover newPass linkSearch linkPick linkCheck addCargo regType installHelp openNotif roleSheet setRole demoPick resetDemo doReset time rhClub pickKid addSport sportOther deleteAsk tfUpd certUpd bajaDebt loanType qtLine qtTotal showCom showReceipt playVideo comments claimView chatMenu toggleCh setMethod tpl csvSample addOption'.split(' '));
+const CON_BASE = new Set('linkSend readAll join regKid doAddSport addTeam setCoach req lnk pickPhoto delPhoto saveProfile deleteDo guardianSend guardianResolve guardianRemove'.split(' '));
+const MSG_CREA_CUENTA = 'Estás en el modo demo: crea una cuenta para ingresar datos.';
+const soloConsulta = () => HAS_DB && S.session.loggedIn && !S.session.real;
+Object.keys(A).forEach(k => {
+  if (SOLO_VER.has(k) || /Sheet$/.test(k)) return;
+  const f = A[k];
+  A[k] = (...x) => {
+    if (soloConsulta()) { closeSheet(); return toast(MSG_CREA_CUENTA, 'warn'); }
+    if (S.session.real && !CON_BASE.has(k)) { closeSheet(); return toast(MSG_PENDIENTE, 'warn'); }
+    return f(...x);
+  };
+});
 
 // @@PANTALLAS@@
 

@@ -54,7 +54,9 @@ Eliminar cuenta (`A.deleteAsk`), páginas públicas `#/legal/privacidad`, `termi
 - **Deportes del club:** `OLIMPICOS` más OTRO con texto libre, limitado por `SPORT_RE` y por `add_sport` en SQL, porque el nombre se imprime sin escapar en muchas plantillas. `SPORT_LIST` es solo la lista de los datos demo.
 - **Menores de 14 (art. 16 quáter, Ley 21.719):** crean su cuenta, pero no pueden unirse a un club hasta tener un apoderado aceptado. Lo exige `_join` en SQL; `needsGuardian()` lo refleja en pantalla. Falta revisión legal.
 - **Etapa 1 conectada:** cuentas, recuperación de clave, perfil y foto, ficha y logo del club, deportes y equipos, vínculos, incorporación, pupilos, plantel y avisos, eliminar cuenta.
-- **Lista `REAL_OK`:** solo esas rutas existen en modo real; el resto se oculta hasta conectarse. Al conectar un módulo: migración nueva, funciones, `hydrate()`, `real()` y agregar la ruta a `REAL_OK`.
+- **Modo demo único:** usuario `demo`, clave `demo`. Entra y elige perfil (`A.demoPick`). Funciona siempre, con o sin base conectada.
+- **Mismos menús en modo real:** todos los perfiles ven las mismas pestañas y accesos que el demo, con datos vacíos (`blankState`).
+- **Ingreso de datos:** solo con sesión de una cuenta creada. Con `config.js` completo, el usuario demo solo consulta (`soloConsulta()`). Las acciones de `A` en `SOLO_VER` o terminadas en `Sheet` son de navegación; `CON_BASE` son las que guardan en la base; el resto avisa `MSG_PENDIENTE` en cuentas reales. `REAL_OK` lista las pantallas que ya guardan. Al conectar un módulo: migración nueva, funciones, `hydrate()`, `real()` y agregar sus rutas a `REAL_OK` y sus acciones a `CON_BASE`.
 - **Falta conectar:** calendario y asistencia, cobros y pagos, muro, mensajes (con su moderación), votaciones, bajas, transferencias, préstamos, torneos, federación y proveedor. Las fotos viven en la base como dataURL pequeños.
 - `../MyClub_Guia_Publicacion_Tiendas.pdf` trae las check lists de publicación.
 
@@ -116,7 +118,7 @@ Una federación por deporte, 2 asociaciones regionales (Biobío, Valparaíso), ~
 ## Verificación
 Con `pip install playwright`, las pruebas del demo levantan solas una copia con `config.js` vacío (`tools/servidor_demo.py`). **Nunca correr `flujos.py` contra el sitio público**: registraría usuarios en la base real.
 - `python tools/recorrido.py`: abre cada pantalla por rol a 390 × 844 @3x, revisa consola y desbordes, y guarda capturas en `/screenshots`.
-- `python tools/flujos.py`: prueba con clics las reglas de negocio, cuentas, logo, moderación y modo sin conexión (105 comprobaciones) y el modo sin conexión.
+- `python tools/flujos.py`: prueba con clics las reglas de negocio, cuentas, logo, moderación y modo sin conexión (115 comprobaciones) y el modo sin conexión.
 - `python tools/probar_base.py`: aplica las migraciones en un Postgres local y prueba permisos por rol (152 comprobaciones).
-- `python tools/flujos_real.py`: navegador → API emulada → Postgres, con cada usuario en un contexto separado (56 comprobaciones). Auth y REST son emulados: no reemplaza probar contra el proyecto real.
+- `python tools/flujos_real.py`: navegador → API emulada → Postgres, con cada usuario en un contexto separado (86 comprobaciones, recorre todas las pantallas de cada perfil). Auth y REST son emulados: no reemplaza probar contra el proyecto real.
 Al cambiar archivos, subir `CACHE` en `sw.js`. El service worker usa primero la red: la caché es solo para abrir sin conexión.
