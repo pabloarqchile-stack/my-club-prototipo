@@ -2914,7 +2914,7 @@ function realHome() {
 
 // Solo se ingresan datos con una sesión de una cuenta creada. Quien revisa la app con el usuario demo
 // solo consulta, y en una cuenta real una acción que aún no tiene base de datos avisa: nunca finge guardar.
-const SOLO_VER = new Set('back ui homeEdit homeMove homeFlag homeReset login logout completeReg recover newPass linkSearch linkPick linkCheck addCargo regType installHelp openNotif roleSheet setRole demoPick resetDemo doReset time rhClub pickKid addSport sportOther deleteAsk tfUpd certUpd bajaDebt loanType qtLine qtTotal showCom showReceipt playVideo comments claimView chatMenu toggleCh setMethod tpl csvSample addOption delTeamSheet'.split(' '));
+const SOLO_VER = new Set('back ui homeEdit homeMove homeFlag homeReset login logout completeReg recover newPass linkSearch linkPick linkCheck addCargo regType installHelp openNotif roleSheet setRole demoPick resetDemo doReset time rhClub pickKid addSport sportOther deleteAsk tfUpd certUpd bajaDebt loanType qtLine qtTotal showCom showReceipt playVideo comments claimView chatMenu toggleCh setMethod tpl csvSample addOption delTeamSheet teamSheetEdit newChat newPost resign withdraw baja proposeT'.split(' '));
 // Funciones que solo existen para simular en el demo. La carga masiva crearía deportistas sin cuenta ni apoderado.
 const SOLO_DEMO = new Set('time simLink simReply simJoin simVotes asmSim csvSample csvImport resetDemo doReset scan'.split(' '));
 const MSG_CREA_CUENTA = 'Estás en el modo demo: crea una cuenta para ingresar datos.';
