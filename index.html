@@ -2813,7 +2813,12 @@ async function boot() {
 boot();
 const NATIVO = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
 if (NATIVO && window.Capacitor.Plugins.App) window.Capacitor.Plugins.App.addListener('backButton', () => { if ($('.sheet')) closeSheet(); else if (NAV.length > 1) A.back(); else window.Capacitor.Plugins.App.exitApp(); });
-if (!NATIVO && 'serviceWorker' in navigator && location.protocol.startsWith('http')) navigator.serviceWorker.register('sw.js').catch(e => console.warn('SW no registrado', e));
+if (!NATIVO && 'serviceWorker' in navigator && location.protocol.startsWith('http')) {
+  // Si llega una versión nueva con la app abierta, se recarga sola una vez.
+  const habia = !!navigator.serviceWorker.controller; let recargada = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => { if (habia && !recargada) { recargada = true; location.reload(); } });
+  navigator.serviceWorker.register('sw.js').then(r => { const u = () => r.update().catch(() => { }); document.addEventListener('visibilitychange', () => { if (!document.hidden) u(); }); }).catch(e => console.warn('SW no registrado', e));
+}
 </script>
 </body>
 </html>
