@@ -36,6 +36,7 @@ Las acciones de la UI viven en el objeto global `A` (`onclick="A.algo('id')"`).
 - **Club reemplazó a Directivo en toda la interfaz.** El identificador interno del rol sigue siendo `directivo` (rutas `/d/...`, `S.users.directivo`); el tipo de cuenta es `club`.
 - **Datos base:** nombre, RUT, email y teléfono, más una clave de prueba para poder ingresar.
 - **ID único correlativo:** letra del perfil + 8 dígitos (C, D, A, E, F, P). `S.idSeq` guarda los contadores. El ID de una cuenta Club es el ID del club.
+- **Búsqueda de clubes:** `linkBox` busca por nombre o ID mientras se escribe y lista logos. En modo real usa `search_clubs`, abierta también sin sesión, con solo datos públicos del club.
 - **Vinculación:** Deportista por `#/unirme` (pide deporte); Apoderado y Entrenador por `#/vincular`. El club aprueba en Solicitudes.
 - **Perfil:** `#/perfil/editar` permite foto (logo en Club) y editar datos, salvo nombre, RUT y fecha de nacimiento o constitución.
 - **Ficha del club:** `#/club/:id`, una sola por club (`S.clubs`), vista por todas las cuentas vinculadas.
@@ -116,6 +117,6 @@ Una federación por deporte, 2 asociaciones regionales (Biobío, Valparaíso), ~
 Con `pip install playwright`, las pruebas del demo levantan solas una copia con `config.js` vacío (`tools/servidor_demo.py`). **Nunca correr `flujos.py` contra el sitio público**: registraría usuarios en la base real.
 - `python tools/recorrido.py`: abre cada pantalla por rol a 390 × 844 @3x, revisa consola y desbordes, y guarda capturas en `/screenshots`.
 - `python tools/flujos.py`: prueba con clics las reglas de negocio, cuentas, logo, moderación y modo sin conexión (105 comprobaciones) y el modo sin conexión.
-- `python tools/probar_base.py`: aplica las migraciones en un Postgres local y prueba permisos por rol (143 comprobaciones).
-- `python tools/flujos_real.py`: navegador → API emulada → Postgres, con cada usuario en un contexto separado (54 comprobaciones). Auth y REST son emulados: no reemplaza probar contra el proyecto real.
+- `python tools/probar_base.py`: aplica las migraciones en un Postgres local y prueba permisos por rol (152 comprobaciones).
+- `python tools/flujos_real.py`: navegador → API emulada → Postgres, con cada usuario en un contexto separado (56 comprobaciones). Auth y REST son emulados: no reemplaza probar contra el proyecto real.
 Al cambiar archivos, subir `CACHE` en `sw.js`. El service worker usa primero la red: la caché es solo para abrir sin conexión.

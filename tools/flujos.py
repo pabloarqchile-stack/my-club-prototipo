@@ -96,6 +96,8 @@ with sync_playwright() as p:
     abrir('jugador'); base('Paula Atleta',rut(19888777),'paula@prueba.cl')
     g.fill('#rg-birth','1995-01-01'); g.fill('#rg-height','172'); g.fill('#lk-id','C99999999'); g.get_by_role('button',name='VINCULAR AL CLUB').click(); g.wait_for_timeout(100); ok('No encontramos' in g.inner_text('#lk-res'),'ID de club inexistente')
     completar(); ok('VINCULAR AL CLUB' in g.inner_text('#rg-err'),'exige confirmar el ID')
+    g.fill('#lk-id','halco'); g.wait_for_timeout(450); ok('Los Halcones' in g.inner_text('#lk-list') and g.locator('#lk-list .li').count()>=1,'escribir el nombre muestra coincidencias')
+    g.fill('#lk-id','club'); g.wait_for_timeout(450); ok(g.locator('#lk-list .li').count()>1,'varias coincidencias se listan'); g.locator('#lk-list button.li',has_text='Halcones').first.click(); g.wait_for_timeout(120); ok('Los Halcones' in g.inner_text('#lk-res'),'tocar un club lo selecciona')
     g.fill('#lk-id','c00000001'); g.get_by_role('button',name='VINCULAR AL CLUB').click(); g.wait_for_timeout(100); ok('Los Halcones' in g.inner_text('#lk-res'),'VINCULAR encuentra el club'); g.select_option('#lk-sport','Vóleibol'); completar()
     v=nuevoid(); ok(v=='D00000002','deportista correlativo: '+v); ok('El club ha recibido su solicitud de incorporación. Cuando el club la acepte, aparecerá como jugador hábil.' in g.inner_text('.sheet'),'mensaje exacto de incorporación')
     ok(ev("S.players.at(-1).height")==172,'estatura guardada'); ok(ev("S.memberships.at(-1).status")=='pendiente' and ev("S.memberships.at(-1).sport")=='Vóleibol','membresía pendiente con deporte elegido')

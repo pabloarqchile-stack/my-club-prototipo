@@ -145,6 +145,15 @@ def correr(t):
 
     # --- Club: deportes, equipos, datos bloqueados ---
     cid2 = t.rpc(None, 'find_club', 'C00000002')['id']
+    r = t.rpc(None, 'search_clubs', 'club')
+    t.check('busca por nombre sin sesión', {x['name'] for x in r} == {'Club Prueba', 'Club Dos'})
+    t.check('búsqueda solo entrega datos públicos', all(set(x) == {'id', 'code', 'name', 'short', 'sports', 'logo', 'city'} for x in r))
+    t.check('sin distinguir mayúsculas ni acentos', [x['name'] for x in t.rpc(None, 'search_clubs', 'PRÚEBA')] == ['Club Prueba'])
+    t.check('busca por ID', [x['name'] for x in t.rpc(None, 'search_clubs', 'c00000002')] == ['Club Dos'])
+    t.check('exige 2 caracteres', t.rpc(None, 'search_clubs', 'c') == [] and t.rpc(None, 'search_clubs', '  ') == [])
+    t.check('comodines no listan todo', t.rpc(None, 'search_clubs', '%%') == [] and t.rpc(None, 'search_clubs', '__') == [])
+    t.check('nombre inexistente', t.rpc(None, 'search_clubs', 'no existe') == [])
+    t.rechaza('búsqueda interna cerrada', None, "select public._norm('x')", texto='permission denied')
     t.rechaza_rpc('deportista no agrega deportes', dep, 'add_sport', ('Fútbol',), 'Solo el club')
     t.rpc(club, 'add_sport', 'Fútbol')
     for malo in ("<img src=x>", "D'Artagnan", "');alert(1)//", 'x', 'a' * 41, '   '):
@@ -317,6 +326,7 @@ def correr(t):
     t.check('club con deportistas sobrevive', t.rpc(dep, 'my_state')['clubs'][0]['name'] == 'Club Prueba')
     t.rpc(club2, 'delete_my_account')
     t.check('club sin deportistas se borra', t.rpc(None, 'find_club', 'C00000002') is None)
+    t.check('club sin administrador no aparece en la búsqueda', t.rpc(None, 'search_clubs', 'club prueba') == [])
 
 
 def main():

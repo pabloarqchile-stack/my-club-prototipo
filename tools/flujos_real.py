@@ -419,9 +419,12 @@ def correr(br, check, errores):
     ent = Telefono(br, errores)
 
     def datos_ent(tel):
-        tel.f('#lk-id', 'C00000001')
-        tel.tap('VINCULAR AL CLUB')
-        tel.p.wait_for_timeout(400)
+        tel.p.locator('#lk-id').press_sequentially('CLUB re', delay=30)
+        tel.p.wait_for_timeout(700)
+        check('escribir el nombre muestra el club con su logo', tel.p.locator('#lk-list .li img.clog').count() == 1 and 'Club Real' in tel.p.inner_text('#lk-list'))
+        tel.p.locator('#lk-list button.li').first.click()
+        tel.p.wait_for_timeout(200)
+        check('tocar el club lo selecciona', 'Club encontrado' in tel.p.inner_text('#lk-res') and tel.p.input_value('#lk-id') == 'Club Real')
 
     ent.registrar('entrenador', 'Tomás Real', rut(22222223), 'tomas@real.cl', extra=datos_ent)
     ent.p.wait_for_timeout(500)

@@ -1350,13 +1350,43 @@ route('/login', {
 });
 
 // --- Vinculación por ID de club ---
-let _link = null; // Club confirmado con el botón VINCULAR AL CLUB
-const linkBox = (p, sport) => `<div class="field"><label>ID del club</label><input class="input" id="${p}-id" placeholder="Ej: C00000001" aria-label="ID del club" autocomplete="off" autocapitalize="characters"></div>${btn('VINCULAR AL CLUB', `A.linkCheck('${p}',${sport})`, 's2', 'building')}<div id="${p}-res" class="mt8"></div>`;
-A.linkCheck = (p, sport) => {
-  const code = val(p + '-id').toUpperCase(), c = S.clubs.find(x => x.code === code), box = $('#' + p + '-res'); _link = null;
-  if (!c) { box.innerHTML = `<div class="err">No encontramos un club con ese ID.</div>`; return; }
+let _link = null; // Club elegido de la lista o confirmado con VINCULAR AL CLUB
+const linkBox = (p, sport) => `<div class="field"><label>Nombre o ID del club</label><input class="input" id="${p}-id" placeholder="Ej: Los Halcones o C00000001" aria-label="Nombre o ID del club" autocomplete="off" autocapitalize="words" oninput="A.linkSearch('${p}',${sport})"></div><div id="${p}-list"></div>${btn('VINCULAR AL CLUB', `A.linkCheck('${p}',${sport})`, 's2', 'building')}<div id="${p}-res" class="mt8"></div>`;
+const normTxt = s => (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+async function clubLookup(q) {
+  if (openReg()) return (await SB.rpc('search_clubs', { p_q: q })) || [];
+  const n = normTxt(q), code = q.toUpperCase();
+  return S.clubs.filter(c => c.code === code || normTxt(c.name).includes(n) || normTxt(c.short).includes(n)).slice(0, 8);
+}
+let _linkT, _linkN = 0, _hits = [];
+const clubHits = (p, sport, l) => list(l.map(c => li({ av: clubLogo(c, 40), title: esc(c.name), sub: ['ID ' + c.code, c.city].filter(Boolean).map(esc).join(' · '), on: `A.linkPick('${p}',${sport},'${c.id}')`, chev: false })));
+function pickClub(p, sport, c) {
+  clearTimeout(_linkT); _linkN++; _link = null;
+  const box = $('#' + p + '-res'); $('#' + p + '-list').innerHTML = ''; $('#' + p + '-id').value = c.name;
   if (sport && !c.sports.length) { box.innerHTML = `<div class="err">${esc(c.short)} aún no tiene deportes habilitados.</div>`; return; }
   _link = { clubId: c.id }; box.innerHTML = note(`Club encontrado: <b>${esc(c.name)}</b>.`, 'ok', 'check') + (sport ? select(p + '-sport', 'Deporte', c.sports) : '');
+}
+// Busca mientras se escribe. Una respuesta atrasada no reemplaza a una más reciente.
+A.linkSearch = (p, sport) => {
+  clearTimeout(_linkT); _link = null; $('#' + p + '-res').innerHTML = '';
+  const q = val(p + '-id'), box = $('#' + p + '-list'), n = ++_linkN;
+  if (q.length < 2) { box.innerHTML = ''; return; }
+  _linkT = setTimeout(async () => {
+    try { const l = await clubLookup(q); if (n !== _linkN) return; _hits = l; box.innerHTML = l.length ? clubHits(p, sport, l) : `<div class="hint mb8">No encontramos clubes con ese nombre o ID.</div>`; }
+    catch (e) { if (n === _linkN) box.innerHTML = `<div class="err">${esc(e.message)}</div>`; }
+  }, 250);
+};
+A.linkPick = (p, sport, id) => { const c = _hits.find(x => x.id === id); if (c) pickClub(p, sport, c); };
+A.linkCheck = async (p, sport) => {
+  clearTimeout(_linkT); const n = ++_linkN, q = val(p + '-id'), box = $('#' + p + '-res'); _link = null; box.innerHTML = '';
+  if (q.length < 2) { box.innerHTML = `<div class="err">Escribe el nombre o el ID del club.</div>`; return; }
+  try {
+    const l = await clubLookup(q); if (n !== _linkN) return;
+    const c = l.find(x => x.code === q.toUpperCase()) || (l.length === 1 ? l[0] : null);
+    if (c) return pickClub(p, sport, c);
+    _hits = l; $('#' + p + '-list').innerHTML = l.length ? clubHits(p, sport, l) : '';
+    box.innerHTML = l.length ? '' : `<div class="err">No encontramos un club con ese nombre o ID.</div>`;
+  } catch (e) { box.innerHTML = `<div class="err">${esc(e.message)}</div>`; }
 };
 
 // --- Registro por tipo de usuario ---
@@ -1382,7 +1412,7 @@ A.completeReg = () => {
   if (pass.length < 4) return err('La clave debe tener al menos 4 caracteres.');
   if (S.accounts.some(a => a.email === email)) return err('Ese email ya está registrado.');
   if (S.accounts.some(a => a.type === t && cleanRut(a.rut) === cleanRut(rut))) return err('Ya existe una cuenta de este tipo con ese RUT.');
-  if (val('lk-id') && !_link) return err('Toca VINCULAR AL CLUB para confirmar el ID, o bórralo.');
+  if (val('lk-id') && !_link) return err('Elige un club de la lista o toca VINCULAR AL CLUB. Si no quieres vincularte ahora, borra el campo.');
   if (!$('#rg-legal').checked) return err('Debes aceptar los Términos de uso y la Política de privacidad.');
   const acc = { type: t, role: t === 'club' ? 'directivo' : t, email, pass: hash(pass), name, rut: normRut(rut), phone, date: today() };
   let after = '';
@@ -1421,7 +1451,7 @@ route('/registro', {
 
 // --- Cuentas sin club o sin pupilos: pantalla para completar lo que falta ---
 const GATE_OK = ['/perfil', '/perfil/editar', '/notificaciones', '/vincular', '/a/registrar-hijo', '/a/vincular-pupilo', '/nueva-clave'];
-A.linkSend = () => { if (!_link) return toast('Primero toca VINCULAR AL CLUB', 'warn'); const r = requestLink(acct(), _link.clubId); if (r.error) return toast(r.error, 'warn'); _link = null; commit('Solicitud enviada al club'); };
+A.linkSend = () => { if (!_link) return toast('Primero elige un club', 'warn'); const r = requestLink(acct(), _link.clubId); if (r.error) return toast(r.error, 'warn'); _link = null; commit('Solicitud enviada al club'); };
 A.simLink = id => { resolveLink(id, true); commit('Club vinculado (simulación)'); };
 function linkPanel() {
   const a = acct(), pend = myLinks(a).filter(r => r.status === 'pendiente'), cl = a.clubId && club(a.clubId), mine = role() === 'apoderado' ? (myGuardian().clubs || []).map(club) : cl ? [cl] : [];
@@ -1766,7 +1796,7 @@ route('/tramites', {
 
 // --- Unirme a un club (regla 1) ---
 A.join = () => {
-  if (!_link) return toast('Primero toca VINCULAR AL CLUB', 'warn');
+  if (!_link) return toast('Primero elige un club', 'warn');
   const p = subj(), cid = _link.clubId, sp = val('jn-sport'), tm = S.teams.find(t => t.clubId === cid && t.sport === sp);
   const r = requestJoin(p.id, cid, sp, tm && tm.id, val('jn-note')); if (r.error) { $('#jn-err').textContent = r.error; return; }
   _link = null; save(); go('/tramites'); sheet('Solicitud enviada', `<p class="center" style="margin:0 0 16px">${MSG_INCORPORACION}</p>${btn('Entendido', 'closeSheet()')}`);
@@ -2674,15 +2704,6 @@ real('login', async () => {
   try { await SB.signIn(val('lg-em').toLowerCase(), $('#lg-pw').value); afterEnter(await enterReal()); } catch (x) { e.textContent = x.message; }
 }, () => HAS_DB && !S.accounts.some(a => a.demo && a.email === val('lg-em').toLowerCase()));
 real('logout', async () => { await SB.signOut(); S = load(); NAV.length = 0; replaceTo('/login'); });
-real('linkCheck', async (p, sport) => {
-  const box = $('#' + p + '-res'); _link = null;
-  try {
-    const c = await SB.rpc('find_club', { p_code: val(p + '-id') });
-    if (!c) { box.innerHTML = `<div class="err">No encontramos un club con ese ID.</div>`; return; }
-    if (sport && !c.sports.length) { box.innerHTML = `<div class="err">${esc(c.short)} aún no tiene deportes habilitados.</div>`; return; }
-    _link = { clubId: c.id }; box.innerHTML = note(`Club encontrado: <b>${esc(c.name)}</b>.`, 'ok', 'check') + (sport ? select(p + '-sport', 'Deporte', c.sports) : '');
-  } catch (e) { box.innerHTML = `<div class="err">${esc(e.message)}</div>`; }
-}, openReg);
 real('completeReg', async () => {
   const t = S.ui.regType, err = m => { const e = $('#rg-err'); e.textContent = m; e.scrollIntoView({ block: 'center' }); };
   const name = val('rg-name'), rut = val('rg-rut'), email = val('rg-email').toLowerCase(), phone = val('rg-phone'), pass = $('#rg-pass').value;
@@ -2690,7 +2711,7 @@ real('completeReg', async () => {
   if (!validRut(rut)) return err('El RUT no es válido.');
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return err('El email no es válido.');
   if (pass.length < 8) return err('La clave debe tener al menos 8 caracteres.');
-  if (val('lk-id') && !_link) return err('Toca VINCULAR AL CLUB para confirmar el ID, o bórralo.');
+  if (val('lk-id') && !_link) return err('Elige un club de la lista o toca VINCULAR AL CLUB. Si no quieres vincularte ahora, borra el campo.');
   if (!$('#rg-legal').checked) return err('Debes aceptar los Términos de uso y la Política de privacidad.');
   const reg = { type: t, name, rut: normRut(rut), phone, consent: true };
   if (t === 'club') {
@@ -2715,9 +2736,9 @@ real('completeReg', async () => {
     setTimeout(() => sheet('Confirma tu email', `<p class="center" style="margin:0 0 16px">Te enviamos un enlace a <b>${esc(email)}</b>. Ábrelo y luego ingresa con tu clave para terminar el registro.</p>${btn('Entendido', 'closeSheet()')}`), 350);
   } catch (e) { err(e.message); }
 }, () => HAS_DB);
-real('linkSend', () => { if (!_link) return toast('Primero toca VINCULAR AL CLUB', 'warn'); const c = _link.clubId; _link = null; return realDo(() => SB.rpc('request_link', { p_club: c }), 'Solicitud enviada al club'); });
+real('linkSend', () => { if (!_link) return toast('Primero elige un club', 'warn'); const c = _link.clubId; _link = null; return realDo(() => SB.rpc('request_link', { p_club: c }), 'Solicitud enviada al club'); });
 real('join', async () => {
-  if (!_link) return toast('Primero toca VINCULAR AL CLUB', 'warn');
+  if (!_link) return toast('Primero elige un club', 'warn');
   try { await SB.rpc('request_join', { p_player: subj().id, p_club: _link.clubId, p_sport: val('jn-sport'), p_note: val('jn-note') }); } catch (e) { $('#jn-err').textContent = e.message; return; }
   _link = null; await refreshReal(); go('/inicio'); sheet('Solicitud enviada', `<p class="center" style="margin:0 0 16px">${MSG_INCORPORACION}</p>${btn('Entendido', 'closeSheet()')}`);
 });
@@ -2726,7 +2747,7 @@ real('regKid', async () => {
   if (!name || !rut || !birth) return err('Completa nombre, RUT y fecha de nacimiento.');
   if (!validRut(rut)) return err('El RUT no es válido.');
   if (ageOf(birth) >= 18) return err('Solo los menores de 18 años se registran por apoderado. Un adulto se registra por sí mismo.');
-  if (val('rh-id') && !_link) return err('Toca VINCULAR AL CLUB para confirmar el ID, o bórralo.');
+  if (val('rh-id') && !_link) return err('Elige un club de la lista o toca VINCULAR AL CLUB. Si no quieres vincularte ahora, borra el campo.');
   try {
     const id = await SB.rpc('register_kid', { p: { name, rut: normRut(rut), birth, sex: val('rh-sex'), rel: val('rh-rel'), clubId: _link ? _link.clubId : '', sport: _link ? val('rh-sport') : '' } });
     const joined = !!_link; _link = null; S.ui.kid = id; await refreshReal(); go('/a/pupilos');
