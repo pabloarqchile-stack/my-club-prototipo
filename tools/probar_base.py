@@ -361,22 +361,76 @@ def correr(t):
     t.check('pago no se aplica dos veces', t.rpc(club, 'record_manual_payment', ['c1'], 'Efectivo') is None)
     t.rechaza_rpc('ajeno no inicia pago', ajeno, 'start_payment', (['c2'],), 'no están disponibles')
     t.rechaza_rpc('no inicia pago de cobro pagado', dep, 'start_payment', (['c1'],), 'no están disponibles')
+    t.rechaza_rpc('sin cuenta conectada no hay pago en línea', dep, 'start_payment', (['c2'],), 'aún no activa')
+    tok = 'TEST-' + '1234567890' * 3
+    t.rechaza_rpc('deportista no conecta pagos', dep, 'set_club_pay_key', ('mercadopago', tok), 'Solo la cuenta del club')
+    t.rechaza_rpc('token inválido', club, 'set_club_pay_key', ('mercadopago', 'abc'), 'no es válido')
+    t.rechaza_rpc('proveedor no disponible', club, 'set_club_pay_key', ('flow', tok), 'no está disponible')
+    t.rpc(club, 'set_club_pay_key', 'mercadopago', tok)
+    t.check('club queda con pago en línea', next(c for c in t.rpc(dep, 'my_state')['clubs'] if c['id'] == cid)['pay_provider'] == 'mercadopago')
+    t.rechaza('nadie de la app lee el token', club, 'select secret from public.club_pay_keys', (), 'permission denied')
+    t.check('el token no viaja en el estado', tok not in json.dumps(t.rpc(club, 'my_state')))
     pg = t.rpc(dep, 'start_payment', ['c2'])
-    t.check('pago en línea toma el monto del servidor', pg['amount'] == 5000)
-    t.rechaza('deportista no confirma pagos', dep, 'select public.confirm_payment(%s, 5000, %s)', (pg['id'], 'x'), 'permission denied')
-    t.rechaza('anónimo no confirma pagos', None, 'select public.confirm_payment(%s, 5000, %s)', (pg['id'], 'x'), 'permission denied')
+    t.check('pago en línea toma el monto del servidor', pg['amount'] == 5000 and pg['club'] == cid)
+    t.rechaza('deportista no confirma pagos', dep, 'select public.confirm_payment(%s, 5000, %s, %s)', (pg['id'], 'x', cid), 'permission denied')
+    t.rechaza('anónimo no confirma pagos', None, 'select public.confirm_payment(%s, 5000, %s, %s)', (pg['id'], 'x', cid), 'permission denied')
     with t.c.cursor() as q:
-        try:
-            q.execute('select public.confirm_payment(%s, 1, %s)', (pg['id'], 'x'))
-            t.check('rechaza monto distinto', False)
-        except psycopg2.Error:
-            t.check('rechaza monto distinto', True)
-        t.c.rollback()
-        q.execute('select public.confirm_payment(%s, 5000, %s)', (pg['id'], 'mp-1'))
+        for nombre, args in (('rechaza monto distinto', (pg['id'], 1, 'x', cid)), ('rechaza pago de otro club', (pg['id'], 5000, 'x', cid2))):
+            try:
+                q.execute('select public.confirm_payment(%s, %s, %s, %s)', args)
+                t.check(nombre, False)
+            except psycopg2.Error:
+                t.check(nombre, True)
+            t.c.rollback()
+        q.execute('select public.confirm_payment(%s, 5000, %s, %s)', (pg['id'], 'mp-1', cid))
         t.c.commit()
     t.check('confirmación marca el cobro', dato(dep, 'charges', 'c2')['status'] == 'pagado')
     pas = {'id': 'c3', 'playerId': str(pid), 'clubId': cid, 'kind': 'matricula', 'amount': 1, 'status': 'pendiente'}
     niega('deportista no crea matrículas', dep, 'charges', 'c3', pas)
+    t.rpc(club, 'remove_club_pay_key')
+    t.check('club desconecta el pago en línea', next(c for c in t.rpc(club, 'my_state')['clubs'] if c['id'] == cid)['pay_provider'] is None)
+
+    # Ingresos: el club con su clubId, el entrenador a deportistas activos de su club
+    guarda(club, 'incomeItems', 'ii1', {'id': 'ii1', 'clubId': cid, 'kind': 'Torneo', 'name': 'Torneo verano', 'amount': 8000})
+    t.check('entrenador ve los conceptos de cobro', ve(ent, 'incomeItems', 'ii1'))
+    t.check('deportista no ve los conceptos de cobro', not ve(dep, 'incomeItems', 'ii1'))
+    niega('ingreso sin club se rechaza', club, 'incomeItems', 'ii0', {'id': 'ii0', 'kind': 'Torneo', 'name': 'x', 'amount': 1})
+    guarda(ent, 'incomeItems', 'ii2', {'id': 'ii2', 'clubId': cid, 'kind': 'Viaje', 'name': 'Viaje', 'amount': 15000})
+    guarda(ent, 'incomeCats', 'ic1', {'id': 'ic1', 'clubId': cid, 'name': 'Rifa'})
+    t.check('cargo propio visible para el deportista', ve(dep, 'incomeCats', 'ic1'))
+    niega('deportista no crea cargos', dep, 'incomeCats', 'ic2', {'id': 'ic2', 'clubId': cid, 'name': 'Hack'})
+    chv = {'id': 'c4', 'playerId': str(pid), 'clubId': cid, 'teamId': team, 'concept': 'Viaje', 'kind': 'extraordinaria', 'cat': 'Viaje', 'amount': 15000, 'status': 'pendiente', 'paidAt': None}
+    guarda(ent, 'charges', 'c4', chv)
+    t.check('deportista recibe el cobro del entrenador', ve(dep, 'charges', 'c4'))
+    t.check('entrenador ve el cobro que creó', ve(ent, 'charges', 'c4'))
+    t.check('entrenador no ve otros cobros', not ve(ent, 'charges', 'c2'))
+    niega('entrenador no marca pagado', ent, 'charges', 'c4', {**chv, 'status': 'pagado'})
+    niega('entrenador no crea cobros pagados', ent, 'charges', 'c5', {**chv, 'id': 'c5', 'status': 'pagado'})
+    niega('entrenador no cobra pases', ent, 'charges', 'c6', {**chv, 'id': 'c6', 'kind': 'pase'})
+    niega('entrenador no cobra montos inválidos', ent, 'charges', 'c7', {**chv, 'id': 'c7', 'amount': -5})
+    niega('entrenador no cobra a otro club', ent, 'charges', 'c8', {**chv, 'id': 'c8', 'clubId': cid2, 'teamId': None})
+    niega('otro club no cobra a mi deportista', club2, 'charges', 'c9', {**chv, 'id': 'c9', 'clubId': cid2, 'teamId': None})
+    t.rechaza_rpc('entrenador no borra cobros', ent, 'save_records', (J({'del': [{'kind': 'charges', 'id': 'c4'}]}),), 'permiso')
+    t.rpc(club, 'record_manual_payment', ['c4'], 'Transferencia')
+    t.check('el pago entra con la categoría del ingreso', any(r['kind'] == 'movements' and r['data'].get('category') == 'Viaje' for r in t.rpc(club, 'my_state')['records']))
+
+    # Cuenta para transferencias: la ven los relacionados con el club, la escribe solo el club
+    cb = {'id': cid, 'clubId': cid, 'bank': 'BancoEstado', 'accType': 'Cuenta corriente', 'number': '123', 'holder': 'Club', 'rut': '1-9'}
+    niega('entrenador no cambia la cuenta del club', ent, 'clubPay', cid, cb)
+    guarda(club, 'clubPay', cid, cb)
+    t.check('deportista ve la cuenta del club', ve(dep, 'clubPay', cid))
+    t.check('ajeno no ve la cuenta del club', not ve(ajeno, 'clubPay', cid))
+
+    # Avisos segmentados por categoría y deporte
+    def avisos(u):
+        return [n['text'] for n in t.rpc(u, 'my_state')['notifications']]
+    t.rpc(club, 'send_notifs', J([{'to': ['jugador'], 'text': 'Solo otra categoría', 'clubId': cid, 'teams': [str(uuid.uuid4())]}]))
+    t.rpc(club, 'send_notifs', J([{'to': ['jugador'], 'text': 'Solo Remo', 'clubId': cid, 'sport': 'Remo'}]))
+    t.rpc(club, 'send_notifs', J([{'to': ['jugador'], 'text': 'Mi categoría', 'clubId': cid, 'teams': [team], 'sport': 'Fútbol'}]))
+    t.rpc(club, 'send_notifs', J([{'to': ['entrenador'], 'text': 'A entrenadores', 'clubId': cid}]))
+    ta = avisos(dep)
+    t.check('aviso llega solo a su categoría', 'Mi categoría' in ta and 'Solo otra categoría' not in ta and 'Solo Remo' not in ta)
+    t.check('aviso a entrenadores', 'A entrenadores' in avisos(ent) and 'A entrenadores' not in ta)
     post = {'id': 'po1', 'clubId': cid, 'text': 'Hola', 'likes': [], 'comments': []}
     niega('ajeno no publica en el muro', ajeno, 'posts', 'po1', post)
     guarda(dep, 'posts', 'po1', post)

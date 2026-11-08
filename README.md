@@ -101,10 +101,13 @@ La app ya está conectada a su proyecto de Supabase. Las pruebas del demo usan u
 
 ## Activar Mercado Pago
 
-1. Crea tu aplicación en Mercado Pago Developers y copia el Access Token. Usa primero las credenciales de prueba.
-2. En Supabase, abre **Edge Functions → Secrets** y agrega `MP_ACCESS_TOKEN`. Nunca lo pongas en `config.js`.
-3. Despliega `supabase/functions/mp-crear-pago` y `supabase/functions/mp-webhook`. La segunda debe ir sin verificación de JWT, porque la llama Mercado Pago.
-4. Haz un pago de prueba y revisa que el cobro quede pagado y se emita el comprobante.
+El dinero llega directo a la cuenta de Mercado Pago de cada club.
+
+1. Despliega `supabase/functions/mp-crear-pago` y `supabase/functions/mp-webhook`. La segunda debe ir sin verificación de JWT, porque la llama Mercado Pago. No necesitan secretos propios: usan la clave de servicio que Supabase entrega a las funciones.
+2. Cada club crea su aplicación en Mercado Pago Developers, copia su Access Token y lo pega en la app: Perfil → Cuenta y pagos en línea. Usa primero las credenciales de prueba (TEST-).
+3. Haz un pago de prueba y revisa que el cobro quede pagado y se emita el comprobante.
+
+En la misma pantalla el club registra su cuenta para transferencias, que ven apoderados y deportistas al pagar.
 
 Pruebas: `python tools/probar_base.py` (permisos en Postgres local) y `python tools/flujos_real.py` (navegador con API emulada).
 
