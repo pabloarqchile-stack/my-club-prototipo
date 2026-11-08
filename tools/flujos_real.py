@@ -15,6 +15,7 @@ import shutil
 import sys
 import tempfile
 import threading
+import time
 from urllib.parse import parse_qs, urlparse
 
 import pgserver
@@ -34,6 +35,7 @@ def clave(p):
 
 
 class Api(http.server.BaseHTTPRequestHandler):
+    altas = 0  # Registros recibidos: detecta envíos dobles.
     db = None
 
     def log_message(self, *a):
@@ -93,6 +95,8 @@ class Api(http.server.BaseHTTPRequestHandler):
     def auth(self, metodo, url, b):
         ruta = url.path.replace('/auth/v1/', '')
         if ruta == 'signup':
+            Api.altas += 1
+            time.sleep(0.6)  # Supabase tarda unos segundos mientras envía el email de confirmación.
             if len(b['password']) < 6:
                 return self.responder(422, {'error_code': 'weak_password', 'msg': 'débil'})
             try:
@@ -172,7 +176,7 @@ class Telefono:
     def texto(self):
         return self.p.inner_text('#phone')
 
-    def registrar(self, tipo, nombre, r, email, clave_='ClaveSegura1', extra=None):
+    def registrar(self, tipo, nombre, r, email, clave_='ClaveSegura1', extra=None, doble=False):
         self.ir('/registro')
         self.p.locator(f'#rg-{tipo} button.li').first.click()
         self.p.wait_for_timeout(150)
@@ -185,6 +189,9 @@ class Telefono:
             extra(self)
         self.p.check('#rg-legal')
         self.tap('Completar Registro')
+        if doble:  # Segundo toque mientras el primero espera respuesta.
+            self.p.evaluate("document.querySelector('#rg-pass') && A.completeReg()")
+        self.p.wait_for_timeout(700)
 
     def entrar(self, email, clave_='ClaveSegura1'):
         self.ir('/login')
@@ -242,7 +249,7 @@ def correr(br, check, errores):
     check('exige clave de 8 caracteres', '8 caracteres' in club.p.inner_text('#rg-err'))
     club.f('#rg-pass', 'ClaveSegura1')
     club.tap('Completar Registro')
-    club.p.wait_for_timeout(600)
+    club.p.wait_for_timeout(1300)
     check('pide confirmar email', 'Confirma tu email' in club.texto())
     club.cerrar_hoja()
     club.entrar('club@real.cl', 'incorrecta')
@@ -649,6 +656,25 @@ def correr(br, check, errores):
     dep.p.evaluate("""() => { S.movements.push({ id: 'hack', clubId: myClubs()[0], type: 'ingreso', amount: 1, concept: 'Hack', category: 'x', date: today() }); save(); }""")
     dep.p.wait_for_timeout(800)
     check('la base rechaza finanzas escritas por un deportista', 'permiso' in dep.p.inner_text('#toasts').lower() and not dep.p.evaluate("S.movements.some(m => m.id === 'hack')"))
+
+    # --- Deportista registrado por su apoderado: el apoderado le da acceso y entra con su propia cuenta ---
+    sofia = apo.p.evaluate("S.players.find(p => p.name === 'Sofía Real').id")
+    apo.ir('/a/pupilos')
+    apo.p.evaluate(f"S.ui.kid = '{sofia}'; rerender()")
+    apo.p.wait_for_timeout(300)
+    check('apoderado ve dar acceso propio', 'Dar acceso propio a Sofía' in apo.texto())
+    hoja(apo, f"A.kidAccessSheet('{sofia}')", {'#ka-em': 'Sofia@Real.cl'}, f"A.kidAccess('{sofia}')")
+    check('acceso autorizado', en_base(apo, f"player('{sofia}').accessEmail") == 'sofia@real.cl')
+    sof = Telefono(br, errores)
+    Api.altas = 0
+    sof.registrar('jugador', 'Sofía Real', rut(23456789), 'sofia@real.cl', extra=lambda tel: tel.f('#rg-birth', '2013-04-04'), doble=True)
+    sof.p.wait_for_timeout(800)
+    check('tocar dos veces no registra dos veces', Api.altas == 1)
+    sof.cerrar_hoja()
+    sof.entrar('sofia@real.cl')
+    sof.cerrar_hoja()
+    check('Sofía entra con su mismo perfil y club', sof.p.evaluate(f"acct().type === 'jugador' && acct().refId === '{sofia}' && activeMems('{sofia}').length > 0"))
+    check('apoderado la sigue viendo y recibe el aviso', en_base(apo, f"!!player('{sofia}').accountId && S.notifs.some(n => n.text.includes('propia cuenta'))"))
 
     # --- Cuentas recién creadas, sin club ni pupilos: igual ven todos sus accesos ---
     for tipo, nombre_, r_, email_ in (('apoderado', 'Ana Nueva', rut(16000001), 'ana@real.cl'), ('entrenador', 'Beto Nuevo', rut(16000002), 'beto@real.cl'), ('jugador', 'Cata Nueva', rut(16000003), 'cata@real.cl')):

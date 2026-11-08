@@ -89,6 +89,7 @@ button.li:active{background:var(--fill)}
 h1,h2,h3{margin:0}h2{font-size:22px;font-weight:750;letter-spacing:-.01em}h3{font-size:17px;font-weight:650}
 .big{font-size:30px;font-weight:750;letter-spacing:-.02em}
 /* Botones */
+body.ocupado .btn{opacity:.6;pointer-events:none}
 .btn{min-height:50px;border-radius:14px;border:0;padding:0 18px;font-weight:650;font-size:16px;display:inline-flex;align-items:center;justify-content:center;gap:8px;background:var(--primary);color:#fff;width:100%;transition:transform .12s,opacity .12s;text-decoration:none}
 .btn:active{transform:scale(.98);opacity:.88}
 .btn.s2{background:var(--psoft);color:var(--ptext)}
@@ -2021,9 +2022,14 @@ A.pickKid = (id, href) => { S.ui.kid = id; save(); go(href); };
 route('/a/pupilos', {
   title: 'Mis pupilos', tab: 'pupilos', root: true, roles: ['apoderado'], render: () => {
     const p = subj(), k = myKids().find(x => x.playerId === p.id), ms = activeMems(p.id), ev = subjEvents(p.id).find(e => e.date >= today()), pend = pendingCharges(p.id);
-    return kidBar() + `<div class="card"><div class="row">${avatar(p.name, 56, p.photo)}<div class="sp"><h3>${esc(p.name)}</h3><div class="small muted">${k.rel === 'Madre' ? 'Eres su madre' : 'Parentesco: ' + esc(k.rel)} · ${ageOf(p.birth)} años</div><div class="small muted">RUT ${p.rut}</div></div></div></div>${sec('Clubes')}${ms.length ? list(ms.map(m => li({ av: clubLogo(club(m.clubId), 40), title: `${club(m.clubId).short}`, sub: `${SPORTS[m.sport]} ${m.sport}${m.teamId ? ' · ' + team(m.teamId).name : ''}`, right: stBadge(m.status), href: '/club/' + m.clubId }))) : empty('building', 'Sin club', 'Solicita su incorporación a un club.', goBtn('Unirme a un club', '/unirme'))}${ev ? sec('Próxima actividad') + evCard(ev, p.id) : ''}${list([li({ ic: 'card', color: 'orange', title: 'Cuotas y matrícula', sub: pend.length ? `${pend.length} pendientes · ${clp(sum(pend, c => c.amount))}` : 'Al día', href: '/pagos' }), li({ ic: 'chart', color: 'teal', title: 'Reportes', href: '/a/reportes' }), li({ ic: 'swap', color: 'indigo', title: 'Cambio de club', href: '/cambio-club' }), li({ ic: 'userminus', color: 'red', title: 'Renuncia', href: '/renuncia' }), li({ ic: 'clipboard', title: 'Trámites', href: '/tramites' })])}${goBtn('Registrar a un hijo', '/a/registrar-hijo', 's2', 'userplus')}`;
+    return kidBar() + `<div class="card"><div class="row">${avatar(p.name, 56, p.photo)}<div class="sp"><h3>${esc(p.name)}</h3><div class="small muted">${k.rel === 'Madre' ? 'Eres su madre' : 'Parentesco: ' + esc(k.rel)} · ${ageOf(p.birth)} años</div><div class="small muted">RUT ${p.rut}</div></div></div></div>${kidAccess(p)}${sec('Clubes')}${ms.length ? list(ms.map(m => li({ av: clubLogo(club(m.clubId), 40), title: `${club(m.clubId).short}`, sub: `${SPORTS[m.sport]} ${m.sport}${m.teamId ? ' · ' + team(m.teamId).name : ''}`, right: stBadge(m.status), href: '/club/' + m.clubId }))) : empty('building', 'Sin club', 'Solicita su incorporación a un club.', goBtn('Unirme a un club', '/unirme'))}${ev ? sec('Próxima actividad') + evCard(ev, p.id) : ''}${list([li({ ic: 'card', color: 'orange', title: 'Cuotas y matrícula', sub: pend.length ? `${pend.length} pendientes · ${clp(sum(pend, c => c.amount))}` : 'Al día', href: '/pagos' }), li({ ic: 'chart', color: 'teal', title: 'Reportes', href: '/a/reportes' }), li({ ic: 'swap', color: 'indigo', title: 'Cambio de club', href: '/cambio-club' }), li({ ic: 'userminus', color: 'red', title: 'Renuncia', href: '/renuncia' }), li({ ic: 'clipboard', title: 'Trámites', href: '/tramites' })])}${goBtn('Registrar a un hijo', '/a/registrar-hijo', 's2', 'userplus')}`;
   }
 });
+// Un pupilo registrado por su apoderado no tiene clave propia hasta que el apoderado le da acceso.
+const kidAccess = p => p.accountId ? '' : list([li({ ic: 'lock', color: 'teal', title: `Dar acceso propio a ${esc(p.first)}`, sub: p.accessEmail ? `Autorizado: ${esc(p.accessEmail)}. Debe registrarse como Deportista con ese email y su RUT.` : `Para que ${esc(p.first)} entre con su propio email y clave`, on: `A.kidAccessSheet('${p.id}')` })]);
+A.kidAccessSheet = id => { const p = player(id); sheet(`Acceso propio de ${esc(p.first)}`, `<p class="small" style="margin:0 0 12px">${esc(p.first)} podrá crear su cuenta en REGISTRARSE → Deportista, con este email y su RUT ${esc(p.rut)}. Usará el mismo perfil, sus clubes y su historial, y tú sigues viéndolo como apoderado.</p>${inp('ka-em', `Email de ${esc(p.first)}`, `type="email" inputmode="email" autocomplete="off" autocapitalize="off" value="${esc(p.accessEmail || '')}"`)}<div class="err mb8" id="ka-err"></div>${btn('Autorizar acceso', `A.kidAccess('${id}')`, 'ok', 'lock')}`); };
+const kidAccessEmail = () => { const e = val('ka-em').toLowerCase(); if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e)) { $('#ka-err').textContent = 'El email no es válido.'; return null; } return e; };
+A.kidAccess = id => { const e = kidAccessEmail(); if (!e) return; player(id).accessEmail = e; closeSheet(); commit('Acceso autorizado. Ahora puede registrarse con ese email.'); };
 A.rhClub = () => { $('#rh-sport').innerHTML = opts(club(val('rh-club')).sports); };
 A.regKid = () => {
   const name = val('rh-name'), rut = val('rh-rut'), birth = val('rh-birth'), cid = val('rh-club'), sp = val('rh-sport'), err = t => { $('#rh-err').textContent = t; };
@@ -2801,7 +2807,7 @@ function hydrate(d, ui) {
   // Directorio: otros clubes y equipos se ven con sus datos públicos, para transferencias, torneos y marketplace.
   (d.directory || { clubs: [], teams: [] }).clubs.forEach(c => { if (!s.clubs.some(x => x.id === c.id)) s.clubs.push({ ...c, rut: '', logo: null, board: [], socios: 0, founded: '', constituted: null, city: c.city || '', region: c.region || '' }); });
   (d.directory || { clubs: [], teams: [] }).teams.forEach(t => { if (!s.teams.some(x => x.id === t.id)) s.teams.push({ id: t.id, clubId: t.club_id, sport: t.sport, name: t.name, category: t.category, sex: t.sex, coach: t.coach, matricula: 0 }); });
-  s.players = d.players.map(p => ({ id: p.id, first: p.name.split(' ')[0], name: p.name, sex: p.sex, birth: p.birth, rut: p.rut, email: p.email || '', phone: p.phone || '', position: p.position || '', city: p.city, height: p.height, size: p.size || '', photo: p.photo, accountId: p.account_id, guardianId: p.guardian_id, rel: p.rel }));
+  s.players = d.players.map(p => ({ id: p.id, first: p.name.split(' ')[0], name: p.name, sex: p.sex, birth: p.birth, rut: p.rut, email: p.email || '', phone: p.phone || '', position: p.position || '', city: p.city, height: p.height, size: p.size || '', photo: p.photo, accountId: p.account_id, guardianId: p.guardian_id, rel: p.rel, accessEmail: p.access_email || '' }));
   s.memberships = d.memberships.map(m => ({ id: m.id, playerId: m.player_id, clubId: m.club_id, sport: m.sport, teamId: m.team_id, status: m.status, since: day(m.resolved_at || m.created_at), until: m.until, federated: !!m.federated, number: m.number }));
   s.requests = d.memberships.filter(m => m.status === 'pendiente' || m.resolved_at).map(m => ({ id: m.id, playerId: m.player_id, clubId: m.club_id, sport: m.sport, membershipId: m.id, date: day(m.created_at), status: m.status === 'pendiente' ? 'pendiente' : m.status === 'rechazada' ? 'rechazada' : 'aceptada', note: m.note || '' }));
   const toAcc = a => ({ id: a.public_id, uid: a.user_id, type: a.type, role: a.type === 'club' ? 'directivo' : a.type, name: a.name, rut: a.rut, email: a.email, phone: a.phone, date: day(a.created_at), photo: a.photo, city: a.city, specialty: a.specialty, web: a.web, sport: a.sport });
@@ -2942,6 +2948,7 @@ real('join', async () => {
   try { await SB.rpc('request_join', { p_player: subj().id, p_club: _link.clubId, p_sport: val('jn-sport'), p_note: val('jn-note') }); } catch (e) { $('#jn-err').textContent = e.message; return; }
   _link = null; await refreshReal(); go('/inicio'); sheet('Solicitud enviada', `<p class="center" style="margin:0 0 16px">${MSG_INCORPORACION}</p>${btn('Entendido', 'closeSheet()')}`);
 });
+real('kidAccess', async id => { const e = kidAccessEmail(); if (!e) return; closeSheet(); return realDo(() => SB.rpc('grant_player_access', { p_player: id, p_email: e }), 'Acceso autorizado. Ahora puede registrarse con ese email.'); });
 real('regKid', async () => {
   const name = val('rh-name'), rut = val('rh-rut'), birth = val('rh-birth'), err = t => { $('#rh-err').textContent = t; };
   if (!name || !rut || !birth) return err('Completa nombre, RUT y fecha de nacimiento.');
@@ -3006,7 +3013,7 @@ A.recover = async () => {
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)) { e.textContent = 'El email no es válido.'; return; }
   try { await SB.recover(em); replaceTo('/login'); toast('Si el email existe, te enviamos un enlace'); } catch (x) { e.textContent = x.message; }
 };
-route('/recuperar', { public: true, title: 'Recuperar clave', noTabs: true, render: () => `<div class="card">${inp('rc-em', 'Email', 'type="email" inputmode="email" autocomplete="off" autocapitalize="off"')}<div class="err" id="rc-err"></div></div>${btn('Enviar enlace', 'A.recover()', 'naranjo')}` });
+route('/recuperar', { public: true, title: 'Recuperar clave', noTabs: true, render: () => `<div class="card">${inp('rc-em', 'Email', 'type="email" inputmode="email" autocomplete="off" autocapitalize="off"')}<div class="err" id="rc-err"></div></div>${btn('Enviar enlace', 'A.recover()', 'naranjo')}<p class="hint center mt12">Si tu apoderado te registró, aún no tienes clave propia. Pídele que te dé acceso desde Mis pupilos y luego regístrate como Deportista con ese email.</p>` });
 A.newPass = async () => {
   const p = $('#np-pw').value, e = $('#np-err'); e.textContent = '';
   if (p.length < 8) { e.textContent = 'La clave debe tener al menos 8 caracteres.'; return; }
@@ -3034,12 +3041,20 @@ const SOLO_DEMO = new Set('time simLink simReply simJoin simVotes asmSim csvSamp
 const MSG_CREA_CUENTA = 'Estás en el modo demo: crea una cuenta para ingresar datos.';
 const MSG_SOLO_DEMO = 'Esta función no está disponible en cuentas reales.';
 const soloConsulta = () => HAS_DB && S.session.loggedIn && !S.session.real;
+// Mientras una acción espera respuesta del servidor, tocar de nuevo no la repite.
+const _enCurso = new Set();
 Object.keys(A).forEach(k => {
   const libre = SOLO_VER.has(k) || /Sheet$/.test(k), f = A[k];
   A[k] = (...x) => {
     if (S.session.real && SOLO_DEMO.has(k)) { closeSheet(); return toast(MSG_SOLO_DEMO, 'warn'); }
     if (!libre && soloConsulta()) { closeSheet(); return toast(MSG_CREA_CUENTA, 'warn'); }
-    return f(...x);
+    if (_enCurso.has(k)) return;
+    const r = f(...x);
+    if (r && typeof r.then === 'function') {
+      _enCurso.add(k); document.body.classList.add('ocupado');
+      r.catch(() => { }).finally(() => { _enCurso.delete(k); if (!_enCurso.size) document.body.classList.remove('ocupado'); });
+    }
+    return r;
   };
 });
 

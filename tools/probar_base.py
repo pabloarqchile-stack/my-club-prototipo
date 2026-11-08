@@ -443,6 +443,22 @@ def correr(t):
     t.check('ajeno no ve el chat', not ve(ajeno, 'chats', 'ch1'))
     niega('ajeno no sobrescribe un chat agregándose', ajeno, 'chats', 'ch1', {**chat, 'members': chat['members'] + [t.rpc(ajeno, 'my_state')['account']['public_id']]})
 
+    # --- Acceso propio para un menor que registró su apoderado ---
+    hija, intruso = t.usuario('hija@prueba.cl'), t.usuario('intruso@prueba.cl')
+    kidreg = J({**base, 'type': 'jugador', 'rut': RUTS['kid'], 'name': 'Niña Prueba', 'birth': '2013-03-03'})
+    t.rechaza_rpc('sin acceso del apoderado no toma el perfil', hija, 'register_account', (kidreg,), 'pídele que te dé acceso')
+    t.rechaza_rpc('solo su apoderado da acceso', dep, 'grant_player_access', (k, 'hija@prueba.cl'), 'Solo su apoderado')
+    t.rechaza_rpc('email inválido para el acceso', apo, 'grant_player_access', (k, 'hija'), 'no es válido')
+    t.rechaza_rpc('email de otra cuenta', apo, 'grant_player_access', (k, 'dep@prueba.cl'), 'ya tiene una cuenta')
+    t.rpc(apo, 'grant_player_access', k, ' Hija@Prueba.cl ')
+    t.rechaza_rpc('otro email no toma el perfil', intruso, 'register_account', (kidreg,), 'pídele que te dé acceso')
+    t.rpc(hija, 'register_account', kidreg)
+    t.check('la hija entra con su mismo perfil', any(x['id'] == k and x['account_id'] == str(hija) for x in t.rpc(hija, 'my_state')['players']))
+    t.check('no se duplica el deportista', sum(1 for x in t.rpc(apo, 'my_state')['players'] if x['rut'] == RUTS['kid']) == 1)
+    t.check('el apoderado mantiene el acceso', any(x['id'] == k for x in t.rpc(apo, 'my_state')['players']))
+    t.check('el apoderado recibe el aviso', any('propia cuenta' in n['text'] for n in t.rpc(apo, 'my_state')['notifications']))
+    t.rechaza_rpc('no se da acceso dos veces', apo, 'grant_player_access', (k, 'otra@prueba.cl'), 'Ya tiene su propia cuenta')
+
     # --- Estados de deportistas ---
     mm = t.rpc(dep, 'my_state')['memberships'][0]['id']
     es = lambda st: J([{'id': mm, 'status': st, 'teamId': team}])
