@@ -357,6 +357,13 @@ const FED_NAMES = { 'Fútbol': 'Federación de Fútbol Amateur de Chile', 'Básq
 const PROV_CATS = ['Alimentación', 'Implementación deportiva', 'Productoras de eventos', 'Formulación de proyectos', 'Auspiciadores', 'Ropa deportiva', 'Recintos deportivos'];
 const EXP_CATS = ['Honorarios cuerpo técnico', 'Pagos a directores', 'Implementos', 'Viajes', 'Alojamiento', 'Alimentación', 'Arriendo de recintos', 'Arbitrajes'];
 const INCOME_TYPES = ['Matrícula', 'Mensualidad', 'Torneo', 'Partido', 'Viaje', 'Camiseta', 'Vestuario'];
+// Estos cargos solo se cobran a quienes confirman su participación.
+const PART_TYPES = ['Partido', 'Viaje', 'Torneo'];
+const BENEFITS = ['Beca', 'Descuento', 'Convenio'];
+const TS_ROLES = ['Head coach', 'Entrenador', 'Asistente', 'Kinesiólogo', 'Sicólogo', 'Médico'];
+const TS_FORMS = [['entrenamiento', 'Por entrenamiento'], ['sesion', 'Por sesión'], ['mensual', 'Mensual'], ['viatico_comuna', 'Viático en la comuna'], ['viatico_fuera', 'Viático fuera de la comuna'], ['viatico_aloj', 'Viático con alojamiento']];
+const FAC_TYPES = ['Gimnasio', 'Cancha', 'Sala de máquinas', 'Piscina', 'Quincho', 'Otro'];
+const dueTxt = c => c.due ? 'vence ' + fDate(c.due) : 'sin vencimiento';
 const BANKS = ['Banco de Chile', 'BancoEstado', 'Santander', 'BCI', 'Scotiabank', 'Itaú', 'BICE', 'Security', 'Banco Falabella', 'Banco Ripley', 'Banco Consorcio', 'Banco Internacional', 'Coopeuch', 'Mercado Pago', 'Tenpo', 'Otro'];
 const ACC_TYPES = ['Cuenta corriente', 'Cuenta vista', 'Cuenta RUT', 'Cuenta de ahorro'];
 // Proveedores de pago en línea: solo Mercado Pago está programado; los demás quedan listados para sumarlos.
@@ -587,8 +594,8 @@ function seedMore(s, D, T, teamOf) {
   ch('p_diego', 'halcones', 'Cuota mensual ' + monthName(D(-84)), 'mensual', 25000, D(-84));
   ch('p_matias', 'halcones', 'Inscripción Liga Amateur – segunda rueda', 'extraordinaria', 15000, D(10));
   ch('p_tomas', 'halcones', 'Camiseta oficial 2026', 'extraordinaria', 22000, D(15));
-  ch('p_tomas', 'halcones', 'Matrícula temporada 2027', 'matricula', 40000, D(40));
-  ch('p_sofia', 'nautico', 'Matrícula temporada 2027', 'matricula', 45000, D(20));
+  ch('p_tomas', 'halcones', 'Matrícula temporada 2027', 'matricula', 40000, null);
+  ch('p_sofia', 'nautico', 'Matrícula temporada 2027', 'matricula', 45000, null);
   ch('p_sofia', 'nautico', 'Gorra y lentes oficiales', 'extraordinaria', 16000, D(12));
   [-150, -120, -90].forEach(o => ch('p_renato', 'biobio', 'Cuota mensual ' + monthName(D(o)), 'mensual', 15000, D(o)));
 
@@ -640,6 +647,9 @@ function seedSocial(s, D, T, teamPlayers) {
   }
   s.expenseCats = EXP_CATS.slice();
   s.incomeCats = [];
+  s.techStaff = []; s.staffPays = []; s.feeRules = [];
+  s.facilities = [{ id: 'fc1', clubId: 'halcones', name: 'Cancha principal', type: 'Cancha' }, { id: 'fc2', clubId: 'halcones', name: 'Gimnasio techado', type: 'Gimnasio' }]; s.bookings = [];
+  s.directors = [{ id: 'dir1', clubId: 'halcones', accountId: null, name: 'Luis Araya Soto', rut: fmtRut(12888777), cargo: 'Tesorero', email: 'tesorero@ejemplo.cl', perms: ['finanzas', 'marketplace'], active: true }];
   s.clubPay = [{ id: 'halcones', clubId: 'halcones', bank: 'BancoEstado', accType: 'Cuenta corriente', number: '000123456789', holder: 'Club Deportivo Los Halcones', rut: fmtRut(65123456), email: 'tesoreria@ejemplo.cl' }];
   s.incomeItems = [
     { id: 'ii1', kind: 'Matrícula', name: 'Matrícula anual 2027', amount: 40000, target: 'Todos los socios' },
@@ -816,7 +826,7 @@ const STORE_KEY = 'myclub-demo-v1', SESSION_KEY = 'myclub-sesion-v1', REAL_UI_KE
 const CFG = window.MYCLUB_CONFIG || {}, HAS_DB = !!(CFG.url && CFG.key);
 let S;
 function load() {
-  try { const raw = localStorage.getItem(STORE_KEY); if (raw) { const o = JSON.parse(raw); if (o && o.v === 3) { o.guardianLinks = o.guardianLinks || []; o.incomeCats = o.incomeCats || []; o.clubPay = o.clubPay || []; return o; } } } catch (e) { console.warn('Estado no disponible', e); }
+  try { const raw = localStorage.getItem(STORE_KEY); if (raw) { const o = JSON.parse(raw); if (o && o.v === 3) { o.guardianLinks = o.guardianLinks || []; o.incomeCats = o.incomeCats || []; o.directors = o.directors || []; ['techStaff', 'staffPays', 'feeRules', 'facilities', 'bookings'].forEach(k => { o[k] = o[k] || []; }); o.clubPay = o.clubPay || []; return o; } } } catch (e) { console.warn('Estado no disponible', e); }
   return seed();
 }
 function save() { if (S.session.real) { try { localStorage.setItem(REAL_UI_KEY, JSON.stringify({ home: S.home })); } catch (e) { } syncSoon(); return true; } try { localStorage.setItem(STORE_KEY, JSON.stringify(S)); return true; } catch (e) { console.warn('No se pudo guardar', e); return false; } }
@@ -872,12 +882,22 @@ const REG_TYPES = [
   ['club', 'Club', 'C', 'building', 'blue', 'Crea tu club y su directorio'], ['jugador', 'Deportista', 'D', 'user', 'green', 'Practica un deporte en un club'],
   ['apoderado', 'Apoderado', 'A', 'users', 'orange', 'Administra a tus pupilos menores de edad'], ['entrenador', 'Entrenador', 'E', 'clipboard', 'purple', 'Dirige equipos de un club'],
   ['federacion', 'Federación', 'F', 'shield', 'teal', 'Representa a una federación o asociación'],
-  ['proveedor', 'Proveedor', 'P', 'store', 'pink', 'Ofrece productos o servicios a los clubes']
+  ['proveedor', 'Proveedor', 'P', 'store', 'pink', 'Ofrece productos o servicios a los clubes'],
+  ['dirigente', 'Directivo', 'M', 'shield', 'indigo', 'Integras la directiva de un club. Tu club debe crearte primero']
 ];
+const roleOf = t => ['club', 'dirigente'].includes(t) ? 'directivo' : t;
 const typeLabel = t => REG_TYPES.find(x => x[0] === t)[1];
 const nextId = letter => { S.idSeq[letter] = (S.idSeq[letter] || 0) + 1; return letter + String(S.idSeq[letter]).padStart(8, '0'); };
 const acct = () => S.accounts.find(a => a.id === S.session.accountId);
 const isDemo = () => { const a = acct(); return !a || !!a.demo; };
+// Funciones que el club activa o desactiva a cada directivo. La base de datos las hace cumplir.
+const DIR_PERMS = [['deportes', 'Deportes y categorías'], ['deportistas', 'Deportistas, apoderados y entrenadores'], ['solicitudes', 'Solicitudes y transferencias'], ['bajas', 'Bajas, reclamos y préstamos'], ['finanzas', 'Finanzas, ingresos y cobros'], ['aprobaciones', 'Aprobaciones'], ['asambleas', 'Asambleas'], ['masivo', 'Mensajes masivos'], ['marketplace', 'Marketplace'], ['cuerpo', 'Cuerpo técnico y sus pagos'], ['infra', 'Infraestructura']];
+const myDirector = () => { const a = acct(); return a && a.type === 'dirigente' ? S.directors.find(d => d.accountId === (a.uid || a.id)) : null; };
+// 'club' es lo que solo hace la cuenta del club.
+function canDo(p) { const a = acct(); if (!a || a.type !== 'dirigente') return true; if (p === 'club') return false; const d = myDirector(); return !!d && d.active && d.perms.includes(p); }
+const TILE_PERM = { deportes: 'deportes', finanzas: 'finanzas', aprobaciones: 'aprobaciones', asambleas: 'asambleas', solicitudes: 'solicitudes', bajas: 'bajas', reclamos: 'bajas', prestamos: 'bajas', jugadores: 'deportistas', apoderados: 'deportistas', entrenadores: 'deportistas', masivo: 'masivo', marketplace: 'marketplace', directivos: 'club', cuerpo: 'cuerpo', infra: 'infra' };
+const tileOk = id => role() !== 'directivo' || !TILE_PERM[id] || canDo(TILE_PERM[id]);
+const ROUTE_PERM = { '/d/deportes': 'deportes', '/d/finanzas': 'finanzas', '/d/pagos-club': 'club', '/d/aprobaciones': 'aprobaciones', '/d/asambleas': 'asambleas', '/d/asamblea/:id': 'asambleas', '/d/solicitudes': 'solicitudes', '/d/bajas': 'bajas', '/d/reclamos': 'bajas', '/d/prestamos': 'bajas', '/d/prestamo/:id': 'bajas', '/d/jugadores': 'deportistas', '/d/apoderados': 'deportistas', '/d/entrenadores': 'deportistas', '/d/masivo': 'masivo', '/d/directivos': 'club', '/marketplace': 'marketplace', '/d/cuerpo': 'cuerpo', '/d/infra': 'infra', '/d/mensualidades': 'finanzas' };
 const demoAccount = r => S.accounts.find(a => a.demo && a.role === r);
 function syncCoach() {
   const a = acct();
@@ -893,7 +913,7 @@ function applyAccount(a) {
   if (a.role === 'entrenador' || a.role === 'directivo') S.users[a.role] = { ...a.profile, clubId: a.clubId || null };
   syncCoach();
 }
-const needsClub = () => { const r = role(); if (r === 'entrenador') { syncCoach(); return !coach().clubId || !coach().teams.length; } return false; };
+const needsClub = () => { const r = role(); if (r === 'directivo') return !S.users.directivo.clubId; if (r === 'entrenador') { syncCoach(); return !coach().clubId || !coach().teams.length; } return false; };
 const needsKid = () => role() === 'apoderado' && !myGuardian().kids.length;
 const gated = () => needsClub() || needsKid();
 const myLinks = a => S.linkRequests.filter(r => r.accountId === a.id);
@@ -961,6 +981,15 @@ function payCharges(ids, method) {
   return id;
 }
 const incomeCategory = c => c.kind === 'matricula' ? 'Matrículas' : c.kind === 'mensual' ? 'Cuotas mensuales' : c.cat || 'Inscripciones';
+function payPartial(c, a, method) {
+  if (a >= c.amount) return payCharges([c.id], method);
+  const id = uid('rc'), code = docCode('CP', id), payer = player(c.playerId).name, concept = 'Abono: ' + c.concept;
+  S.receipts.push({ id, number: nextSeq(), date: today(), method, amount: a, items: [{ concept, amount: a }], payer, payee: payeeOf(c), code });
+  registerDoc(code, 'Comprobante de pago', concept, payer);
+  c.original = c.original || c.amount; c.amount -= a;
+  S.movements.push({ id: uid('mv'), clubId: c.clubId, type: 'ingreso', category: incomeCategory(c), concept, amount: a, date: today() });
+  return id;
+}
 function addCharge(o) { const c = { id: uid('c'), status: 'pendiente', paidAt: null, due: addDays(today(), 10), ...o }; S.charges.push(c); return c; }
 
 // --- Credencial federada ---
@@ -1277,6 +1306,7 @@ function render(nav) {
   if (!r.public && !S.session.loggedIn) return replaceTo('/login');
   if (r.path === '/login' && S.session.loggedIn) return replaceTo('/inicio');
   if (r.roles && !r.roles.includes(role())) return replaceTo('/inicio');
+  if (S.session.loggedIn && role() === 'directivo' && ROUTE_PERM[r.path] && !canDo(ROUTE_PERM[r.path])) return replaceTo('/inicio');
   const view = $('#view'), top = view.scrollTop;
   let html;
   // En una cuenta real el Inicio siempre muestra todos los accesos, aunque falte vincularse.
@@ -1289,7 +1319,7 @@ function render(nav) {
     const title = typeof r.title === 'function' ? r.title(p) : r.title, c = unread();
     const rb = r.action && !gate ? r.action(p) : '';
     hdr.innerHTML = `${r.root ? `<span class="hb">${LOGO(34)}</span>` : `<button class="hb" onclick="A.back()" aria-label="Volver">${icon('back', 26)}</button>`}<div class="ttl">${esc(title)}</div>${rb}${S.session.loggedIn ? `<button class="hb" onclick="go('/notificaciones')" aria-label="Notificaciones">${icon('bell', 23)}${c ? `<span class="count">${c > 9 ? '9+' : c}</span>` : ''}</button>` : '<span class="hb ph"></span>'}`;
-    tb.innerHTML = (TABS[role()] || []).map(([k, l, ic, href]) => { const n = tabBadge(k); return `<button class="tab ${r.tab === k ? 'on' : ''}" onclick="go('${href}')" ${r.tab === k ? 'aria-current="page"' : ''}>${icon(ic, 24)}<span>${l}</span>${n ? `<span class="dot">${n}</span>` : ''}</button>`; }).join('');
+    tb.innerHTML = (TABS[role()] || []).filter(t => tileOk(t[0])).map(([k, l, ic, href]) => { const n = tabBadge(k); return `<button class="tab ${r.tab === k ? 'on' : ''}" onclick="go('${href}')" ${r.tab === k ? 'aria-current="page"' : ''}>${icon(ic, 24)}<span>${l}</span>${n ? `<span class="dot">${n}</span>` : ''}</button>`; }).join('');
   }
   view.innerHTML = html;
   if (nav) { view.scrollTop = 0; view.classList.remove('enter'); void view.offsetWidth; view.classList.add('enter'); } else view.scrollTop = top;
@@ -1311,14 +1341,14 @@ const HOME = {
   jugador: [['calendario', 'Calendario', 'calendar', 'blue', '/calendario'], ['asistencia', 'Asistencia', 'check', 'green', '/asistencia'], ['pagos', 'Pagos', 'card', 'orange', '/pagos'], ['muro', 'Muro', 'image', 'pink', '/muro'], ['mensajes', 'Mensajes', 'chat', 'indigo', '/mensajes'], ['encuestas', 'Votaciones', 'poll', 'purple', '/encuestas'], ['cv', 'Currículum', 'cv', 'teal', '/j/cv'], ['certificado', 'Certificados', 'doc', 'blue', '/j/certificado'], ['credencial', 'Credencial', 'id', 'green', '/j/credencial'], ['unirme', 'Unirme a club', 'userplus', 'yellow', '/unirme'], ['cambio', 'Cambio de club', 'swap', 'indigo', '/cambio-club'], ['renuncia', 'Renuncia', 'userminus', 'red', '/renuncia'], ['rutinas', 'Rutinas', 'dumbbell', 'orange', '/rutinas'], ['escanear', 'Escanear QR', 'scan', 'gray', '/escanear'], ['tramites', 'Mis trámites', 'clipboard', 'teal', '/tramites']],
   apoderado: [['pupilos', 'Pupilos', 'users', 'blue', '/a/pupilos'], ['vincular-hijo', 'Vincular hijo', 'id', 'teal', '/a/vincular-pupilo'], ['pagos', 'Pagos', 'card', 'orange', '/pagos'], ['asistencia', 'Asistencia', 'check', 'green', '/asistencia'], ['calendario', 'Calendario', 'calendar', 'indigo', '/calendario'], ['mensajes', 'Mensajes', 'chat', 'purple', '/mensajes'], ['reportes', 'Reportes', 'chart', 'teal', '/a/reportes'], ['registrar', 'Registrar hijo', 'userplus', 'yellow', '/a/registrar-hijo'], ['encuestas', 'Votaciones', 'poll', 'pink', '/encuestas'], ['cambio', 'Cambio de club', 'swap', 'indigo', '/cambio-club'], ['renuncia', 'Renuncia', 'userminus', 'red', '/renuncia'], ['escanear', 'Escanear QR', 'scan', 'gray', '/escanear'], ['tramites', 'Trámites', 'clipboard', 'teal', '/tramites']],
   entrenador: [['eventos', 'Partidos y entrenos', 'calendar', 'blue', '/e/eventos'], ['plantel', 'Plantel', 'users', 'green', '/e/plantel'], ['torneos', 'Base de torneos', 'trophy', 'yellow', '/torneos'], ['proponer', 'Proponer', 'flag', 'orange', '/e/proponer'], ['encuestas', 'Encuestas', 'poll', 'purple', '/encuestas'], ['masivo', 'Mensaje masivo', 'megaphone', 'pink', '/e/masivo'], ['ingresos', 'Ingresos', 'money', 'green', '/e/ingresos'], ['rutinas', 'Rutinas', 'dumbbell', 'teal', '/rutinas'], ['staff', 'Cuerpo técnico', 'shield', 'indigo', '/e/staff'], ['carga', 'Carga masiva', 'upload', 'gray', '/e/carga'], ['marketplace', 'Marketplace', 'store', 'red', '/marketplace']],
-  directivo: [['deportes', 'Deportes del club', 'grid', 'blue', '/d/deportes'], ['finanzas', 'Finanzas', 'bank', 'green', '/d/finanzas'], ['aprobaciones', 'Aprobaciones', 'vote', 'orange', '/d/aprobaciones'], ['asambleas', 'Asambleas', 'hall', 'purple', '/d/asambleas'], ['solicitudes', 'Solicitudes', 'userplus', 'teal', '/d/solicitudes'], ['bajas', 'Bajas y renuncias', 'userminus', 'red', '/d/bajas'], ['reclamos', 'Reclamos', 'flag', 'yellow', '/d/reclamos'], ['prestamos', 'Préstamos', 'swap', 'indigo', '/d/prestamos'], ['jugadores', 'Deportistas', 'users', 'pink', '/d/jugadores'], ['masivo', 'Mensaje masivo', 'megaphone', 'gray', '/d/masivo'], ['marketplace', 'Marketplace', 'store', 'blue', '/marketplace']],
+  directivo: [['deportes', 'Deportes del club', 'grid', 'blue', '/d/deportes'], ['finanzas', 'Finanzas', 'bank', 'green', '/d/finanzas'], ['aprobaciones', 'Aprobaciones', 'vote', 'orange', '/d/aprobaciones'], ['asambleas', 'Asambleas', 'hall', 'purple', '/d/asambleas'], ['solicitudes', 'Solicitudes', 'userplus', 'teal', '/d/solicitudes'], ['bajas', 'Bajas y renuncias', 'userminus', 'red', '/d/bajas'], ['reclamos', 'Reclamos', 'flag', 'yellow', '/d/reclamos'], ['prestamos', 'Préstamos', 'swap', 'indigo', '/d/prestamos'], ['jugadores', 'Deportistas', 'users', 'pink', '/d/jugadores'], ['apoderados', 'Apoderados', 'users', 'orange', '/d/apoderados'], ['entrenadores', 'Entrenadores', 'clipboard', 'purple', '/d/entrenadores'], ['directivos', 'Directivos', 'shield', 'indigo', '/d/directivos'], ['cuerpo', 'Cuerpo técnico', 'clipboard', 'green', '/d/cuerpo'], ['infra', 'Infraestructura', 'building', 'teal', '/d/infra'], ['masivo', 'Mensaje masivo', 'megaphone', 'gray', '/d/masivo'], ['marketplace', 'Marketplace', 'store', 'blue', '/marketplace']],
   federacion: [['dashboard', 'Dashboard', 'chart', 'blue', '/f/dashboard'], ['clubes', 'Clubes', 'building', 'green', '/f/clubes'], ['comunicados', 'Comunicados', 'megaphone', 'orange', '/f/comunicados'], ['valores', 'Valores y cobros', 'money', 'purple', '/f/valores'], ['ficha', 'Ficha tipo', 'clipboard', 'teal', '/f/ficha'], ['estadisticas', 'Estadísticas', 'poll', 'indigo', '/f/estadisticas']],
   proveedor: [['perfil', 'Mi perfil', 'store', 'blue', '/p/perfil'], ['catalogo', 'Catálogo', 'tag', 'green', '/p/catalogo'], ['categorias', 'Categorías', 'grid', 'purple', '/p/categorias'], ['recintos', 'Recintos', 'pin', 'teal', '/p/recintos'], ['cotizaciones', 'Cotizaciones', 'receipt', 'orange', '/p/cotizaciones'], ['torneos', 'Torneos nuevos', 'trophy', 'yellow', '/p/torneos'], ['pagos', 'Pagos recibidos', 'money', 'indigo', '/p/pagos']]
 };
 const clubProps = () => S.proposals.filter(p => team(p.teamId).clubId === S.users.directivo.clubId);
 const HOME_BADGE = { aprobaciones: () => clubProps().filter(p => p.status === 'pendiente').length, solicitudes: () => { const c = S.users.directivo.clubId; return S.requests.filter(r => r.status === 'pendiente' && r.clubId === c).length + S.linkRequests.filter(r => r.status === 'pendiente' && r.clubId === c).length + S.transfers.filter(t => t.status === 'pendiente_autorizacion' && t.fromClub === c).length; }, reclamos: () => S.claims.filter(c => c.status === 'abierto' && c.clubId === S.users.directivo.clubId).length + S.reports.filter(r => r.status === 'abierto' && r.clubId === S.users.directivo.clubId).length };
 function homeLayout(r) {
-  const defs = HOME[r], saved = S.home[r] || [];
+  const defs = HOME[r].filter(d => tileOk(d[0])), saved = S.home[r] || [];
   const out = saved.filter(x => defs.some(d => d[0] === x.id));
   defs.forEach(d => { if (!out.some(x => x.id === d[0])) out.push({ id: d[0], pinned: false, hidden: false }); });
   S.home[r] = out; return out;
@@ -1338,6 +1368,7 @@ A.homeFlag = (i, k) => { const l = homeLayout(role()); l[i][k] = !l[i][k]; if (k
 A.homeReset = () => { delete S.home[role()]; commit('Orden original restaurado'); };
 function homeScreen() {
   const r = role();
+  if (r === 'directivo' && !cid()) return gateScreen();
   if (S.ui.editHome) return sec('Editar inicio') + homeEditor(r);
   const l = homeLayout(r).filter(x => !x.hidden), pins = l.filter(x => x.pinned), rest = l.filter(x => !x.pinned);
   return (S.session.real ? realHome() : HOME_SUMMARY[r]()) + (pins.length ? sec('Fijados') + `<div class="card"><div class="grid">${pins.map(tile).join('')}</div></div>` : '') +
@@ -1427,7 +1458,7 @@ A.completeReg = () => {
   if (S.accounts.some(a => a.type === t && cleanRut(a.rut) === cleanRut(rut))) return err('Ya existe una cuenta de este tipo con ese RUT.');
   if (val('lk-id') && !_link) return err('Elige un club de la lista o toca VINCULAR AL CLUB. Si no quieres vincularte ahora, borra el campo.');
   if (!$('#rg-legal').checked) return err('Debes aceptar los Términos de uso y la Política de privacidad.');
-  const acc = { type: t, role: t === 'club' ? 'directivo' : t, email, pass: hash(pass), name, rut: normRut(rut), phone, date: today() };
+  const acc = { type: t, role: roleOf(t), email, pass: hash(pass), name, rut: normRut(rut), phone, date: today() };
   let after = '';
   if (t === 'club') {
     const board = $$('.dir-row').map(r => ({ cargo: $('.dir-c', r).value.trim(), name: $('.dir-n', r).value.trim() })).filter(x => x.cargo && x.name);
@@ -1448,9 +1479,12 @@ A.completeReg = () => {
   }
   if (t === 'apoderado') { const id = uid('g'); S.guardians.push({ id, name, rut: acc.rut, email, kids: [] }); acc.refId = id; }
   if (t === 'entrenador') acc.profile = { name, by: name, clubId: null, sport: null, teams: [] };
+  const ficha = t === 'dirigente' && S.directors.find(d => !d.accountId && d.active && d.email === email && cleanRut(d.rut) === cleanRut(rut));
+  if (t === 'dirigente') { if (!ficha) return err('Tu club debe crearte primero en Directivos, con este email y este RUT.'); acc.profile = { name, cargo: ficha.cargo }; acc.clubId = ficha.clubId; }
   if (t === 'federacion') { acc.profile = { name, cargo: 'Representante' }; acc.sport = val('rg-sport'); }
   if (t === 'proveedor') { const id = uid('pv'); S.providers.push({ id, name, cat: val('rg-cat'), region: 'Metropolitana', city: 'Chile', rating: 5, web: 'Sin sitio web', ig: 'Sin Instagram', desc: 'Completa tu perfil para aparecer mejor en el marketplace.', items: [] }); acc.refId = id; }
   acc.id = acc.id || nextId(letter); S.accounts.push(acc);
+  if (ficha) ficha.accountId = acc.id;
   if (_link && t !== 'jugador') { requestLink(acc, _link.clubId); after = `Tu solicitud de vinculación a ${club(_link.clubId).short} quedó pendiente.`; }
   S.session.loggedIn = true; S.session.homeId = acc.id; applyAccount(acc); S.ui.regType = null; _link = null; save(); NAV.length = 0; replaceTo('/inicio');
   setTimeout(() => sheet('Registro completado', `<p class="center" style="margin:0">Tu ID de ${typeLabel(t)} es</p><div class="center big mb12" id="new-id">${acc.id}</div>${after ? `<p class="center small muted" style="margin:0 0 16px">${esc(after)}</p>` : ''}${btn('Entendido', 'closeSheet()')}`), 350);
@@ -1471,6 +1505,7 @@ function linkPanel() {
   return (mine.length ? sec('Clubes vinculados') + list(mine.map(c => li({ ic: 'building', title: esc(c.name), sub: 'ID ' + c.code, right: badge('Vinculado', 'ok') }))) : '') + (pend.length ? sec('Solicitudes pendientes') + pend.map(r => `<div class="card"><div class="row"><div class="sp"><div class="b">${esc(club(r.clubId).short)}</div><div class="small muted">Enviada el ${fDate(r.date)}</div></div>${badge('Pendiente', 'warn')}</div>${S.session.real ? '' : `<div class="mt12">${btn('Simular aprobación del club', `A.simLink('${r.id}')`, 's2 sm')}</div>`}</div>`).join('') : '') + `<div class="card">${linkBox('lv', false)}<div class="mt8">${btn('Enviar solicitud', 'A.linkSend()', 'ok')}</div></div>`;
 }
 function gateScreen() {
+  if (role() === 'directivo') return empty('lock', 'Sin acceso al club', 'Tu club desactivó o quitó tu acceso de directivo. Consulta con la cuenta del club.');
   if (needsKid()) return empty('users', 'Aún no tienes pupilos', 'Registra a tu hijo o hija para ver sus cuotas, actividades y mensajes.', goBtn('Registrar a un hijo', '/a/registrar-hijo', 'ok', 'userplus') + '<div class="mt8"></div>' + goBtn('Vincular a un hijo con su ID', '/a/vincular-pupilo', 's2', 'id')) + linkPanel();
   if (coach && role() === 'entrenador' && coach().clubId) return empty('users', 'Tu club aún no tiene equipos', 'Cuando el directorio cree un equipo podrás usar esta sección.');
   return note('Vincúlate a un club para usar esta sección. El club debe aprobar tu solicitud.') + linkPanel();
@@ -1502,7 +1537,7 @@ route('/perfil', {
     if (r === 'jugador') items = list([li({ ic: 'cv', color: 'teal', title: 'Mi currículum deportivo', href: '/j/cv' }), li({ ic: 'id', color: 'green', title: 'Credencial federada', href: '/j/credencial' }), li({ ic: 'clipboard', color: 'indigo', title: 'Mis trámites', href: '/tramites' }), ...(isMinorAcc() || myGuardianLinks().length ? [li({ ic: 'users', color: 'orange', title: 'Mis apoderados', href: '/apoderados' })] : [])]);
     if (r === 'apoderado') items = list([li({ ic: 'users', title: 'Mis pupilos', href: '/a/pupilos' }), li({ ic: 'userplus', color: 'yellow', title: 'Registrar a un hijo', href: '/a/registrar-hijo' }), li({ ic: 'id', color: 'teal', title: 'Vincular a un hijo con su ID', href: '/a/vincular-pupilo' }), li({ ic: 'clipboard', color: 'indigo', title: 'Trámites', href: '/tramites' })]);
     if (['apoderado', 'entrenador'].includes(r)) items += list([li({ ic: 'building', color: 'teal', title: 'Vincular al club', href: '/vincular' })]);
-    if (r === 'directivo') items = list([li({ ic: 'bank', color: 'green', title: 'Cuenta y pagos en línea', sub: 'Datos de transferencia y botón de pago', href: '/d/pagos-club' })]);
+    if (r === 'directivo' && canDo('club')) items = list([li({ ic: 'bank', color: 'green', title: 'Cuenta y pagos en línea', sub: 'Datos de transferencia y botón de pago', href: '/d/pagos-club' }), li({ ic: 'shield', color: 'indigo', title: 'Directivos', sub: 'Cuentas y funciones de la directiva', href: '/d/directivos' })]);
     if (r === 'federacion' && !S.session.real) items = sec('Ámbito de la vista') + `<div class="card">${select('f-sp', 'Federación', SPORT_LIST.map(s => [s, FED_NAMES[s]]), S.ui.fedSport, `onchange="A.ui('fedSport',this.value)"`)}${select('f-sc', 'Ver como', [['nacional', 'Federación (nacional)'], ...S.associations.map(a => [a.id, a.name])], S.ui.fedScope, `onchange="A.ui('fedScope',this.value)"`, 'Las asociaciones usan la misma vista, limitada a su región.')}</div>`;
     if (r === 'proveedor' && !S.session.real) items = sec('Empresa activa (demo)') + `<div class="card">${select('p-em', 'Empresa', S.providers.map(p => [p.id, `${p.name} · ${p.cat}`]), S.ui.provId, `onchange="A.ui('provId',this.value)"`)}</div>`;
     const shown = acc.type === 'club' ? acc.name : m.name;
@@ -1588,7 +1623,7 @@ route('/mensajes', {
       body = (r === 'apoderado' ? note('Los chats de apoderados se filtran solos según las competencias y partidos de tus pupilos.') + chips('kidChat', [['todos', 'Todos'], ...myKids().map(k => [k.playerId, k.player.first])], S.ui.kidChat || 'todos') : '') + chatRows(myChats()) + (r === 'jugador' ? btn('Nuevo chat', 'A.newChat()', 's2', 'plus') : '');
     } else {
       const l = myBroadcasts().slice().sort((a, b) => b.date.localeCompare(a.date));
-      body = (MSG_ACTION[r] ? goBtn(MSG_ACTION[r][0], MSG_ACTION[r][1], 's2', 'megaphone') + '<div class="mt12"></div>' : '') + (l.length ? l.map(b => `<div class="card"><div class="row gap8 mb8"><span class="ic c-orange">${icon('megaphone', 18)}</span><div class="sp"><div class="b">${esc(b.title)}</div><div class="tiny muted">${esc(b.from)}${b.scope ? ' · ' + esc(b.scope) : ''} · ${relDay(b.date)}</div></div></div><div class="small">${esc(b.body)}</div></div>`).join('') : empty('megaphone', 'Sin mensajes masivos', 'Los avisos del entrenador y del directorio llegarán aquí.'));
+      body = (MSG_ACTION[r] && (r !== 'directivo' || canDo('masivo')) ? goBtn(MSG_ACTION[r][0], MSG_ACTION[r][1], 's2', 'megaphone') + '<div class="mt12"></div>' : '') + (l.length ? l.map(b => `<div class="card"><div class="row gap8 mb8"><span class="ic c-orange">${icon('megaphone', 18)}</span><div class="sp"><div class="b">${esc(b.title)}</div><div class="tiny muted">${esc(b.from)}${b.scope ? ' · ' + esc(b.scope) : ''} · ${relDay(b.date)}</div></div></div><div class="small">${esc(b.body)}</div></div>`).join('') : empty('megaphone', 'Sin mensajes masivos', 'Los avisos del entrenador y del directorio llegarán aquí.'));
     }
     return seg('msgTab', [['chats', 'Chats'], ['masivos', 'Masivos']], t) + body;
   }
@@ -1616,19 +1651,30 @@ A.toggleCh = () => { const ids = checked('chg'), t = sum(ids.map(i => S.charges.
 A.paySelected = () => { const ids = checked('chg'); if (ids.length) go('/pagar/' + ids.join(',')); };
 route('/pagos', {
   title: 'Pagos', tab: 'pagos', roles: ['jugador', 'apoderado'], root: false, render: () => {
-    const p = subj(), t = S.ui.payTab || 'pend', pend = pendingCharges(p.id).sort((a, b) => a.due.localeCompare(b.due));
+    const p = subj(), t = S.ui.payTab || 'pend', pend = pendingCharges(p.id).sort((a, b) => (a.due || '9').localeCompare(b.due || '9'));
     const paid = S.charges.filter(c => c.playerId === p.id && c.status === 'pagado').sort((a, b) => (b.paidAt || '').localeCompare(a.paidAt || ''));
     let body;
     if (t === 'pend') {
       if (!pend.length) body = empty('check', 'Estás al día', 'No hay cobros pendientes.');
       else {
         const late = pend.filter(c => c.due < today());
-        body = (late.length ? note(`Deuda vencida: <b>${clp(sum(late, c => c.amount))}</b>`, 'bad', 'alert') : '') + `<div class="list">${pend.map(c => `<label class="li"><input type="checkbox" name="chg" value="${c.id}" ${c.due < today() ? 'checked' : ''} onchange="A.toggleCh()" style="width:22px;height:22px;accent-color:var(--primary2);flex-shrink:0" aria-label="Seleccionar ${esc(c.concept)}"><span class="tx"><span class="t">${esc(c.concept)}</span><span class="s">${club(c.clubId).short} · ${KIND_LABEL[c.kind]} · vence ${fDate(c.due)}</span></span><span class="center"><b>${clp(c.amount)}</b>${c.due < today() ? `<br>${badge('Vencida', 'bad')}` : ''}</span></label>`).join('')}</div><button class="btn ok" id="pay-btn" onclick="A.paySelected()">Selecciona qué pagar</button>`;
+        body = (late.length ? note(`Deuda vencida: <b>${clp(sum(late, c => c.amount))}</b>`, 'bad', 'alert') : '') + `<div class="list">${pend.map(c => `<label class="li"><input type="checkbox" name="chg" value="${c.id}" ${c.due < today() ? 'checked' : ''} onchange="A.toggleCh()" style="width:22px;height:22px;accent-color:var(--primary2);flex-shrink:0" aria-label="Seleccionar ${esc(c.concept)}"><span class="tx"><span class="t">${esc(c.concept)}</span><span class="s">${club(c.clubId).short} · ${KIND_LABEL[c.kind]} · ${dueTxt(c)}${c.original ? ' · total ' + clp(c.original) : ''}</span></span><span class="center"><b>${clp(c.amount)}</b>${c.due < today() ? `<br>${badge('Vencida', 'bad')}` : ''}</span></label>`).join('')}</div><button class="btn ok" id="pay-btn" onclick="A.paySelected()">Selecciona qué pagar</button>`;
       }
     } else body = paid.length ? list(paid.map(c => li({ ic: 'receipt', color: 'green', title: esc(c.concept), sub: `${club(c.clubId).short} · pagado ${fDate(c.paidAt)}`, right: `<b>${clp(c.amount)}</b>`, on: `A.showReceipt('${c.id}')` }))) : empty('receipt', 'Sin pagos', 'Tus comprobantes aparecerán aquí.');
-    return kidBar() + seg('payTab', [['pend', `Pendientes (${pend.length})`], ['hist', 'Pagados']], t) + body;
+    return kidBar() + partCards(p.id) + seg('payTab', [['pend', `Pendientes (${pend.length})`], ['hist', 'Pagados']], t) + body;
   }, after: () => { if ($('#pay-btn')) A.toggleCh(); }
 });
+function partCards(pid) {
+  const l = S.incomeItems.filter(i => i.confirm && (i.playerIds || []).includes(pid)).map(i => { const ans = (i.answers || {})[pid], ch = S.charges.find(c => c.id === `part_${i.id}_${pid}`); return { i, ans, ch }; }).filter(x => !(x.ch && x.ch.status === 'pagado') && (x.ans === 'si' || !x.i.due || x.i.due >= today()));
+  if (!l.length) return '';
+  return sec('Convocatorias') + l.map(({ i, ans, ch }) => `<div class="card"><div class="row"><div class="sp"><div class="b">${esc(i.name)}</div><div class="small muted">${esc(i.kind)} · ${esc((club(i.clubId) || {}).short || '')}${i.due ? ' · pagar hasta ' + fDate(i.due) : ''}</div></div><b>${clp(i.amount)}</b></div>${ans === 'si' ? `<div class="mt8">${badge('Confirmado', 'ok')}</div>${ch && !ch.original ? `<div class="mt8">${btn('Cancelar participación', `A.partAnswer('${i.id}','${pid}',false)`, 'dsoft sm')}</div>` : ''}` : ans === 'no' ? `<div class="mt8">${badge('No participa', 'mute')}</div><div class="mt8">${btn('Confirmar participación', `A.partAnswer('${i.id}','${pid}',true)`, 'ok sm')}</div>` : `<div class="btns">${btn('No participa', `A.partAnswer('${i.id}','${pid}',false)`, 'dsoft sm')}${btn('Confirmar', `A.partAnswer('${i.id}','${pid}',true)`, 'ok sm')}</div>`}</div>`).join('');
+}
+A.partAnswer = (id, pid, ok) => {
+  const i = S.incomeItems.find(x => x.id === id), cid_ = `part_${id}_${pid}`, ch = S.charges.find(c => c.id === cid_), m = S.memberships.find(x => x.playerId === pid && x.clubId === i.clubId && ['habil', 'suspendido'].includes(x.status));
+  if (ok && !ch) { if (!m) return toast('El deportista no está activo en este club', 'warn'); S.charges.push({ id: cid_, status: 'pendiente', paidAt: null, playerId: pid, clubId: i.clubId, teamId: m.teamId || null, concept: i.name, kind: 'extraordinaria', cat: i.kind, amount: i.amount, due: i.due, by: i.by, partial: true, meta: { itemId: id } }); }
+  if (!ok && ch) { if (ch.status !== 'pendiente' || ch.original) return toast('Ya registra pagos: habla con el club', 'warn'); S.charges = S.charges.filter(c => c.id !== cid_); }
+  i.answers = { ...(i.answers || {}), [pid]: ok ? 'si' : 'no' }; commit(ok ? 'Participación confirmada' : 'Respuesta guardada');
+};
 A.showReceipt = id => { const c = S.charges.find(x => x.id === id); const r = ensureReceipt(c); save(); go('/comprobante/' + r); };
 const bankBox = cl => {
   const b = clubPay(cl); if (!b) return '';
@@ -1637,9 +1683,14 @@ const bankBox = cl => {
 };
 A.copyBank = cl => { const b = clubPay(cl), t = [b.holder, 'RUT ' + b.rut, b.bank, b.accType, b.number, b.email].filter(Boolean).join('\n'); (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(() => toast('Datos copiados'), () => toast(t.replace(/\n/g, ' · '))); };
 A.setMethod = m => { S.ui.payMethod = m; save(); rerender(); };
+const partBox = l => l.length === 1 && l[0].partial ? `<div class="card"><label class="check"><input type="checkbox" id="pa-on" onchange="A.partToggle()"><span>Pago parcial</span></label><div id="pa-box" style="display:none">${inp('pa-a', 'Monto a pagar', `type="number" inputmode="numeric" min="1" max="${l[0].amount}"`, 'Saldo actual: ' + clp(l[0].amount))}</div><div class="err" id="pa-err"></div></div>` : '';
+A.partToggle = () => { $('#pa-box').style.display = $('#pa-on').checked ? '' : 'none'; };
+// null: paga el total. false: el monto escrito no es válido.
+const partAmount = c => { if (!$('#pa-on') || !$('#pa-on').checked) return null; const a = Math.round(+val('pa-a')); if (!(a > 0) || a > c.amount) { $('#pa-err').textContent = `Escribe un monto entre $1 y ${clp(c.amount)}.`; return false; } return a; };
 A.pay = ids => {
+  const c0 = S.charges.find(c => c.id === ids.split(',')[0]), parcial = partAmount(c0); if (parcial === false) return;
   const o = overlay('Procesando pago simulado…');
-  setTimeout(() => { const before = S.separations.filter(x => x.status === 'anulada').length, rid = payCharges(ids.split(','), (S.ui.payMethod || 'webpay') === 'webpay' ? 'Webpay (simulado)' : 'Mercado Pago (simulado)'); o.remove(); if (!rid) return toast('Estos cobros ya estaban pagados', 'warn'); save(); replaceTo('/comprobante/' + rid); toast(S.separations.filter(x => x.status === 'anulada').length > before ? 'Pago aprobado: la baja quedó anulada' : 'Pago aprobado'); }, 1300);
+  setTimeout(() => { const before = S.separations.filter(x => x.status === 'anulada').length, medio = (S.ui.payMethod || 'webpay') === 'webpay' ? 'Webpay (simulado)' : 'Mercado Pago (simulado)', rid = parcial ? payPartial(c0, parcial, medio) : payCharges(ids.split(','), medio); o.remove(); if (!rid) return toast('Estos cobros ya estaban pagados', 'warn'); save(); replaceTo('/comprobante/' + rid); toast(S.separations.filter(x => x.status === 'anulada').length > before ? 'Pago aprobado: la baja quedó anulada' : 'Pago aprobado'); }, 1300);
 };
 route('/pagar/:ids', {
   title: 'Pagar', noTabs: true, render: p => {
@@ -1648,9 +1699,9 @@ route('/pagar/:ids', {
     const clubes = [...new Set(l.map(c => c.clubId))];
     if (clubes.length > 1) return note('Estos cobros son de distintos clubes. Paga a cada club por separado.', 'warn') + list(clubes.map(x => { const ids = l.filter(c => c.clubId === x).map(c => c.id); return li({ ic: 'building', title: esc((club(x) || {}).name || 'Club'), sub: clp(sum(l.filter(c => c.clubId === x), c => c.amount)), href: '/pagar/' + ids.join(',') }); }));
     const total = `<div class="card"><div class="small muted">Total a pagar</div><div class="big">${clp(sum(l, c => c.amount))}</div>${l.map(c => `<div class="row small mt8"><span class="sp">${esc(c.concept)}</span><b>${clp(c.amount)}</b></div>`).join('')}</div>`, pv = (club(clubes[0]) || {}).payProvider;
-    if (S.session.real) return total + (role() === 'directivo' ? `<div class="mt8">${btn('Registrar pago recibido', `A.manualSheet('${p.ids}')`, 'ok', 'check')}</div>` : (pv ? btn('Pagar con ' + provName(pv), `A.pay('${p.ids}')`, 'ok', 'card') + `<div class="hint center mt8">Serás dirigido a ${esc(provName(pv))} para completar el pago.</div>` : note('Este club aún no activa el pago en línea. Puedes transferir directo al club.')) + bankBox(clubes[0]));
+    if (S.session.real) return total + (role() === 'directivo' ? '' : partBox(l)) + (role() === 'directivo' ? `<div class="mt8">${btn('Registrar pago recibido', `A.manualSheet('${p.ids}')`, 'ok', 'check')}</div>` : (pv ? btn('Pagar con ' + provName(pv), `A.pay('${p.ids}')`, 'ok', 'card') + `<div class="hint center mt8">Serás dirigido a ${esc(provName(pv))} para completar el pago.</div>` : note('Este club aún no activa el pago en línea. Puedes transferir directo al club.')) + bankBox(clubes[0]));
     const opt = (k, n, s) => `<button class="li" onclick="A.setMethod('${k}')" aria-pressed="${pay === k}"><span class="ic c-${k === 'webpay' ? 'red' : 'blue'}">${icon('card', 20)}</span><span class="tx"><span class="t">${n}</span><span class="s">${s}</span></span>${pay === k ? `<span style="color:var(--accent)">${icon('check', 22)}</span>` : ''}</button>`;
-    return simNote('pasarela de ejemplo. No se pide ningún dato de tarjeta ni se realiza un cargo real.') + `<div class="card"><div class="small muted">Total a pagar</div><div class="big">${clp(sum(l, c => c.amount))}</div>${l.map(c => `<div class="row small mt8"><span class="sp">${esc(c.concept)}</span><b>${clp(c.amount)}</b></div>`).join('')}</div>${sec('Medio de pago')}<div class="list">${opt('webpay', 'Webpay (ejemplo)', 'Débito o crédito simulado')}${opt('mp', 'Mercado Pago (ejemplo)', 'Saldo o tarjeta simulada')}</div>${btn(`Pagar ${clp(sum(l, c => c.amount))}`, `A.pay('${p.ids}')`, 'ok', 'lock')}${role() === 'directivo' ? '' : bankBox(clubes[0])}`;
+    return simNote('pasarela de ejemplo. No se pide ningún dato de tarjeta ni se realiza un cargo real.') + `<div class="card"><div class="small muted">Total a pagar</div><div class="big">${clp(sum(l, c => c.amount))}</div>${l.map(c => `<div class="row small mt8"><span class="sp">${esc(c.concept)}</span><b>${clp(c.amount)}</b></div>`).join('')}</div>${role() === 'directivo' ? '' : partBox(l)}${sec('Medio de pago')}<div class="list">${opt('webpay', 'Webpay (ejemplo)', 'Débito o crédito simulado')}${opt('mp', 'Mercado Pago (ejemplo)', 'Saldo o tarjeta simulada')}</div>${btn(`Pagar ${clp(sum(l, c => c.amount))}`, `A.pay('${p.ids}')`, 'ok', 'lock')}${role() === 'directivo' ? '' : bankBox(clubes[0])}`;
   }
 });
 route('/comprobante/:id', {
@@ -2240,9 +2291,8 @@ const sportTeams = sp => S.teams.filter(t => t.clubId === cid() && t.sport === s
 const sportMatricula = sp => { const t = sportTeams(sp)[0]; return t ? t.matricula || 0 : 0; };
 function chargeMatricula(t, pid) {
   if (!(t.matricula > 0)) return;
-  const y = today().slice(0, 4);
-  if (S.charges.some(c => c.kind === 'matricula' && c.teamId === t.id && c.playerId === pid && c.year === y)) return;
-  addCharge({ playerId: pid, clubId: t.clubId, teamId: t.id, year: y, concept: `Matrícula ${y} · ${t.name}`, kind: 'matricula', amount: t.matricula });
+  if (S.charges.some(c => c.kind === 'matricula' && c.clubId === t.clubId && c.playerId === pid)) return;
+  addCharge({ playerId: pid, clubId: t.clubId, teamId: t.id, concept: `Matrícula · ${t.name}`, kind: 'matricula', cat: 'Matrícula', amount: t.matricula, due: null });
 }
 function setMatricula(t, monto) {
   t.matricula = monto;
@@ -2272,9 +2322,9 @@ function dashboardTab() {
   return `<div class="kpis">${kpi('Ingresos 6 meses', clp(ti), 'atext')}${kpi('Egresos 6 meses', clp(te))}${kpi('Resultado', clp(ti - te), ti >= te ? 'atext' : 'dtext')}${kpi('Morosidad', pctM + '%', 'dtext')}</div><div class="card"><h3 class="mb12">Ingresos vs. egresos</h3>${barsChart(data, 'Ingresos', 'Egresos')}</div><div class="card"><h3 class="mb12">Gasto por categoría</h3>${donut(Object.entries(cats).sort((a, b) => b[1] - a[1]).map(([label, value]) => ({ label, value })), clpShort(te))}</div><div class="card"><h3 class="mb8">Morosidad por deportista</h3>${od.length ? hbars(od.slice(0, 6).map(x => ({ label: x.player.first + ' ' + x.player.name.split(' ').slice(-2, -1), value: x.amt })), clpShort) : '<p class="muted small">Sin deudas vencidas 🎉</p>'}</div>`;
 }
 // --- Crear ingresos: el club cobra a todo el club, a un deporte o a una categoría; el entrenador, a sus categorías ---
-const incomeTypes = () => [...INCOME_TYPES, ...S.incomeCats.filter(c => c.clubId === myClubId()).map(c => c.name)];
+const incomeTypes = () => [...INCOME_TYPES.filter(k => role() !== 'entrenador' || k !== 'Mensualidad'), ...S.incomeCats.filter(c => c.clubId === myClubId()).map(c => c.name)];
 const incomeKind = k => k === 'Matrícula' ? 'matricula' : k === 'Mensualidad' ? 'mensual' : 'extraordinaria';
-const incomeDefault = k => k === 'Matrícula' ? `Matrícula ${today().slice(0, 4)}` : `${k} ${MESES[parse(today()).getMonth()]} ${today().slice(0, 4)}`;
+const incomeDefault = k => k === 'Matrícula' || k === 'Mensualidad' ? k : `${k} ${MESES[parse(today()).getMonth()]} ${today().slice(0, 4)}`;
 function incomeScopes() {
   const coach_ = role() === 'entrenador', ts = coach_ ? coachTeams() : S.teams.filter(t => t.clubId === myClubId());
   const base = coach_ ? [['mis', 'Todas mis categorías']] : [['club', 'Todo el club'], ...club(myClubId()).sports.map(x => ['sport:' + x, `Deporte: ${x} (todas sus categorías)`])];
@@ -2286,15 +2336,34 @@ function scopeMembers(sc) {
   const vistos = new Set(); return ms.filter(m => !vistos.has(m.playerId) && vistos.add(m.playerId));
 }
 const incScopeLabel = sc => sc === 'club' ? 'Todo el club' : sc === 'mis' ? 'Mis categorías' : sc === 'none' ? 'Sin cobro' : sc.startsWith('sport:') ? sc.slice(6) : (team(sc.slice(5)) || {}).name || '';
-A.incomeSheet = (k = 'Mensualidad') => sheet('Crear ingreso', `${select('in-k', 'Tipo de ingreso', incomeTypes(), k, 'onchange="A.incomeName()"')}${inp('in-n', 'Nombre del cobro', `value="${esc(incomeDefault(k))}" maxlength="120" autocomplete="off"`)}${inp('in-a', 'Monto por deportista', 'type="number" inputmode="numeric" min="1"')}${inp('in-d', 'Vence', `type="date" value="${addDays(today(), 15)}"`)}${select('in-s', 'Cobrar a', incomeScopes(), role() === 'entrenador' ? 'mis' : 'club')}<div class="err mb8" id="in-err"></div>${btn('Crear ingreso', 'A.addIncome()', 'ok')}`);
-A.incomeName = () => { $('#in-n').value = incomeDefault(val('in-k')); };
+A.incomeSheet = (k = role() === 'entrenador' ? 'Torneo' : 'Mensualidad') => { sheet('Crear ingreso', `${select('in-k', 'Tipo de ingreso', incomeTypes(), k, 'onchange="A.incomeName()"')}${inp('in-n', 'Nombre del cobro', `value="${esc(incomeDefault(k))}" maxlength="120" autocomplete="off"`)}${inp('in-a', 'Monto por deportista', 'type="number" inputmode="numeric" min="1"')}<div id="in-dw">${inp('in-d', 'Vence', `type="date" value="${addDays(today(), 15)}"`)}</div>${select('in-s', 'Cobrar a', incomeScopes(), role() === 'entrenador' ? 'mis' : 'club')}<div class="hint mb8" id="in-h"></div><div class="err mb8" id="in-err"></div>${btn('Crear ingreso', 'A.addIncome()', 'ok')}`); incomeForm(); };
+function incomeForm() {
+  const k = val('in-k'), parte = PART_TYPES.includes(k), fijo = k === 'Matrícula' || k === 'Mensualidad', dw = $('#in-dw');
+  dw.style.display = fijo ? 'none' : ''; $('label', dw).textContent = parte ? 'Plazo máximo para pagar (opcional)' : 'Vence'; $('#in-d').value = parte || fijo ? '' : addDays(today(), 15);
+  $('#in-a').previousElementSibling.textContent = k === 'Mensualidad' ? 'Monto mensual por deportista' : 'Monto por deportista';
+  $('#in-h').textContent = k === 'Matrícula' ? 'Cobro único por deportista. No vence.' : k === 'Mensualidad' ? 'Se cobra cada mes a cada deportista y no vence. Las becas y montos propios se ajustan en Mensualidades.' : parte ? 'Solo se cobra a quienes confirmen su participación. Podrán pagar el total o un abono.' : '';
+}
+A.incomeName = () => { $('#in-n').value = incomeDefault(val('in-k')); incomeForm(); };
+const scopeTeams = sc => S.teams.filter(t => t.clubId === myClubId() && (sc === 'club' || (sc.startsWith('sport:') && t.sport === sc.slice(6)) || sc === 'team:' + t.id));
 A.addIncome = () => {
-  const k = val('in-k'), n = val('in-n'), a = Math.round(+val('in-a')), sc = val('in-s'), due = val('in-d') || addDays(today(), 15), err = m => { $('#in-err').textContent = m; };
-  if (!n) return err('Escribe el nombre del cobro.'); if (!(a > 0)) return err('Indica un monto mayor que cero.'); if (due < today()) return err('El vencimiento no puede ser anterior a hoy.');
-  const kind = incomeKind(k), y = today().slice(0, 4), by = role() === 'entrenador' ? coach().by : 'Directorio', ms = scopeMembers(sc); let nc = 0;
+  const k = val('in-k'), n = val('in-n'), a = Math.round(+val('in-a')), sc = val('in-s'), parte = PART_TYPES.includes(k), fijo = k === 'Matrícula' || k === 'Mensualidad', due = fijo ? null : val('in-d') || (parte ? null : addDays(today(), 15)), err = m => { $('#in-err').textContent = m; };
+  if (!n) return err('Escribe el nombre del cobro.'); if (!(a > 0)) return err('Indica un monto mayor que cero.'); if (due && due < today()) return err('La fecha no puede ser anterior a hoy.');
+  const kind = incomeKind(k), by = role() === 'entrenador' ? coach().by : 'Directorio', ms = scopeMembers(sc); let nc = 0;
+  const tms = sc.startsWith('team:') ? [sc.slice(5)] : sc === 'mis' ? coachTeams().map(t => t.id) : null, spf = sc.startsWith('sport:') ? sc.slice(6) : null;
+  if (k === 'Mensualidad') {
+    const ts = sc === 'none' ? [] : scopeTeams(sc); if (!ts.length) return err('Elige el club, un deporte o una categoría con equipos.');
+    S.incomeItems.unshift({ id: uid('ii'), clubId: myClubId(), kind: k, name: n, amount: a, target: incScopeLabel(sc), scope: sc, due: null, by, date: today() });
+    closeSheet(); commit(); return A.setFee(ts.map(t => t.id), a);
+  }
+  if (parte) {
+    if (!ms.length) return err('No hay deportistas activos en esa selección.');
+    S.incomeItems.unshift({ id: uid('ii'), clubId: myClubId(), kind: k, name: n, amount: a, target: incScopeLabel(sc), scope: sc, due, by, date: today(), confirm: true, playerIds: ms.map(m => m.playerId), answers: {} });
+    notify(['jugador', 'apoderado'], `Confirma tu participación: ${n}, ${clp(a)}.`, '/pagos', myClubId(), null, tms, spf);
+    closeSheet(); return commit(`Convocatoria enviada a ${ms.length} deportista${ms.length === 1 ? '' : 's'}`);
+  }
   ms.forEach(m => {
-    if (kind === 'matricula' && S.charges.some(c => c.kind === 'matricula' && c.playerId === m.playerId && c.clubId === m.clubId && c.year === y)) return;
-    addCharge({ playerId: m.playerId, clubId: m.clubId, teamId: m.teamId || null, concept: n, kind, cat: k, amount: a, due, by, ...(kind === 'matricula' ? { year: y } : {}) }); nc++;
+    if (kind === 'matricula' && S.charges.some(c => c.kind === 'matricula' && c.playerId === m.playerId && c.clubId === m.clubId)) return;
+    addCharge({ playerId: m.playerId, clubId: m.clubId, teamId: m.teamId || null, concept: n, kind, cat: k, amount: a, due, by }); nc++;
   });
   S.incomeItems.unshift({ id: uid('ii'), clubId: myClubId(), kind: k, name: n, amount: a, target: incScopeLabel(sc), scope: sc, due, by, count: nc, date: today() });
   if (nc) notify(['jugador', 'apoderado'], `Nuevo cobro: ${n} por ${clp(a)}.`, '/pagos', myClubId(), null, sc.startsWith('team:') ? [sc.slice(5)] : sc === 'mis' ? coachTeams().map(t => t.id) : null, sc.startsWith('sport:') ? sc.slice(6) : null);
@@ -2305,7 +2374,7 @@ A.addIncomeCat = () => {
   const n = val('ic-n').replace(/\s+/g, ' '), e = $('#ic-err');
   if (!SPORT_RE.test(n)) { e.textContent = 'Escribe entre 2 y 40 caracteres: letras, números, espacios y . ( ) -'; return; }
   if (incomeTypes().some(x => x.toLowerCase() === n.toLowerCase())) { e.textContent = 'Ese cargo ya existe.'; return; }
-  S.incomeCats.push({ id: uid('ic'), clubId: myClubId(), name: n }); closeSheet(); commit('Cargo agregado'); A.incomeSheet(n);
+  S.incomeCats.push({ id: uid('ic'), clubId: myClubId(), name: n }); commit('Cargo agregado'); A.incomeSheet(n);
 };
 A.incomeCatDelSheet = id => { const c = S.incomeCats.find(x => x.id === id); confirmSheet('Eliminar cargo', `Se quitará ${esc(c.name)} de los tipos de ingreso. Los cobros ya creados se mantienen.`, 'Eliminar', `A.delIncomeCat('${id}')`, 'danger'); };
 A.delIncomeCat = id => { S.incomeCats = S.incomeCats.filter(x => x.id !== id); closeSheet(); commit('Cargo eliminado'); };
@@ -2316,13 +2385,16 @@ const incomeCreator = () => {
 A.discountSheet = () => sheet('Descuento, promoción, convenio o beca', `${select('dc-k', 'Tipo', ['Descuento', 'Promoción', 'Convenio', 'Beca'], 'Descuento')}${inp('dc-m', 'Nombre', 'autocomplete="off"')}${inp('dc-v', 'Valor', 'type="number" inputmode="numeric"')}${select('dc-u', 'Unidad', [['%', 'Porcentaje'], ['$', 'Pesos']], '%')}${inp('dc-t', 'Aplica a', 'autocomplete="off"')}${btn('Guardar', 'A.addDiscount()', 'ok')}`);
 A.addDiscount = () => { const n = val('dc-m'), v = +val('dc-v'); if (!n || !v) return toast('Indica nombre y valor', 'warn'); S.discounts.unshift({ id: uid('ds'), kind: val('dc-k'), name: n, value: v, unit: val('dc-u'), target: val('dc-t') || 'Todos' }); closeSheet(); commit('Beneficio creado'); };
 const dVal = d => d.unit === '%' ? d.value + '%' : clp(d.value);
-A.manualSheet = ids => sheet('Registrar pago recibido', `<p class="center muted small" style="margin:0 0 12px">Úsalo cuando el pago se hizo fuera de la app.</p>${select('mp-m', 'Medio de pago', ['Efectivo', 'Transferencia', 'Cheque', 'Otro'], 'Efectivo')}${btn('Registrar pago', `A.manualPay('${ids}')`, 'ok')}`);
-A.manualPay = ids => { const rid = payCharges(ids.split(','), val('mp-m')); closeSheet(); if (!rid) return toast('Estos cobros ya estaban pagados', 'warn'); save(); replaceTo('/comprobante/' + rid); toast('Pago registrado'); };
+const manualCharge = ids => { const c = S.charges.find(x => x.id === ids); return c && c.partial ? c : null; };
+const manualAmount = ids => { const c = manualCharge(ids); return c ? inp('mp-a', 'Monto recibido', `type="number" inputmode="numeric" min="1" max="${c.amount}" value="${c.amount}"`, 'Si recibiste menos, queda el saldo pendiente.') : ''; };
+const manualValue = ids => { const c = manualCharge(ids), a = c ? Math.round(+val('mp-a')) : 0; return c && a > 0 && a < c.amount ? a : null; };
+A.manualSheet = ids => sheet('Registrar pago recibido', `<p class="center muted small" style="margin:0 0 12px">Úsalo cuando el pago se hizo fuera de la app.</p>${select('mp-m', 'Medio de pago', ['Efectivo', 'Transferencia', 'Cheque', 'Otro'], 'Efectivo')}${manualAmount(ids)}${btn('Registrar pago', `A.manualPay('${ids}')`, 'ok')}`);
+A.manualPay = ids => { const a = manualValue(ids), rid = a ? payPartial(manualCharge(ids), a, val('mp-m')) : payCharges(ids.split(','), val('mp-m')); closeSheet(); if (!rid) return toast('Estos cobros ya estaban pagados', 'warn'); save(); replaceTo('/comprobante/' + rid); toast('Pago registrado'); };
 const pendRows = () => S.charges.filter(c => c.clubId === cid() && c.playerId && c.status === 'pendiente');
 function incomeTab() {
   const l = moves().filter(x => x.type === 'ingreso').sort((a, b) => b.date.localeCompare(a.date)).slice(0, 8);
   const pv = club(cid()).payProvider, cb = clubPay(cid());
-  return btn('CREAR ingreso', 'A.incomeSheet()', 'ok', 'plus') + incomeCreator() + list([li({ ic: 'bank', color: 'green', title: 'Cuenta y pagos en línea', sub: [cb ? `${cb.bank} · ${cb.accType}` : 'Agrega la cuenta del club', pv ? provName(pv) + ' conectado' : 'Botón de pago sin conectar'].join(' · '), href: '/d/pagos-club' })]) + (pendRows().length ? sec('Cobros pendientes') + list(pendRows().slice(0, 30).map(c => li({ title: esc(c.concept), sub: `${esc((player(c.playerId) || {}).name || '')} · vence ${fDate(c.due)}`, right: `<b>${clp(c.amount)}</b>`, on: `A.manualSheet('${c.id}')` }))) : '') + sec('Conceptos de cobro') + list(S.incomeItems.filter(i => !i.clubId || i.clubId === cid()).map(i => li({ ic: 'money', color: 'green', title: esc(i.name), sub: `${esc(i.kind)} · ${esc(i.target)}${i.count != null ? ` · ${i.count} cobro${i.count === 1 ? '' : 's'}` : ''}${i.by && i.by !== 'Directorio' ? ' · ' + esc(i.by) : ''}`, right: `<b>${clp(i.amount)}</b>` }))) + secLink('Descuentos y becas', 'Agregar', 'A.discountSheet()') + list(S.discounts.map(d => li({ ic: 'tag', color: 'purple', title: esc(d.name), sub: `${esc(d.kind)} · ${esc(d.target)}`, right: `<b>${dVal(d)}</b>` }))) + sec('Últimos ingresos') + list(l.map(m => li({ title: esc(m.concept), sub: `${esc(m.category)} · ${fDate(m.date)}`, right: `<b style="color:var(--atext)">${clp(m.amount)}</b>` })));
+  return btn('CREAR ingreso', 'A.incomeSheet()', 'ok', 'plus') + incomeCreator() + list([li({ ic: 'tag', color: 'purple', title: 'Mensualidades, becas y descuentos', sub: 'Montos por categoría o por deportista', href: '/d/mensualidades' })]) + (canDo('club') ? list([li({ ic: 'bank', color: 'green', title: 'Cuenta y pagos en línea', sub: [cb ? `${cb.bank} · ${cb.accType}` : 'Agrega la cuenta del club', pv ? provName(pv) + ' conectado' : 'Botón de pago sin conectar'].join(' · '), href: '/d/pagos-club' })]) : '') + (pendRows().length ? sec('Cobros pendientes') + list(pendRows().slice(0, 30).map(c => li({ title: esc(c.concept), sub: `${esc((player(c.playerId) || {}).name || '')} · ${dueTxt(c)}`, right: `<b>${clp(c.amount)}</b>`, on: `A.manualSheet('${c.id}')` }))) : '') + sec('Conceptos de cobro') + list(S.incomeItems.filter(i => !i.clubId || i.clubId === cid()).map(i => li({ ic: 'money', color: 'green', title: esc(i.name), sub: `${esc(i.kind)} · ${esc(i.target)}${i.confirm ? ` · ${Object.values(i.answers || {}).filter(x => x === 'si').length} de ${(i.playerIds || []).length} confirmados` : i.count != null ? ` · ${i.count} cobro${i.count === 1 ? '' : 's'}` : ''}${i.by && i.by !== 'Directorio' ? ' · ' + esc(i.by) : ''}`, right: `<b>${clp(i.amount)}</b>` }))) + secLink('Descuentos y becas', 'Agregar', 'A.discountSheet()') + list(S.discounts.map(d => li({ ic: 'tag', color: 'purple', title: esc(d.name), sub: `${esc(d.kind)} · ${esc(d.target)}`, right: `<b>${dVal(d)}</b>` }))) + sec('Últimos ingresos') + list(l.map(m => li({ title: esc(m.concept), sub: `${esc(m.category)} · ${fDate(m.date)}`, right: `<b style="color:var(--atext)">${clp(m.amount)}</b>` })));
 }
 A.expenseSheet = () => sheet('Registrar egreso', `${select('eg-c', 'Categoría', S.expenseCats)}${inp('eg-n', 'Concepto', 'autocomplete="off"')}${inp('eg-a', 'Monto', 'type="number" inputmode="numeric"')}${inp('eg-d', 'Fecha', `type="date" value="${today()}"`)}${btn('Registrar egreso', 'A.addExpense()', 'ok')}`);
 A.addExpense = () => { const n = val('eg-n'), a = +val('eg-a'); if (!n || !a) return toast('Indica concepto y monto', 'warn'); S.movements.push({ id: uid('mv'), clubId: cid(), type: 'egreso', category: val('eg-c'), concept: n, amount: a, date: val('eg-d') || today() }); closeSheet(); commit('Egreso registrado'); };
@@ -2464,6 +2536,179 @@ route('/d/jugadores', {
   }
 });
 route('/d/masivo', { title: 'Mensaje masivo', roles: ['directivo'], render: () => massForm() });
+
+// --- Apoderados y entrenadores del club ---
+let _apod = null;
+const apodRows = l => l.length ? list(l.map(g => li({ ic: 'users', color: 'orange', title: esc(g.name), sub: [g.kids.length ? 'Apoderado de ' + g.kids.map(esc).join(', ') : 'Vinculado al club', esc(g.email || ''), esc(g.phone || '')].filter(Boolean).join(' · '), chev: false }))) : empty('users', 'Sin apoderados', 'Aparecerán aquí cuando los deportistas del club tengan apoderado.');
+const apodDemo = () => { const ids = clubMembers(cid()).map(m => m.playerId); return S.guardians.map(g => ({ name: g.name, email: g.email, phone: g.phone, kids: g.kids.filter(k => ids.includes(k.playerId)).map(k => player(k.playerId).name) })).filter(g => g.kids.length); };
+route('/d/apoderados', {
+  title: 'Apoderados', roles: ['directivo'],
+  render: () => `<div id="ap-box">${S.session.real ? (_apod ? apodRows(_apod) : '<p class="center muted small">Cargando…</p>') : apodRows(apodDemo())}</div>`,
+  after: async () => { if (!S.session.real) return; try { _apod = await SB.rpc('club_guardians'); const b = $('#ap-box'); if (b) b.innerHTML = apodRows(_apod); } catch (e) { toast(e.message, 'bad'); } }
+});
+const clubCoaches = () => { const ids = S.linkRequests.filter(l => l.clubId === cid() && l.status === 'aceptada').map(l => l.accountId); return S.accounts.filter(a => a.role === 'entrenador' && (ids.includes(a.id) || a.clubId === cid())); };
+route('/d/entrenadores', {
+  title: 'Entrenadores', roles: ['directivo'], render: () => {
+    const l = clubCoaches(), ts = S.teams.filter(t => t.clubId === cid());
+    return (l.length ? list(l.map(a => li({ av: avatar(a.name, 40, a.photo), title: esc(a.name), sub: [esc(a.email), esc(a.phone)].filter(Boolean).join(' · '), chev: false }))) : empty('clipboard', 'Sin entrenadores', 'Aparecerán aquí cuando el club acepte su vinculación.')) + (ts.length ? sec('Por categoría') + list(ts.map(t => li({ ic: 'clipboard', color: 'purple', title: esc(t.name), sub: `${t.sport} · ${esc(t.coach)}`, chev: false }))) : '');
+  }
+});
+
+// --- Mensualidades: monto por categoría, monto propio y beneficios por deportista ---
+const feeRule = (c, pid) => S.feeRules.find(x => x.id === `fee_${c}_${pid}`);
+function monthFee(t, pid) {
+  const r = feeRule(t.clubId, pid); let b = t.mensualidad || 0; if (!r) return b;
+  if (r.amount !== null && r.amount !== '' && r.amount !== undefined) b = +r.amount;
+  if (BENEFITS.includes(r.benefit)) b = r.mode === 'pct' ? b - Math.round(b * Math.min(+r.value, 100) / 100) : b - (+r.value || 0);
+  return Math.max(b, 0);
+}
+function genMonthly() {
+  if (S.session.real) return;
+  const per = today().slice(0, 7), mes = `${MESES[+per.slice(5) - 1]} ${per.slice(0, 4)}`;
+  S.teams.forEach(t => teamMembers(t.id).forEach(m => {
+    if (!(t.mensualidad > 0) && !feeRule(t.clubId, m.playerId)) return;
+    const id = `men_${t.id}_${m.playerId}_${per}`, a = monthFee(t, m.playerId), c = S.charges.find(x => x.id === id);
+    if (a > 0) { if (!c) S.charges.push({ id, status: 'pendiente', paidAt: null, playerId: m.playerId, clubId: t.clubId, teamId: t.id, concept: `Mensualidad ${mes} · ${t.name}`, kind: 'mensual', cat: 'Mensualidad', amount: a, due: null, period: per }); else if (c.status === 'pendiente') c.amount = a; }
+    else if (c && c.status === 'pendiente') S.charges = S.charges.filter(x => x.id !== id);
+  }));
+}
+A.setFee = (ids, a) => { S.teams.filter(t => ids.includes(t.id)).forEach(t => { t.mensualidad = a; }); genMonthly(); commit('Mensualidad actualizada'); };
+A.feeTeamSheet = id => { const t = team(id); sheet(`Mensualidad · ${esc(t.name)}`, `${inp('ft-a', 'Monto mensual', `type="number" inputmode="numeric" min="0" value="${t.mensualidad || 0}"`, 'Usa 0 para no cobrar mensualidad a esta categoría.')}<div class="err mb8" id="ft-err"></div>${btn('Guardar', `A.saveTeamFee('${id}')`, 'ok')}`); };
+A.saveTeamFee = id => { const v = val('ft-a'); if (v === '' || +v < 0) { $('#ft-err').textContent = 'Indica un monto válido.'; return; } closeSheet(); return A.setFee([id], Math.round(+v)); };
+A.feeSheet = (pid, tid) => {
+  const t = team(tid), r = feeRule(t.clubId, pid) || {};
+  sheet(esc(player(pid).name), `<p class="small muted" style="margin:0 0 12px">Mensualidad de la categoría: ${clp(t.mensualidad || 0)}</p>${inp('fr-a', 'Monto propio (opcional)', `type="number" inputmode="numeric" min="0" value="${r.amount == null ? '' : r.amount}"`, 'Vacío usa el monto de la categoría.')}${select('fr-b', 'Beneficio', [['', 'Sin beneficio'], ...BENEFITS], r.benefit || '')}<div class="row"><div class="sp">${select('fr-m', 'Tipo', [['pct', 'Porcentaje'], ['fijo', 'Monto fijo']], r.mode || 'pct')}</div><div class="sp">${inp('fr-v', 'Valor', `type="number" inputmode="numeric" min="0" value="${r.value == null ? '' : r.value}"`)}</div></div><div class="err mb8" id="fr-err"></div>${btn('Guardar', `A.saveFee('${pid}','${tid}')`, 'ok')}`);
+};
+function feeApply(pid, tid) {
+  const t = team(tid), am = val('fr-a'), b = val('fr-b'), mode = val('fr-m'), v = val('fr-v'), err = m => { $('#fr-err').textContent = m; return false; }, id = `fee_${t.clubId}_${pid}`;
+  if (am !== '' && +am < 0) return err('El monto no es válido.');
+  if (b && !(+v > 0)) return err('Indica el valor del beneficio.');
+  if (b && mode === 'pct' && +v > 100) return err('El porcentaje no puede superar 100.');
+  S.feeRules = S.feeRules.filter(x => x.id !== id);
+  if (am !== '' || b) S.feeRules.push({ id, clubId: t.clubId, playerId: pid, amount: am === '' ? null : Math.round(+am), benefit: b, mode, value: b ? +v : 0 });
+  return true;
+}
+A.saveFee = (pid, tid) => { if (!feeApply(pid, tid)) return; closeSheet(); genMonthly(); commit('Mensualidad del deportista actualizada'); };
+route('/d/mensualidades', {
+  title: 'Mensualidades', roles: ['directivo'], render: () => {
+    const ts = S.teams.filter(t => t.clubId === cid()), ms = clubMembers(cid()).filter(m => m.teamId && team(m.teamId));
+    return note('La mensualidad se cobra cada mes a cada deportista de la categoría y no vence.') + sec('Por categoría') + (ts.length ? list(ts.map(t => li({ ic: 'money', color: 'green', title: esc(t.name), sub: t.sport, right: `<b>${clp(t.mensualidad || 0)}</b>`, on: `A.feeTeamSheet('${t.id}')` }))) : empty('grid', 'Sin categorías', 'Crea categorías en Deportes del club.')) + sec('Por deportista') + (ms.length ? list(ms.map(m => { const p = player(m.playerId), t = team(m.teamId), r = feeRule(t.clubId, p.id); return li({ av: avatar(p.name, 40, p.photo), title: esc(p.name), sub: [esc(t.name), r && r.benefit ? `${r.benefit} ${r.mode === 'pct' ? r.value + '%' : clp(r.value)}` : '', r && r.amount != null ? 'Monto propio' : ''].filter(Boolean).join(' · '), right: `<b>${clp(monthFee(t, p.id))}</b>`, on: `A.feeSheet('${p.id}','${t.id}')` }); })) : empty('users', 'Sin deportistas', 'Los deportistas activos aparecerán aquí.'));
+  }
+});
+
+// --- Cuerpo técnico: cargos, forma de pago y respaldo de cada pago ---
+const tsOf = id => S.techStaff.find(x => x.id === id);
+const tsDocType = x => x.contract === 'contratado' ? 'Liquidación de sueldo' : 'Boleta de honorarios';
+const formName = k => (TS_FORMS.find(x => x[0] === k) || [k, k])[1];
+const tsScope = x => x.cargo === 'Head coach' ? x.sport : x.cargo === 'Entrenador' ? (team(x.teamId) || {}).name || '' : 'Todo el club';
+route('/d/cuerpo', {
+  title: 'Cuerpo técnico', roles: ['directivo'], render: () => {
+    const l = S.techStaff.filter(x => x.clubId === cid()).sort((a, b) => TS_ROLES.indexOf(a.cargo) - TS_ROLES.indexOf(b.cargo)), ps = S.staffPays.filter(x => x.clubId === cid()).sort((a, b) => b.date.localeCompare(a.date)).slice(0, 30);
+    return btn('Agregar integrante', 'A.tsSheet()', 'ok', 'userplus') + (l.length ? '<div class="mt12"></div>' + list(l.map(x => li({ av: avatar(x.name, 40), title: esc(x.name), sub: `${x.cargo} · ${esc(tsScope(x))} · ${x.contract === 'contratado' ? 'Contratado' : 'Honorarios'}`, right: x.active ? '' : badge('Inactivo', 'mute'), on: `A.tsSheet('${x.id}')` }))) : '<div class="mt12"></div>' + empty('clipboard', 'Sin integrantes', 'Agrega a tu head coach, entrenadores, asistentes, kinesiólogo, sicólogo y médico.')) + (ps.length ? sec('Pagos registrados') + list(ps.map(p => li({ ic: 'receipt', color: 'green', title: esc(p.name), sub: `${formName(p.form)} · ${esc(p.period)} · ${esc(p.docType)}`, right: `<b>${clp(p.amount)}</b>`, on: `A.tsDoc('${p.id}')` }))) : '');
+  }
+});
+A.tsSheet = id => {
+  const x = id ? tsOf(id) : null, v = t => `value="${esc(t || '')}" autocomplete="off"`, sp = club(cid()).sports, ts = S.teams.filter(t => t.clubId === cid());
+  sheet(x ? esc(x.name) : 'Nuevo integrante', `${inp('ts-n', 'Nombre completo', v(x && x.name))}${inp('ts-r', 'RUT', v(x && x.rut) + ' placeholder="12.345.678-5"')}${inp('ts-e', 'Email (opcional)', v(x && x.email) + ' type="email" inputmode="email" autocapitalize="off"')}${inp('ts-p', 'Teléfono (opcional)', v(x && x.phone) + ' type="tel" inputmode="tel"')}${select('ts-c', 'Cargo', TS_ROLES, x ? x.cargo : TS_ROLES[0], 'onchange="A.tsCargo()"')}<div id="ts-sw">${select('ts-s', 'Deporte', sp.length ? sp : [['', 'Agrega un deporte primero']], x && x.sport)}</div><div id="ts-tw">${select('ts-t', 'Categoría', ts.length ? ts.map(t => [t.id, `${t.sport} · ${t.name}`]) : [['', 'Crea una categoría primero']], x && x.teamId)}</div>${select('ts-k', 'Tipo de contrato', [['contratado', 'Contratado (liquidación de sueldo)'], ['honorarios', 'A honorarios (boleta)']], x ? x.contract : 'honorarios')}${field('Forma de pago', '<div class="hint mb8">Escribe el monto de las que correspondan.</div>' + TS_FORMS.map(([k, l]) => inp('ts-f-' + k, l, `type="number" inputmode="numeric" min="0" value="${x && x.rates[k] ? x.rates[k] : ''}"`)).join(''))}${x ? check('ts-a', '1', 'Activo en el club', x.active) : ''}<div class="err mb8" id="ts-err"></div>${btn(x ? 'Guardar cambios' : 'Agregar', `A.saveTs('${id || ''}')`, 'ok')}${x ? `<div class="mt8"></div>${btn('Registrar pago', `A.tsPaySheet('${id}')`, 's2', 'money')}` : ''}`);
+  A.tsCargo();
+};
+A.tsCargo = () => { const c = val('ts-c'); $('#ts-sw').style.display = c === 'Head coach' ? '' : 'none'; $('#ts-tw').style.display = c === 'Entrenador' ? '' : 'none'; };
+A.saveTs = id => {
+  const x = id ? tsOf(id) : null, err = m => { $('#ts-err').textContent = m; }, n = val('ts-n'), r = val('ts-r'), c = val('ts-c'), rates = {}; TS_FORMS.forEach(([k]) => { const a = Math.round(+val('ts-f-' + k)); if (a > 0) rates[k] = a; });
+  if (!n) return err('Escribe el nombre.'); if (!validRut(r)) return err('El RUT no es válido.');
+  if (c === 'Head coach' && !val('ts-s')) return err('Elige el deporte.'); if (c === 'Entrenador' && !val('ts-t')) return err('Elige la categoría.');
+  if (!Object.keys(rates).length) return err('Indica el monto de al menos una forma de pago.');
+  const o = { name: n, rut: normRut(r), email: val('ts-e'), phone: val('ts-p'), cargo: c, sport: c === 'Head coach' ? val('ts-s') : '', teamId: c === 'Entrenador' ? val('ts-t') : '', contract: val('ts-k'), rates, active: x ? $('input[name=ts-a]').checked : true };
+  if (x) Object.assign(x, o); else S.techStaff.push({ id: uid('ts'), clubId: cid(), ...o });
+  closeSheet(); commit(x ? 'Integrante actualizado' : 'Integrante agregado');
+  if (c === 'Entrenador' && canDo('deportes')) return A.tsCoach(o.teamId, n);
+};
+A.tsCoach = (tid, n) => { team(tid).coach = n; save(); };
+A.tsPaySheet = id => {
+  const x = tsOf(id), fs = TS_FORMS.filter(([k]) => x.rates[k]), per = `${MESES[parse(today()).getMonth()]} ${today().slice(0, 4)}`;
+  sheet(`Pago a ${esc(x.name)}`, `${select('tp-f', 'Forma de pago', fs, fs[0][0], `onchange="A.tsPayCalc('${id}')"`)}${inp('tp-q', 'Cantidad', 'type="number" inputmode="numeric" min="1" value="1"' + ` oninput="A.tsPayCalc('${id}')"`)}${inp('tp-a', 'Monto a pagar', `type="number" inputmode="numeric" min="1" value="${fs[0] ? x.rates[fs[0][0]] : ''}"`)}${inp('tp-p', 'Período o detalle', `value="${per}" maxlength="60" autocomplete="off"`)}${field(tsDocType(x) + ' (obligatoria)', '<input class="input" id="tp-d" type="file" accept="application/pdf,image/jpeg,image/png">', 'PDF hasta 440 KB, o foto.')}<div class="err mb8" id="tp-err"></div>${btn('Registrar pago', `A.payStaff('${id}')`, 'ok', 'check')}`);
+};
+A.tsPayCalc = id => { const x = tsOf(id), r = x.rates[val('tp-f')] || 0, q = Math.max(1, Math.round(+val('tp-q')) || 1); $('#tp-a').value = r * q; };
+const leerPdf = f => new Promise((ok, no) => { const r = new FileReader(); r.onload = () => ok(r.result); r.onerror = no; r.readAsDataURL(f); });
+async function tsPayData(id) {
+  const x = tsOf(id), err = m => { $('#tp-err').textContent = m; return null; }, a = Math.round(+val('tp-a')), f = $('#tp-d').files[0];
+  if (!(a > 0)) return err('Indica un monto válido.');
+  if (!f) return err(`Debes subir la ${tsDocType(x).toLowerCase()} para registrar el pago.`);
+  let doc;
+  if (f.type === 'application/pdf') { if (f.size > 440000) return err('El PDF pesa más de 440 KB. Súbelo como foto o comprímelo.'); doc = await leerPdf(f); }
+  else if (/^image\//.test(f.type)) { try { doc = await readImage(f, 1500, 'image/jpeg'); } catch (e) { return err('No se pudo leer esa imagen.'); } }
+  else return err('Sube un PDF o una foto.');
+  return { staffId: id, form: val('tp-f'), qty: Math.max(1, Math.round(+val('tp-q')) || 1), amount: a, period: val('tp-p'), docName: f.name, doc };
+}
+A.payStaff = async id => {
+  const x = tsOf(id), d = await tsPayData(id); if (!d) return;
+  const docType = tsDocType(x); S.staffPays.push({ id: uid('sp'), clubId: cid(), staffId: id, name: x.name, form: d.form, qty: d.qty, amount: d.amount, period: d.period, date: today(), docType, docName: d.docName });
+  S.movements.push({ id: uid('mv'), clubId: cid(), type: 'egreso', category: 'Cuerpo técnico', concept: `${x.name} · ${docType}`, amount: d.amount, date: today() });
+  closeSheet(); commit('Pago registrado');
+};
+A.tsDoc = id => toast('Respaldo: ' + S.staffPays.find(x => x.id === id).docName, 'warn');
+
+// --- Infraestructura: recintos y agenda semanal ---
+const weekOf = off => addDays(today(), off * 7 - (parse(today()).getDay() + 6) % 7);
+const bookOn = (b, d) => b.weekly ? d >= b.date && (!b.until || d <= b.until) && parse(d).getDay() === parse(b.date).getDay() : b.date === d;
+const facOf = id => S.facilities.find(x => x.id === id);
+route('/d/infra', {
+  title: 'Infraestructura', roles: ['directivo'], render: () => {
+    const fs = S.facilities.filter(x => x.clubId === cid()), f = fs.some(x => x.id === S.ui.infF) ? S.ui.infF : 'todos', off = +S.ui.infW || 0, ini = weekOf(off), bs = S.bookings.filter(b => b.clubId === cid() && (f === 'todos' || b.facilityId === f));
+    if (!fs.length) return empty('building', 'Sin recintos', 'Agrega gimnasios, canchas, salas de máquinas, piscinas, quinchos u otros.', btn('Agregar recinto', 'A.facSheet()', 'ok', 'plus'));
+    const dias = Array.from({ length: 7 }, (_, i) => addDays(ini, i)).map(d => ({ d, l: bs.filter(b => bookOn(b, d)).sort((a, b) => a.from.localeCompare(b.from)) })).filter(x => x.l.length);
+    return btn('Agendar horario', 'A.bookSheet()', 'ok', 'calendar') + '<div class="mt12"></div>' + chips('infF', [['todos', 'Todos'], ...fs.map(x => [x.id, esc(x.name)])], f) + `<div class="row mt8"><button class="btn s2 sm" style="flex:0 0 auto;width:auto" onclick="A.ui('infW',${off - 1})" aria-label="Semana anterior">‹</button><div class="sp center b small">Semana del ${fDate(ini)}</div><button class="btn s2 sm" style="flex:0 0 auto;width:auto" onclick="A.ui('infW',${off + 1})" aria-label="Semana siguiente">›</button></div>` + (dias.length ? dias.map(({ d, l }) => sec(`${DIAS[parse(d).getDay()]} ${fDate(d)}`) + list(l.map(b => li({ ic: 'clock', color: 'teal', title: `${b.from} a ${b.to} · ${esc(b.title)}`, sub: `${esc((facOf(b.facilityId) || {}).name || '')}${b.weekly ? ' · Cada semana' : ''}`, on: `A.bookDelSheet('${b.id}')` })))).join('') : '<div class="mt12"></div>' + empty('calendar', 'Semana libre', 'No hay horarios agendados en esta semana.')) + secLink('Recintos', 'Agregar', 'A.facSheet()') + list(fs.map(x => li({ ic: 'building', color: 'blue', title: esc(x.name), sub: x.type, on: `A.facSheet('${x.id}')` })));
+  }
+});
+A.facSheet = id => { const x = id ? facOf(id) : null; sheet(x ? 'Editar recinto' : 'Nuevo recinto', `${inp('fc-n', 'Nombre', `value="${esc(x ? x.name : '')}" maxlength="60" autocomplete="off"`)}${select('fc-t', 'Tipo', FAC_TYPES, x ? x.type : FAC_TYPES[0])}<div class="err mb8" id="fc-err"></div>${btn('Guardar', `A.saveFac('${id || ''}')`, 'ok')}${x ? `<div class="mt8"></div>${btn('Eliminar recinto', `A.facDelSheet('${id}')`, 'dsoft')}` : ''}`); };
+A.saveFac = id => { const n = val('fc-n'); if (!n) { $('#fc-err').textContent = 'Escribe un nombre.'; return; } if (id) Object.assign(facOf(id), { name: n, type: val('fc-t') }); else S.facilities.push({ id: uid('fc'), clubId: cid(), name: n, type: val('fc-t') }); closeSheet(); commit('Recinto guardado'); };
+A.facDelSheet = id => confirmSheet('Eliminar recinto', 'También se borrarán sus horarios agendados.', 'Eliminar', `A.delFac('${id}')`, 'danger');
+A.delFac = id => { S.facilities = S.facilities.filter(x => x.id !== id); S.bookings = S.bookings.filter(b => b.facilityId !== id); closeSheet(); commit('Recinto eliminado'); };
+A.bookSheet = () => { const fs = S.facilities.filter(x => x.clubId === cid()), ts = S.teams.filter(t => t.clubId === cid()); sheet('Agendar horario', `${select('bk-f', 'Recinto', fs.map(x => [x.id, x.name]), fs[0].id)}${select('bk-e', 'Categoría (opcional)', [['', 'Sin categoría'], ...ts.map(t => [t.id, `${t.sport} · ${t.name}`])], '')}${inp('bk-t', 'Uso', 'maxlength="80" autocomplete="off" placeholder="Entrenamiento, partido, evento..."')}${inp('bk-d', 'Fecha', `type="date" value="${today()}"`)}<div class="row"><div class="sp">${inp('bk-a', 'Desde', 'type="time" value="18:00"')}</div><div class="sp">${inp('bk-b', 'Hasta', 'type="time" value="19:30"')}</div></div>${check('bk-w', '1', 'Repetir cada semana')}${inp('bk-u', 'Repetir hasta (opcional)', 'type="date"')}<div class="err mb8" id="bk-err"></div>${btn('Agendar', 'A.saveBook()', 'ok')}`); };
+A.saveBook = () => {
+  const err = m => { $('#bk-err').textContent = m; }, fid = val('bk-f'), tid = val('bk-e'), d = val('bk-d'), a = val('bk-a'), b = val('bk-b'), weekly = $('input[name=bk-w]').checked, until = weekly ? val('bk-u') : '', title = val('bk-t') || (tid ? team(tid).name : '');
+  if (!title) return err('Indica el uso o elige una categoría.'); if (!d) return err('Elige la fecha.'); if (!a || !b || a >= b) return err('La hora de término debe ser posterior al inicio.'); if (until && until < d) return err('La fecha final no puede ser anterior a la fecha inicial.');
+  const fechas = []; for (let x = d, i = 0; i < (weekly ? 53 : 1) && (!until || x <= until); x = addDays(x, 7), i++) fechas.push(x);
+  const choque = fechas.find(x => S.bookings.some(o => o.facilityId === fid && bookOn(o, x) && a < o.to && o.from < b));
+  if (choque) return err(`Ese horario choca con otra reserva el ${fDate(choque)}.`);
+  S.bookings.push({ id: uid('bk'), clubId: cid(), facilityId: fid, teamId: tid, title, date: d, from: a, to: b, weekly, until }); closeSheet(); S.ui.infW = 0; commit('Horario agendado');
+};
+A.bookDelSheet = id => { const b = S.bookings.find(x => x.id === id); confirmSheet('Quitar horario', b.weekly ? 'Se quitará este horario en todas las semanas.' : 'Se quitará este horario de la agenda.', 'Quitar', `A.delBook('${id}')`, 'danger'); };
+A.delBook = id => { S.bookings = S.bookings.filter(x => x.id !== id); closeSheet(); commit('Horario quitado'); };
+
+// --- Directivos: el club crea su ficha y decide qué funciones usan ---
+const dirBadge = d => !d.active ? badge('Desactivado', 'mute') : d.accountId ? badge('Activo', 'ok') : badge('Por registrarse', 'warn');
+route('/d/directivos', {
+  title: 'Directivos', roles: ['directivo'], render: () => {
+    const l = S.directors.filter(d => d.clubId === cid()), board = club(cid()).board || [], sin = board.filter(b => !l.some(d => d.name.toLowerCase() === b.name.toLowerCase()));
+    return note('Crea la ficha de cada directivo con su email y RUT. Luego esa persona entra a <b>REGISTRARSE → Directivo</b> con esos datos, crea su clave y queda vinculada al club.') + btn('Agregar directivo', 'A.dirSheet()', 'ok', 'userplus') + (l.length ? sec('Directiva con acceso') + list(l.map(d => li({ av: avatar(d.name, 40), title: esc(d.name), sub: `${esc(d.cargo)} · ${d.perms.length} de ${DIR_PERMS.length} funciones`, right: dirBadge(d), on: `A.dirSheet('${d.id}')` }))) : '') + (sin.length ? sec('Directorio sin cuenta') + list(sin.map(b => li({ ic: 'user', color: 'gray', title: esc(b.name), sub: esc(b.cargo), on: `A.dirSheet('',${board.indexOf(b)})` }))) : '');
+  }
+});
+A.dirSheet = (id, bi) => {
+  const d = id ? S.directors.find(x => x.id === id) : null, b = bi == null ? {} : club(cid()).board[bi], lock = d && d.accountId, v = x => `value="${esc(x || '')}" autocomplete="off"`;
+  sheet(d ? esc(d.name) : 'Nuevo directivo', (lock ? `<p class="small muted" style="margin:0 0 12px">${esc(d.email)} · RUT ${esc(d.rut)}</p>` : inp('dr-n', 'Nombre completo', v(d ? d.name : b.name)) + inp('dr-r', 'RUT', v(d && d.rut) + ' placeholder="12.345.678-5"') + inp('dr-e', 'Email', v(d && d.email) + ' type="email" inputmode="email" autocapitalize="off"', 'Con este email y su RUT creará su clave.')) + inp('dr-c', 'Cargo', v(d ? d.cargo : b.cargo)) + field('Funciones activas', DIR_PERMS.map(([k, l]) => check('dr-p', k, l, d ? d.perms.includes(k) : true)).join('')) + (d ? check('dr-a', '1', 'Acceso activo', d.active) : '') + `<div class="err mb8" id="dr-err"></div>${btn(d ? 'Guardar cambios' : 'Crear directivo', `A.saveDir('${id || ''}')`, 'ok')}${d ? `<div class="mt8"></div>${btn('Quitar de la directiva', `A.dirDelSheet('${id}')`, 'dsoft')}` : ''}`);
+};
+function dirData(d) {
+  const err = m => { $('#dr-err').textContent = m; return null; }, o = { cargo: val('dr-c'), perms: $$('input[name=dr-p]:checked').map(i => i.value), active: d ? $('input[name=dr-a]').checked : true };
+  if (d && d.accountId) Object.assign(o, { name: d.name, rut: d.rut, email: d.email });
+  else {
+    Object.assign(o, { name: val('dr-n'), rut: val('dr-r'), email: val('dr-e').toLowerCase() });
+    if (!o.name) return err('Escribe el nombre.');
+    if (!validRut(o.rut)) return err('El RUT no es válido.');
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(o.email)) return err('El email no es válido.');
+    o.rut = normRut(o.rut);
+  }
+  return o.cargo ? o : err('Indica el cargo.');
+}
+A.saveDir = id => {
+  const d = id ? S.directors.find(x => x.id === id) : null, o = dirData(d); if (!o) return;
+  if (!(d && d.accountId) && S.accounts.some(a => a.email === o.email)) { $('#dr-err').textContent = 'Ese email ya tiene una cuenta en My Club. Usa otro.'; return; }
+  if (S.directors.some(x => x.id !== id && (x.email === o.email || (x.clubId === cid() && cleanRut(x.rut) === cleanRut(o.rut))))) { $('#dr-err').textContent = 'Ese email o RUT ya está en una directiva.'; return; }
+  if (d) Object.assign(d, o); else S.directors.push({ id: uid('dir'), clubId: cid(), accountId: null, ...o });
+  closeSheet(); commit(d ? 'Directivo actualizado' : 'Directivo creado');
+};
+A.dirDelSheet = id => confirmSheet('Quitar de la directiva', 'Esta persona dejará de acceder a los menús del club.', 'Quitar', `A.delDir('${id}')`, 'danger');
+A.delDir = id => { S.directors = S.directors.filter(x => x.id !== id); closeSheet(); commit('Directivo quitado'); };
 
 /* ======================================================================
    12. PANTALLAS POR ROL: FEDERACIÓN Y ASOCIACIONES
@@ -2801,16 +3046,16 @@ function blankState() {
   return s;
 }
 function hydrate(d, ui) {
-  const s = blankState(), me_ = d.account, type = me_.type, r = type === 'club' ? 'directivo' : type, day = x => (x || '').slice(0, 10), uid_ = me_.user_id;
+  const s = blankState(), me_ = d.account, type = me_.type, r = roleOf(type), day = x => (x || '').slice(0, 10), uid_ = me_.user_id;
   s.clubs = d.clubs.map(c => ({ id: c.id, code: c.code, name: c.name, short: c.short, rut: c.rut, city: c.city || '', region: c.region || '', sports: c.sports, color: c.color, logo: c.logo, payProvider: c.pay_provider || null, founded: +c.constituted.slice(0, 4), socios: c.board.length, constituted: c.constituted, regNumber: c.reg_number, email: c.email, phone: c.phone, address: c.address, web: c.web, ig: c.ig, desc: c.descr, board: c.board, ownerId: c.owner_id }));
-  s.teams = d.teams.map(t => ({ id: t.id, clubId: t.club_id, sport: t.sport, name: t.name, category: t.category, sex: t.sex, coach: t.coach, matricula: t.matricula || 0 }));
+  s.teams = d.teams.map(t => ({ id: t.id, clubId: t.club_id, sport: t.sport, name: t.name, category: t.category, sex: t.sex, coach: t.coach, matricula: t.matricula || 0, mensualidad: t.mensualidad || 0 }));
   // Directorio: otros clubes y equipos se ven con sus datos públicos, para transferencias, torneos y marketplace.
   (d.directory || { clubs: [], teams: [] }).clubs.forEach(c => { if (!s.clubs.some(x => x.id === c.id)) s.clubs.push({ ...c, rut: '', logo: null, board: [], socios: 0, founded: '', constituted: null, city: c.city || '', region: c.region || '' }); });
   (d.directory || { clubs: [], teams: [] }).teams.forEach(t => { if (!s.teams.some(x => x.id === t.id)) s.teams.push({ id: t.id, clubId: t.club_id, sport: t.sport, name: t.name, category: t.category, sex: t.sex, coach: t.coach, matricula: 0 }); });
   s.players = d.players.map(p => ({ id: p.id, first: p.name.split(' ')[0], name: p.name, sex: p.sex, birth: p.birth, rut: p.rut, email: p.email || '', phone: p.phone || '', position: p.position || '', city: p.city, height: p.height, size: p.size || '', photo: p.photo, accountId: p.account_id, guardianId: p.guardian_id, rel: p.rel, accessEmail: p.access_email || '' }));
   s.memberships = d.memberships.map(m => ({ id: m.id, playerId: m.player_id, clubId: m.club_id, sport: m.sport, teamId: m.team_id, status: m.status, since: day(m.resolved_at || m.created_at), until: m.until, federated: !!m.federated, number: m.number }));
   s.requests = d.memberships.filter(m => m.status === 'pendiente' || m.resolved_at).map(m => ({ id: m.id, playerId: m.player_id, clubId: m.club_id, sport: m.sport, membershipId: m.id, date: day(m.created_at), status: m.status === 'pendiente' ? 'pendiente' : m.status === 'rechazada' ? 'rechazada' : 'aceptada', note: m.note || '' }));
-  const toAcc = a => ({ id: a.public_id, uid: a.user_id, type: a.type, role: a.type === 'club' ? 'directivo' : a.type, name: a.name, rut: a.rut, email: a.email, phone: a.phone, date: day(a.created_at), photo: a.photo, city: a.city, specialty: a.specialty, web: a.web, sport: a.sport });
+  const toAcc = a => ({ id: a.public_id, uid: a.user_id, type: a.type, role: roleOf(a.type), name: a.name, rut: a.rut, email: a.email, phone: a.phone, date: day(a.created_at), photo: a.photo, city: a.city, specialty: a.specialty, web: a.web, sport: a.sport });
   s.accounts = d.accounts.map(toAcc);
   const pubId = id => (s.accounts.find(a => a.uid === id) || {}).id;
   s.linkRequests = d.links.map(l => ({ id: l.id, accountId: pubId(l.account_id), clubId: l.club_id, date: day(l.created_at), status: l.status, resolvedAt: day(l.resolved_at) }));
@@ -2822,11 +3067,13 @@ function hydrate(d, ui) {
   if (type === 'club') { const c = s.clubs.find(x => x.ownerId === uid_); a.clubId = c.id; a.profile = { name: (c.board[0] || {}).name || a.name, cargo: 'Cuenta del club' }; }
   if (type === 'entrenador') { a.clubId = accepted[0] || null; a.profile = { name: a.name, by: a.name, clubId: null, sport: null, teams: [] }; }
   if (type === 'federacion') a.profile = { name: a.name, cargo: 'Representante' };
+  s.directors = (d.directors || []).map(x => ({ id: x.id, clubId: x.club_id, accountId: x.account_id, name: x.name, rut: x.rut, cargo: x.cargo, email: x.email, perms: x.perms, active: x.active }));
+  if (type === 'dirigente') { const f = s.directors.find(x => x.accountId === uid_); a.clubId = f && f.active ? f.clubId : null; a.profile = { name: a.name, cargo: f ? f.cargo : '' }; }
   if (type === 'proveedor') { a.refId = 'pv_' + a.id; s.providers = [{ id: a.refId, name: a.name, cat: me_.category, region: me_.region || '', city: me_.city || '', web: me_.web || '', ig: me_.ig || '', desc: me_.descr || '', photo: me_.photo, rating: 5, items: [] }]; }
   (d.names || []).forEach(p => { if (!s.players.some(x => x.id === p.id)) s.players.push({ id: p.id, name: p.name, first: p.name.split(' ')[0], birth: '2000-01-01', rut: '', email: '', phone: '', position: '' }); });
   // Módulos guardados en la base
   (d.records || []).forEach(r => {
-    if (SYNC.includes(r.kind)) s[r.kind].push(r.data);
+    if (SYNC.includes(r.kind) || r.kind === 'staffPays') s[r.kind].push(r.data);
     else if (r.kind === 'settings') s.settings = { ...s.settings, ...r.data };
     else if (r.kind === 'expenseCats') s.expenseCats = r.data.list;
     else if (r.kind === 'fichaFields') s.fichaFields = r.data;
@@ -2844,12 +3091,12 @@ function hydrate(d, ui) {
 }
 function useState_(d, ui) { const { s, a } = hydrate(d, ui); S = s; applyAccount(a); _snap = snapshot(); if (a.type === 'proveedor' && !(d.records || []).some(r => r.kind === 'providers' && r.id === a.refId)) { delete _snap['providers|' + a.refId]; syncSoon(); } }
 // Cada cambio se compara con lo último recibido de la base, y solo se envía la diferencia.
-const SYNC = ['incomeCats', 'clubPay', 'events', 'charges', 'receipts', 'credentials', 'separations', 'claims', 'transfers', 'loans', 'movements', 'incomeItems', 'discounts', 'proposals', 'assemblies', 'polls', 'posts', 'chats', 'broadcasts', 'routines', 'staff', 'quotes', 'communiques', 'fedCharges', 'clubUploads', 'tournaments', 'reports', 'docs'];
+const SYNC = ['techStaff', 'facilities', 'bookings', 'feeRules', 'incomeCats', 'clubPay', 'events', 'charges', 'receipts', 'credentials', 'separations', 'claims', 'transfers', 'loans', 'movements', 'incomeItems', 'discounts', 'proposals', 'assemblies', 'polls', 'posts', 'chats', 'broadcasts', 'routines', 'staff', 'quotes', 'communiques', 'fedCharges', 'clubUploads', 'tournaments', 'reports', 'docs'];
 let _snap = {}, _memb = {}, _colaAvisos = [], _syncT = null, _syncing = Promise.resolve();
 function rowsNow() {
   const out = {}, put = (kind, id, data) => { out[kind + '|' + id] = { kind, id, data }; }, a = acct();
   SYNC.forEach(k => S[k].forEach(x => { const id = x.id || x.code; if (id) put(k, id, k === 'events' ? { ...x, attendance: S.att[x.id] || x.attendance || {} } : x); }));
-  if (a.type === 'club') { put('settings', a.clubId, { ...S.settings, clubId: a.clubId }); put('expenseCats', a.clubId, { list: S.expenseCats, clubId: a.clubId }); }
+  if (a.clubId && (a.type === 'club' || (a.type === 'dirigente' && canDo('finanzas')))) { put('settings', a.clubId, { ...S.settings, clubId: a.clubId }); put('expenseCats', a.clubId, { list: S.expenseCats, clubId: a.clubId }); }
   if (a.type === 'federacion') { put('fedConfig', a.sport, S.fedConfig[a.sport]); put('fichaFields', 'global', S.fichaFields); }
   if (a.type === 'proveedor') put('providers', a.refId, provider(a.refId));
   put('prefs', a.id, { provPrefs: S.provPrefs, blocks: S.blocks });
@@ -2884,6 +3131,7 @@ document.addEventListener('visibilitychange', () => { if (puedeRefrescar()) refr
 
 // Primer ingreso tras confirmar el email: crea la cuenta con los datos del formulario.
 async function enterReal() {
+  await SB.rpc('run_monthly').catch(() => { });
   let d = await SB.rpc('my_state'), created = null;
   if (!d.account) {
     const reg = ((SB.s.user || {}).user_metadata || {}).reg;
@@ -2971,15 +3219,37 @@ real('addTeam', sp => { const n = val('dt-n'); if (!n) return toast('Escribe un 
 real('saveTeam', id => { const n = val('te-n'), m = val('te-m'); if (!n) { $('#te-err').textContent = 'Escribe un nombre.'; return; } if (m === '' || +m < 0) { $('#te-err').textContent = 'Indica un monto válido.'; return; } const p = { id, name: n, category: val('te-c'), sex: val('te-x'), coach: val('te-e') || 'Por asignar', matricula: +m }; closeSheet(); return realDo(() => SB.rpc('update_team', { p }), 'Categoría actualizada'); });
 real('delTeam', id => { closeSheet(); return realDo(() => SB.rpc('delete_team', { p_id: id }), 'Categoría eliminada'); });
 real('saveMat', sp => { const v = val('dm-a'); if (v === '' || +v < 0) { $('#dm-err').textContent = 'Indica un monto válido.'; return; } closeSheet(); return realDo(() => SB.rpc('set_sport_matricula', { p_sport: sp, p_amount: +v }), 'Matrícula aplicada a todas las categorías'); });
-real('manualPay', ids => { const m = val('mp-m'); closeSheet(); return realDo(async () => { const r = await SB.rpc('record_manual_payment', { p_ids: ids.split(','), p_method: m }); if (r) location.hash = '#/comprobante/' + r; }, 'Pago registrado'); });
+real('manualPay', ids => { const m = val('mp-m'), am = manualValue(ids); closeSheet(); return realDo(async () => { const r = await SB.rpc('record_manual_payment', { p_ids: ids.split(','), p_method: m, p_amount: am }); if (r) location.hash = '#/comprobante/' + r; }, 'Pago registrado'); });
 // Pago en línea: el servidor crea el cobro en Mercado Pago y confirma el resultado. El navegador nunca marca nada como pagado.
 real('pay', async ids => {
+  const parcial = partAmount(S.charges.find(c => c.id === ids.split(',')[0])); if (parcial === false) return;
   const o = overlay('Conectando con Mercado Pago…');
-  try { const r = await SB.fn('mp-crear-pago', { ids: ids.split(','), back: appUrl() }); location.href = r.url; }
+  try { const r = await SB.fn('mp-crear-pago', { ids: ids.split(','), amount: parcial, back: appUrl() }); location.href = r.url; }
   catch (e) { o.remove(); toast(e.status === 404 ? 'Los pagos en línea aún no están activados. Transfiere directo a tu club.' : e.message, 'warn'); }
 });
 real('savePayKey', k => { const t = val('pk-t'); if (!tokenOk(t)) { $('#pk-err').textContent = 'El Access Token empieza con APP_USR- o TEST-.'; return; } closeSheet(); return realDo(() => SB.rpc('set_club_pay_key', { p_provider: k, p_secret: t }), provName(k) + ' conectado'); });
 real('delPayKey', () => { closeSheet(); return realDo(() => SB.rpc('remove_club_pay_key'), 'Pago en línea desconectado'); });
+real('saveDir', async id => {
+  const d = id ? S.directors.find(x => x.id === id) : null, o = dirData(d); if (!o) return;
+  try { await _syncing; await SB.rpc('save_director', { p: id ? { ...o, id } : o }); } catch (e) { $('#dr-err').textContent = e.message; return; }
+  closeSheet(); await refreshReal(); toast(d ? 'Directivo actualizado' : 'Directivo creado');
+});
+real('delDir', id => { closeSheet(); return realDo(() => SB.rpc('remove_director', { p_id: id }), 'Directivo quitado'); });
+real('setFee', (ids, a) => { syncNow(); return realDo(() => SB.rpc('set_team_fee', { p_teams: ids, p_amount: a }), 'Mensualidad actualizada'); });
+real('saveFee', (pid, tid) => { if (!feeApply(pid, tid)) return; closeSheet(); save(); syncNow(); return realDo(() => SB.rpc('run_monthly'), 'Mensualidad del deportista actualizada'); });
+real('partAnswer', (id, pid, ok) => realDo(() => SB.rpc('confirm_participation', { p_item: id, p_player: pid, p_ok: ok }), ok ? 'Participación confirmada' : 'Respuesta guardada'));
+real('tsCoach', (tid, n) => realDo(() => SB.rpc('set_team_coach', { p_team: tid, p_coach: n })));
+real('payStaff', async id => {
+  const d = await tsPayData(id); if (!d) return;
+  try { await _syncing; await SB.rpc('pay_staff', { p: d }); } catch (e) { $('#tp-err').textContent = e.message; return; }
+  closeSheet(); await refreshReal(); toast('Pago registrado');
+});
+real('tsDoc', async id => {
+  try {
+    const r = await SB.rpc('staff_doc', { p_pay: id }), blob = await (await fetch(r.data)).blob(), a = document.createElement('a');
+    a.href = URL.createObjectURL(blob); a.download = r.name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 30000);
+  } catch (e) { toast(e.message, 'bad'); }
+});
 real('setCoach', id => { const n = val('dc-n'); if (!n) return; closeSheet(); return realDo(() => SB.rpc('set_team_coach', { p_team: id, p_coach: n }), 'Entrenador asignado'); });
 real('readAll', () => realDo(() => SB.rpc('mark_notifs_read', { p_id: null }), 'Notificaciones leídas'));
 real('openNotif', async id => { const n = S.notifs.find(x => x.id === id), to = realOk(n.href) ? n.href : '/inicio'; try { await SB.rpc('mark_notifs_read', { p_id: id }); n.read = true; } catch (e) { } go(to); });
@@ -3024,7 +3294,7 @@ route('/nueva-clave', { title: 'Nueva clave', noTabs: true, render: () => `<div 
 // --- Inicio en modo real: solo datos verdaderos de la cuenta ---
 function realHome() {
   const a = acct(), r = role(), cl = (a.clubId && club(a.clubId)) || club(linkedClubs()[0] && linkedClubs()[0].id);
-  const hero = `<div class="card hero"><div class="row">${r === 'directivo' ? clubLogo(club(a.clubId), 48) : avatar(a.name, 48, myPhoto(a))}<div class="sp"><div class="b" style="font-size:18px">${esc(a.name)}</div><div class="small muted">${typeLabel(a.type)} · ID ${a.id}</div></div></div></div>`;
+  const hero = `<div class="card hero"><div class="row">${r === 'directivo' ? clubLogo(club(a.clubId), 48) : avatar(a.name, 48, myPhoto(a))}<div class="sp"><div class="b" style="font-size:18px">${esc(a.name)}</div><div class="small muted">${a.type === 'dirigente' ? `${esc(S.users.directivo.cargo)} · ${esc(club(a.clubId).short)}` : typeLabel(a.type)} · ID ${a.id}</div></div></div></div>`;
   if (r === 'directivo') return hero + `<div class="kpis">${kpi('Deportistas', clubMembers(a.clubId).length)}${kpi('Por resolver', HOME_BADGE.solicitudes())}</div>` + (club(a.clubId).sports.length ? '' : note('Agrega tus deportes y equipos para que los deportistas puedan vincularse.'));
   if (r === 'jugador') { const ms = activeMems(a.refId); return hero + (ms.length ? list(ms.map(m => li({ av: clubLogo(club(m.clubId), 42), title: esc(club(m.clubId).short), sub: m.sport, right: stBadge(m.status), href: '/club/' + m.clubId }))) : '') + (myGuardianLinks().some(l => l.status === 'pendiente') ? goBtn('Revisar solicitud de apoderado', '/apoderados', 'naranjo', 'users') + '<div class="mt8"></div>' : isMinorAcc() && !myGuardianLinks().length ? note(`Eres menor de edad: dale tu ID <b>${a.id}</b> a tu apoderado para que se vincule.${needsGuardian() ? ' Lo necesitas para unirte a un club.' : ''}`) : '') + (needsGuardian() ? '' : goBtn('Unirme a un club', '/unirme', 'ok', 'building') + '<div class="mt8"></div>'); }
   if (r === 'apoderado' && needsKid()) return hero + note('Registra a tu hijo o hija, o vincúlate con su ID, para ver sus cuotas, actividades y mensajes.') + goBtn('Registrar a un hijo', '/a/registrar-hijo', 'ok', 'userplus') + '<div class="mt8"></div>' + goBtn('Vincular a un hijo con su ID', '/a/vincular-pupilo', 's2', 'id') + '<div class="mt8"></div>';
@@ -3035,7 +3305,7 @@ function realHome() {
 
 // Solo se ingresan datos con una sesión de una cuenta creada. Quien revisa la app con el usuario demo
 // solo consulta, y en una cuenta real una acción que aún no tiene base de datos avisa: nunca finge guardar.
-const SOLO_VER = new Set('back ui homeEdit homeMove homeFlag homeReset login logout completeReg recover newPass linkSearch linkPick linkCheck addCargo regType installHelp openNotif roleSheet setRole demoPick resetDemo doReset time rhClub pickKid addSport sportOther deleteAsk tfUpd certUpd bajaDebt loanType qtLine qtTotal showCom showReceipt playVideo comments claimView chatMenu toggleCh setMethod tpl csvSample addOption delTeamSheet teamSheetEdit newChat newPost resign withdraw baja proposeT bcSport incomeName copyBank'.split(' '));
+const SOLO_VER = new Set('back ui homeEdit homeMove homeFlag homeReset login logout completeReg recover newPass linkSearch linkPick linkCheck addCargo regType installHelp openNotif roleSheet setRole demoPick resetDemo doReset time rhClub pickKid addSport sportOther deleteAsk tfUpd certUpd bajaDebt loanType qtLine qtTotal showCom showReceipt playVideo comments claimView chatMenu toggleCh setMethod tpl csvSample addOption delTeamSheet teamSheetEdit newChat newPost resign withdraw baja proposeT bcSport incomeName copyBank partToggle tsCargo tsPayCalc tsDoc'.split(' '));
 // Funciones que solo existen para simular en el demo. La carga masiva crearía deportistas sin cuenta ni apoderado.
 const SOLO_DEMO = new Set('time simLink simReply simJoin simVotes asmSim csvSample csvImport resetDemo doReset scan'.split(' '));
 const MSG_CREA_CUENTA = 'Estás en el modo demo: crea una cuenta para ingresar datos.';
@@ -3066,6 +3336,7 @@ Object.keys(A).forEach(k => {
 async function boot() {
   S = load();
   processDeadlines();
+  genMonthly();
   save();
   // Enlaces de Supabase (confirmar email o recuperar clave) traen la sesión en el hash.
   const q = new URLSearchParams(location.hash.slice(1));

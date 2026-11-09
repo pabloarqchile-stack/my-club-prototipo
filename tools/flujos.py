@@ -85,7 +85,7 @@ with sync_playwright() as p:
     def completar(): g.get_by_role('button',name='Completar Registro').click(); g.wait_for_timeout(120)
     def nuevoid():
         g.wait_for_selector('#new-id',timeout=3000); v=g.inner_text('#new-id'); g.wait_for_timeout(350); return v
-    nav('/registro'); g.wait_for_timeout(150); ok(g.locator('#view .list').count()==6 and 'Directivo' not in g.inner_text('#view'),'registro muestra 6 tipos, sin Directivo'); ok('Deportista' in g.inner_text('#view') and 'Jugador' not in g.inner_text('#view'),'Jugador renombrado a Deportista')
+    nav('/registro'); g.wait_for_timeout(150); ok(g.locator('#view .list').count()==7 and 'Directivo' in g.inner_text('#view'),'registro muestra 7 tipos, con Directivo'); ok('Deportista' in g.inner_text('#view') and 'Jugador' not in g.inner_text('#view'),'Jugador renombrado a Deportista')
     # Club: mínimo 3 cargos
     abrir('club'); base('Club Deportivo Prueba',rut(66111222),'club@prueba.cl'); g.fill('#rg-date','2010-03-15'); g.fill('#rg-num','RD-4471')
     n=g.locator('.dir-n'); n.nth(0).fill('Ana Presidenta'); n.nth(1).fill('Beto Vice'); completar(); ok('mínimo 3 cargos' in g.inner_text('#rg-err'),'club exige mínimo 3 cargos')
@@ -127,7 +127,23 @@ with sync_playwright() as p:
     ok(not malas,'cuentas nuevas sin pantallas rotas: '+str(malas))
     login('club@prueba.cl','prueba123'); nav('/d/aprobaciones'); g.wait_for_timeout(120); ok('Copa Primavera' not in g.inner_text('#view'),'club nuevo no ve propuestas de otro club'); ok(ev("unread()")<=2,'club nuevo sin notificaciones del demo')
     # Logo del club: se actualiza en todas las cuentas vinculadas
-    login('club@myclub.cl','demo'); ok(ev("acct().id")=='C00000001' and ev("role()")=='directivo','Directivo reemplazado por Club con ID C'); nav('/perfil'); g.wait_for_timeout(120); ok('Directivo' not in g.inner_text('#view') and 'ID C00000001' in g.inner_text('#view'),'perfil dice Club, no Directivo')
+    login('club@myclub.cl','demo'); ok(ev("acct().id")=='C00000001' and ev("role()")=='directivo','Directivo reemplazado por Club con ID C'); nav('/perfil'); g.wait_for_timeout(120); ok(g.locator('#view .card.center', has_text='Directivo').count()==0 and 'ID C00000001' in g.inner_text('#view'),'perfil dice Club, no Directivo')
+    # Cuerpo técnico, infraestructura y mensualidad
+    ev("A.ui('x',1)"); nav('/d/cuerpo'); g.wait_for_timeout(120); ok('Sin integrantes' in g.inner_text('#view'),'cuerpo técnico abre')
+    nav('/d/infra'); g.wait_for_timeout(120); ok('Cancha principal' in g.inner_text('#view'),'infraestructura muestra recintos')
+    nav('/d/mensualidades'); g.wait_for_timeout(120); ok('Por deportista'.lower() in g.inner_text('#view').lower(),'mensualidades abre')
+    # Directivos: el club crea la ficha y el directivo solo ve sus funciones
+    nav('/d/directivos'); g.wait_for_timeout(120); ev("A.dirSheet()"); g.wait_for_timeout(200)
+    rd=rut(18000011); g.fill('#dr-n','Teresa Demo'); g.fill('#dr-r',rd); g.fill('#dr-e','teresa@prueba.cl'); g.fill('#dr-c','Tesorera')
+    ev("document.querySelectorAll('input[name=dr-p]').forEach(i=>i.checked=i.value==='finanzas');A.saveDir('')"); g.wait_for_timeout(200)
+    ok(ev("S.directors.some(d=>d.email==='teresa@prueba.cl'&&d.perms.length===1)"),'club crea un directivo')
+    abrir('dirigente'); base('Sin Ficha',rut(18000012),'nadie@prueba.cl'); completar(); ok('crearte primero' in g.inner_text('#rg-err'),'sin ficha no se registra como directivo')
+    abrir('dirigente'); base('Teresa Demo',rd,'teresa@prueba.cl'); completar(); v=nuevoid(); ok(v[0]=='M','directivo recibe ID M')
+    g.get_by_role('button',name='Entendido').click(); g.wait_for_timeout(250)
+    ok(g.locator('#view .tile').count()==1 and 'Finanzas' in g.inner_text('#view'),'directivo ve solo sus funciones'); ok(ev("canDo('finanzas')&&!canDo('club')&&!canDo('asambleas')"),'permisos del directivo')
+    nav('/d/asambleas'); g.wait_for_timeout(150); ok(ev("location.hash")=='#/inicio','directivo no abre una función desactivada')
+    login('club@myclub.cl','demo')
+    nav('/d/apoderados'); g.wait_for_timeout(120); ok('Apoderado de' in g.inner_text('#view'),'club ve sus apoderados'); nav('/d/entrenadores'); g.wait_for_timeout(120); ok('por categoría' in g.inner_text('#view').lower(),'club ve sus entrenadores')
     nav('/perfil/editar'); g.wait_for_timeout(150); ok(g.locator('#view .lockf').count()==3 and g.locator('#ed-name').count()==0,'nombre, RUT y constitución bloqueados en club')
     g.set_input_files('input[type=file]','tools/logo-original.png'); g.wait_for_function("!!club('halcones').logo",timeout=5000); g.wait_for_timeout(150); ok(ev("club('halcones').logo.length")<400000,'logo reducido antes de guardar'); ok(g.locator('#ph-prev img.clog').count()==1,'vista previa del logo')
     g.fill('#ed-desc','Descripción actualizada del club'); g.fill('#ed-city','Ñuñoa'); g.get_by_role('button',name='Guardar cambios').click(); g.wait_for_timeout(250)

@@ -24,14 +24,14 @@ Deno.serve(async (req) => {
   const auth = req.headers.get('Authorization') ?? '';
   if (!auth.startsWith('Bearer ')) return json(401, { message: 'Debes iniciar sesión.' });
 
-  const { ids } = await req.json().catch(() => ({ ids: null }));
+  const { ids, amount } = await req.json().catch(() => ({ ids: null, amount: null }));
   if (!Array.isArray(ids) || !ids.length) return json(400, { message: 'No hay cobros para pagar.' });
 
   // Corre con la sesión del usuario: la base valida que los cobros sean suyos, de un solo club y que ese club tenga su cuenta conectada.
   const start = await fetch(`${SUPABASE_URL}/rest/v1/rpc/start_payment`, {
     method: 'POST',
     headers: { apikey: ANON_KEY, Authorization: auth, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ p_ids: ids }),
+    body: JSON.stringify({ p_ids: ids, p_amount: Number.isInteger(amount) ? amount : null }),
   });
   const pago = await start.json();
   if (!start.ok) return json(400, { message: pago.message ?? 'No pudimos preparar el pago.' });
