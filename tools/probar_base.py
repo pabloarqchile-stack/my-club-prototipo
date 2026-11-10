@@ -5,6 +5,7 @@ ejecuta cada caso con el rol y la identidad de un usuario, igual que la API.
 
 Uso:  pip install pgserver psycopg2-binary  &&  python tools/probar_base.py
 """
+import datetime
 import glob
 import json
 import os
@@ -629,7 +630,7 @@ def correr(t):
     cuotas = lambda: [r for r in t.rpc(club, 'my_state')['records'] if r['kind'] == 'charges' and r['id'].startswith(f'men_{tm}_{pd}_')]
     t.rechaza('deportista no fija mensualidades', dep, 'select public.set_team_fee(%s::uuid[], 1000)', ([tm],), 'permiso')
     fee(club, 30000)
-    t.check('mensualidad se cobra sin vencimiento', len(cuotas()) == 1 and cuotas()[0]['data']['amount'] == 30000 and cuotas()[0]['data']['due'] is None and cuotas()[0]['data']['kind'] == 'mensual')
+    t.check('mensualidad vence el último día del mes', len(cuotas()) == 1 and cuotas()[0]['data']['amount'] == 30000 and (datetime.date.fromisoformat(cuotas()[0]['data']['due']) + datetime.timedelta(1)).day == 1 and cuotas()[0]['data']['kind'] == 'mensual')
     t.rpc(dep, 'run_monthly')
     t.check('mensualidad no se duplica', len(cuotas()) == 1)
     regla = lambda **k: {'id': f'fee_{cid}_{pd}', 'clubId': cid, 'playerId': pd, 'amount': None, 'benefit': '', 'mode': 'pct', 'value': 0, **k}
@@ -646,6 +647,31 @@ def correr(t):
     guarda(club, 'feeRules', f'fee_{cid}_{pd}', regla(benefit='Beca', value=100))
     t.rpc(club, 'run_monthly')
     t.check('beca total no genera cuota', cuotas() == [])
+
+    # --- Estado por mensualidades vencidas ---
+    meses = lambda u: t.rpc(u, 'my_state')['fee_months'].get(pm['id'], 0)
+
+    def cobro_mes(mes, due=None, kind='mensual', team=tm):
+        rid = f'est_{kind}_{mes}'
+        guarda(club, 'charges', rid, {'id': rid, 'playerId': pd, 'clubId': cid, 'teamId': team, 'kind': kind, 'amount': 1000, 'status': 'pendiente', 'concept': f'Cuota {mes}', 'paidAt': None, 'due': due or f'2020-{mes:02d}-28'})
+        return rid
+    t.check('sin mensualidades vencidas', meses(club) == 0)
+    ids = [cobro_mes(m) for m in (1, 2)]
+    t.check('dos meses vencidos cuentan dos', meses(dep) == 2)
+    ids.append(cobro_mes(2, kind='mensual', due='2020-02-29'))
+    t.check('el mismo mes cuenta una vez', meses(dep) == 2)
+    otros = [cobro_mes(9, kind='matricula'), cobro_mes(10, kind='extraordinaria')]
+    t.check('matrícula y otros cobros no cuentan', meses(dep) == 2)
+    otros.append(cobro_mes(11, due='2099-01-31'))
+    t.check('mensualidad por vencer no cuenta', meses(dep) == 2)
+    ids += [cobro_mes(m) for m in (3, 4, 5)]
+    t.check('cinco meses vencidos', meses(club) == 5 and meses(dep) == 5)
+    t.check('el entrenador del club lo ve', meses(ent) == 5)
+    t.check('otra cuenta no lo ve', meses(ajeno) == 0)
+    t.rpc(club, 'record_manual_payment', ['est_mensual_1'], 'Efectivo')
+    t.check('pagar un mes baja el conteo', meses(dep) == 4)
+    t.rpc(club, 'record_manual_payment', [i for i in dict.fromkeys(ids) if i != 'est_mensual_1'] + otros, 'Efectivo')
+    t.check('al pagar todo vuelve a cero', meses(dep) == 0)
     t.check('matrículas pendientes sin vencimiento', all(r['data'].get('due') is None for r in t.rpc(club, 'my_state')['records'] if r['kind'] == 'charges' and r['data'].get('kind') == 'matricula' and r['data']['status'] == 'pendiente'))
     t.rpc(club, 'update_team', J({'id': tm, 'name': 'Equipo', 'matricula': 7000}))
     matri = lambda: [r for r in t.rpc(club, 'my_state')['records'] if r['kind'] == 'charges' and r['data'].get('kind') == 'matricula' and r['data'].get('playerId') == pd]

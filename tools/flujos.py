@@ -132,6 +132,13 @@ with sync_playwright() as p:
     ev("A.ui('x',1)"); nav('/d/cuerpo'); g.wait_for_timeout(120); ok('Sin integrantes' in g.inner_text('#view'),'cuerpo técnico abre')
     nav('/d/infra'); g.wait_for_timeout(120); ok('Cancha principal' in g.inner_text('#view'),'infraestructura muestra recintos')
     nav('/d/mensualidades'); g.wait_for_timeout(120); ok('Por deportista'.lower() in g.inner_text('#view').lower(),'mensualidades abre')
+    # Estado por mensualidades vencidas: 0-2 hábil, 3-4 en revisión, 5 o más suspendido
+    est=lambda p: ev(f"memStatus(S.memberships.find(m=>m.playerId==='{p}'&&m.clubId==='halcones'))")
+    ok(est('p_tomas')=='habil' and est('p_martin')=='revision' and est('p_maxi')=='suspendido','estado según meses vencidos')
+    ok(ev("(()=>{const b=overdueMonths(S.memberships.find(m=>m.playerId==='p_martin'&&m.clubId==='halcones'));S.charges.push({id:'mx',playerId:'p_martin',clubId:'halcones',kind:'matricula',status:'pendiente',amount:1,due:'2020-01-31'},{id:'ex',playerId:'p_martin',clubId:'halcones',kind:'extraordinaria',status:'pendiente',amount:1,due:'2020-02-29'});return overdueMonths(S.memberships.find(m=>m.playerId==='p_martin'&&m.clubId==='halcones'))===b})()"),'matrícula y otros cobros no cuentan')
+    nav('/d/jugadores'); g.wait_for_timeout(120); t=g.inner_text('#view'); ok('En revisión' in t and 'mensualidades vencidas' in t,'club ve estado en amarillo y meses vencidos')
+    ok(g.locator('#view .b-yel').count()>0,'en revisión usa amarillo')
+    ev("(()=>{S.charges.filter(c=>c.playerId==='p_maxi'&&c.kind==='mensual'&&c.status==='pendiente'&&c.due<today()).slice(0,1).forEach(c=>c.status='pagado')})()"); ok(est('p_maxi')=='revision','pagar lo necesario cambia de estado')
     # Directivos: el club crea la ficha y el directivo solo ve sus funciones
     nav('/d/directivos'); g.wait_for_timeout(120); ev("A.dirSheet()"); g.wait_for_timeout(200)
     rd=rut(18000011); g.fill('#dr-n','Teresa Demo'); g.fill('#dr-r',rd); g.fill('#dr-e','teresa@prueba.cl'); g.fill('#dr-c','Tesorera')

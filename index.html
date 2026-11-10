@@ -104,7 +104,7 @@ body.ocupado .btn{opacity:.6;pointer-events:none}
 .ibtn.on{background:var(--psoft);color:var(--ptext)}
 /* Insignias */
 .badge{display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:650;padding:3px 9px;border-radius:999px;white-space:nowrap}
-.b-ok{background:var(--asoft);color:var(--atext)}.b-warn{background:var(--wsoft);color:var(--wtext)}
+.b-yel{background:#FFD84D;color:#4A3B00}.b-ok{background:var(--asoft);color:var(--atext)}.b-warn{background:var(--wsoft);color:var(--wtext)}
 .b-bad{background:var(--danger);color:#fff}.b-badsoft{background:var(--dsoft);color:var(--dtext)}
 .b-info{background:var(--psoft);color:var(--ptext)}.b-mute{background:var(--fill);color:var(--muted)}
 /* Formularios */
@@ -586,18 +586,22 @@ function seedMore(s, D, T, teamOf) {
   s.charges = []; s.receipts = [];
   const ch = (playerId, clubId, concept, kind, amount, due, status = 'pendiente', extra = {}) => { const c = { id: 'c' + (s.charges.length + 1), playerId, clubId, concept, kind, amount, due, status, paidAt: status === 'pagado' ? addDays(due, -randInt(1, 6)) : null, ...extra }; s.charges.push(c); return c; };
   const fee = m => m.clubId === 'halcones' ? (teamOf(m.teamId).category === 'Adulto' ? 25000 : 18000) : m.clubId === 'biobio' ? 22000 : 30000;
-  const morosos = { p_diego: [-84, -54, -24], p_tomas: [-24], p_fernanda: [-54, -24], p_ignacio: [-24] };
+  const ME = n => { const d = parse(D(0)); return iso(new Date(d.getFullYear(), d.getMonth() + n + 1, 0)); };
+  const morosos = { p_diego: [-3, -2, -1], p_tomas: [-1], p_fernanda: [-2, -1], p_ignacio: [-1], p_martin: [-2, -1], p_maxi: [-2, -1] };
   s.memberships.filter(m => m.status === 'habil').forEach(m => {
-    [-54, -24].forEach(o => ch(m.playerId, m.clubId, 'Cuota mensual ' + monthName(D(o)), 'mensual', fee(m), D(o), (morosos[m.playerId] || []).includes(o) ? 'pendiente' : 'pagado'));
-    ch(m.playerId, m.clubId, 'Cuota mensual ' + monthName(D(6)), 'mensual', fee(m), D(6));
+    [-2, -1].forEach(o => ch(m.playerId, m.clubId, 'Cuota mensual ' + monthName(ME(o)), 'mensual', fee(m), ME(o), (morosos[m.playerId] || []).includes(o) ? 'pendiente' : 'pagado'));
+    ch(m.playerId, m.clubId, 'Cuota mensual ' + monthName(ME(0)), 'mensual', fee(m), ME(0));
   });
-  ch('p_diego', 'halcones', 'Cuota mensual ' + monthName(D(-84)), 'mensual', 25000, D(-84));
+  ch('p_diego', 'halcones', 'Cuota mensual ' + monthName(ME(-3)), 'mensual', 25000, ME(-3));
+  // Un deportista En revisión y otro Suspendido por mensualidades vencidas.
+  ch('p_martin', 'halcones', 'Cuota mensual ' + monthName(ME(-3)), 'mensual', 18000, ME(-3));
+  [-5, -4, -3].forEach(o => ch('p_maxi', 'halcones', 'Cuota mensual ' + monthName(ME(o)), 'mensual', 18000, ME(o)));
   ch('p_matias', 'halcones', 'Inscripción Liga Amateur – segunda rueda', 'extraordinaria', 15000, D(10));
   ch('p_tomas', 'halcones', 'Camiseta oficial 2026', 'extraordinaria', 22000, D(15));
   ch('p_tomas', 'halcones', 'Matrícula temporada 2027', 'matricula', 40000, null);
   ch('p_sofia', 'nautico', 'Matrícula temporada 2027', 'matricula', 45000, null);
   ch('p_sofia', 'nautico', 'Gorra y lentes oficiales', 'extraordinaria', 16000, D(12));
-  [-150, -120, -90].forEach(o => ch('p_renato', 'biobio', 'Cuota mensual ' + monthName(D(o)), 'mensual', 15000, D(o)));
+  [-5, -4, -3].forEach(o => ch('p_renato', 'biobio', 'Cuota mensual ' + monthName(ME(o)), 'mensual', 15000, ME(o)));
 
   // --- Credenciales federadas (temporada actual) ---
   const season = parse(T).getFullYear();
@@ -869,6 +873,25 @@ const clubMembers = cid => S.memberships.filter(m => m.clubId === cid && ['habil
 const pendingCharges = pid => S.charges.filter(c => c.playerId === pid && c.status === 'pendiente');
 const debtCharges = (pid, cid) => pendingCharges(pid).filter(c => c.due < today() && (!cid || c.clubId === cid));
 const debtOf = (pid, cid) => sum(debtCharges(pid, cid), c => c.amount);
+// El estado depende solo de los meses de mensualidad vencidos en ese club y deporte. Un trámite que suspende manda sobre esto.
+const monthEnd = ds => { const d = parse(ds.slice(0, 7) + '-01'); return iso(new Date(d.getFullYear(), d.getMonth() + 1, 0)); };
+const overdueMonths = m => {
+  if (m.feeMonths !== undefined) return m.feeMonths;
+  const meses = new Set();
+  S.charges.forEach(c => {
+    if (c.playerId !== m.playerId || c.clubId !== m.clubId || c.kind !== 'mensual' || c.status !== 'pendiente' || !c.due || c.due >= today()) return;
+    const t = c.teamId && S.teams.find(x => x.id === c.teamId);
+    if (!t || t.sport === m.sport) meses.add(c.due.slice(0, 7));
+  });
+  return meses.size;
+};
+const memStatus = m => { if (m.status !== 'habil') return m.status; const n = overdueMonths(m); return n >= 5 ? 'suspendido' : n >= 3 ? 'revision' : 'habil'; };
+const memBadge = m => stBadge(memStatus(m));
+const mesesTxt = n => `${n} mensualidad${n === 1 ? '' : 'es'} vencida${n === 1 ? '' : 's'}`;
+const feeNotes = pid => activeMems(pid).filter(m => m.status === 'habil' && memStatus(m) !== 'habil').map(m => {
+  const n = overdueMonths(m), sus = memStatus(m) === 'suspendido', cl = `${esc(m.sport)} · ${esc(club(m.clubId).short)}`;
+  return note(sus ? `<b>Suspendido en ${cl}:</b> ${mesesTxt(n)}. No puede ser convocado. Paga ${n - 4} para pasar a En revisión o ${n - 2} para volver a Hábil.` : `<b>En revisión en ${cl}:</b> ${mesesTxt(n)}. Paga ${n - 2} para volver a Hábil.`, sus ? 'bad' : 'warn', 'alert');
+}).join('');
 const openSep = (pid, cid, sp) => S.separations.find(x => x.playerId === pid && x.clubId === cid && x.sport === sp && ['en_plazo', 'reclamo'].includes(x.status));
 function notify(to, text, href = '/inicio', clubId = null, ref = null, teams = null, sport = null) { if (S.session.real) return realNotify(to, text, href, clubId, ref, teams, sport); [].concat(to).forEach(r => S.notifs.unshift({ id: uid('n'), to: r, text, date: today(), read: false, href, clubId })); }
 const myNotifs = () => S.notifs.filter(n => n.to === role() && (isDemo() || !/^n\d+$/.test(n.id)) && (!n.clubId || !['directivo', 'entrenador'].includes(n.to) || n.clubId === S.users[n.to].clubId));
@@ -1169,7 +1192,7 @@ const icon = (n, s = 22, cls = '') => `<svg width="${s}" height="${s}" viewBox="
 const LOGO = s => `<img src="icons/escudo.png" width="${s}" height="${s}" alt="" style="display:block;object-fit:contain">`;
 
 const badge = (t, k = 'info') => `<span class="badge b-${k}">${t}</span>`;
-const ST = { habil: ['Hábil', 'ok'], pendiente: ['Pendiente', 'warn'], suspendido: ['Suspendido', 'bad'], desvinculado: ['Desvinculado', 'mute'] };
+const ST = { habil: ['Hábil', 'ok'], revision: ['En revisión', 'yel'], pendiente: ['Pendiente', 'warn'], suspendido: ['Suspendido', 'bad'], desvinculado: ['Desvinculado', 'mute'] };
 const stBadge = s => badge(ST[s][0], ST[s][1]);
 function avatar(name, size = 40, photo = null) {
   if (photo) return `<img class="av" src="${esc(photo)}" alt="" style="width:${size}px;height:${size}px;object-fit:cover">`;
@@ -1658,7 +1681,7 @@ route('/pagos', {
       if (!pend.length) body = empty('check', 'Estás al día', 'No hay cobros pendientes.');
       else {
         const late = pend.filter(c => c.due < today());
-        body = (late.length ? note(`Deuda vencida: <b>${clp(sum(late, c => c.amount))}</b>`, 'bad', 'alert') : '') + `<div class="list">${pend.map(c => `<label class="li"><input type="checkbox" name="chg" value="${c.id}" ${c.due < today() ? 'checked' : ''} onchange="A.toggleCh()" style="width:22px;height:22px;accent-color:var(--primary2);flex-shrink:0" aria-label="Seleccionar ${esc(c.concept)}"><span class="tx"><span class="t">${esc(c.concept)}</span><span class="s">${club(c.clubId).short} · ${KIND_LABEL[c.kind]} · ${dueTxt(c)}${c.original ? ' · total ' + clp(c.original) : ''}</span></span><span class="center"><b>${clp(c.amount)}</b>${c.due < today() ? `<br>${badge('Vencida', 'bad')}` : ''}</span></label>`).join('')}</div><button class="btn ok" id="pay-btn" onclick="A.paySelected()">Selecciona qué pagar</button>`;
+        body = feeNotes(subj().id) + (late.length ? note(`Deuda vencida: <b>${clp(sum(late, c => c.amount))}</b>`, 'bad', 'alert') : '') + `<div class="list">${pend.map(c => `<label class="li"><input type="checkbox" name="chg" value="${c.id}" ${c.due < today() ? 'checked' : ''} onchange="A.toggleCh()" style="width:22px;height:22px;accent-color:var(--primary2);flex-shrink:0" aria-label="Seleccionar ${esc(c.concept)}"><span class="tx"><span class="t">${esc(c.concept)}</span><span class="s">${club(c.clubId).short} · ${KIND_LABEL[c.kind]} · ${dueTxt(c)}${c.original ? ' · total ' + clp(c.original) : ''}</span></span><span class="center"><b>${clp(c.amount)}</b>${c.due < today() ? `<br>${badge('Vencida', 'bad')}` : ''}</span></label>`).join('')}</div><button class="btn ok" id="pay-btn" onclick="A.paySelected()">Selecciona qué pagar</button>`;
       }
     } else body = paid.length ? list(paid.map(c => li({ ic: 'receipt', color: 'green', title: esc(c.concept), sub: `${club(c.clubId).short} · pagado ${fDate(c.paidAt)}`, right: `<b>${clp(c.amount)}</b>`, on: `A.showReceipt('${c.id}')` }))) : empty('receipt', 'Sin pagos', 'Tus comprobantes aparecerán aquí.');
     return kidBar() + partCards(p.id) + seg('payTab', [['pend', `Pendientes (${pend.length})`], ['hist', 'Pagados']], t) + body;
@@ -1729,7 +1752,7 @@ const attOf = (eid, pid) => (S.att[eid] || {})[pid];
 A.att = (eid, v) => { const p = subj(); (S.att[eid] = S.att[eid] || {})[p.id] = v; commit(v === 'si' ? 'Asistencia confirmada' : 'Avisamos que no podrás asistir'); };
 function attButtons(e, pid) {
   const v = attOf(e.id, pid), m = activeMems(pid).find(x => x.teamId === e.teamId);
-  if (m && m.status === 'suspendido') return `<div class="mt8">${badge('Suspendido: no convocable', 'bad')}</div>`;
+  if (m && memStatus(m) === 'suspendido') return `<div class="mt8">${badge('Suspendido: no convocable', 'bad')}</div>`;
   return `<div class="btns"><button class="btn sm ${v === 'si' ? 'ok' : 's2'}" onclick="A.att('${e.id}','si')">${icon('check', 16)}Voy</button><button class="btn sm ${v === 'no' ? 'danger' : 's2'}" onclick="A.att('${e.id}','no')">${icon('x', 16)}No voy</button></div>`;
 }
 function evCard(e, pid, withBtns = true) {
@@ -1756,7 +1779,7 @@ route('/asistencia', {
   title: 'Confirmar asistencia', roles: ['jugador', 'apoderado'], render: () => {
     const p = subj(), l = subjEvents(p.id).filter(e => e.date >= today()), up = l.slice(0, 10), done = l.filter(e => attOf(e.id, p.id)).length;
     const sus = activeMems(p.id).filter(m => m.status === 'suspendido');
-    return kidBar() + sus.map(m => note(`<b>Suspendido en ${m.sport}.</b> Durante el plazo no puede ser convocado.`, 'bad', 'alert')).join('') + (up.length ? `<div class="kpis">${kpi('Por confirmar', l.length - done)}${kpi('Confirmados', done, 'atext')}</div>` + up.map(e => evCard(e, p.id)).join('') : empty('check', 'Sin citaciones', 'Las próximas actividades aparecerán aquí.'));
+    return kidBar() + sus.map(m => note(`<b>Suspendido en ${m.sport}.</b> Durante el plazo no puede ser convocado.`, 'bad', 'alert')).join('') + feeNotes(p.id) + (up.length ? `<div class="kpis">${kpi('Por confirmar', l.length - done)}${kpi('Confirmados', done, 'atext')}</div>` + up.map(e => evCard(e, p.id)).join('') : empty('check', 'Sin citaciones', 'Las próximas actividades aparecerán aquí.'));
   }
 });
 
@@ -2009,10 +2032,10 @@ route('/cotizacion/:id', {
    ====================================================================== */
 HOME_SUMMARY.jugador = () => {
   const p = player(S.users.jugador), ms = activeMems(p.id), next = subjEvents(p.id).find(e => e.date >= today()), pend = pendingCharges(p.id), a = S.assemblies.find(x => x.status === 'en_curso' && myClubs().includes(x.clubId));
-  return `<div class="card hero"><div class="row">${avatar(p.name, 48, p.photo)}<div class="sp"><div class="b">${esc(p.name)}</div><div class="small muted">${ms.length ? ms.map(m => `${SPORTS[m.sport]} ${club(m.clubId).short}`).join(' · ') : 'Sin club'}</div></div></div><div class="row wrap gap8 mt8">${ms.length ? ms.map(m => stBadge(m.status)).join('') : ''}</div></div>` +
+  return `<div class="card hero"><div class="row">${avatar(p.name, 48, p.photo)}<div class="sp"><div class="b">${esc(p.name)}</div><div class="small muted">${ms.length ? ms.map(m => `${SPORTS[m.sport]} ${club(m.clubId).short}`).join(' · ') : 'Sin club'}</div></div></div><div class="row wrap gap8 mt8">${ms.length ? ms.map(m => memBadge(m)).join('') : ''}</div></div>` +
     (linkedClubs().length ? list(linkedClubs().map(c => clubRow(c))) : '') + (ms.some(m => m.status === 'pendiente') ? note(MSG_INCORPORACION, 'warn', 'clock') + btn('Simular aceptación del club', 'A.simJoin()', 's2 sm') + '<div class="mt12"></div>' : '') +
     (!ms.length ? note('Aún no estás vinculado a un club.') + goBtn('Vincular al club', '/unirme', 's2', 'building') + '<div class="mt12"></div>' : '') +
-    (ms.some(m => m.status === 'suspendido') ? note('Estás <b>Suspendido</b> durante un plazo de trámite. Revísalo en Mis trámites.', 'bad', 'alert') : '') +
+    (ms.some(m => m.status === 'suspendido') ? note('Estás <b>Suspendido</b> durante un plazo de trámite. Revísalo en Mis trámites.', 'bad', 'alert') : '') + feeNotes(p.id) +
     (a ? `<button class="note ok" style="border:0;width:100%;text-align:left" onclick="go('/escanear')">${icon('scan', 18)}<div><b>Asamblea en curso:</b> ${esc(a.title)}. Toca para escanear el QR.</div></button>` : '') +
     (next ? sec('Tu próxima actividad') + evCard(next, p.id) : '') + (pend.length ? `<button class="li card" style="padding:12px 14px" onclick="go('/pagos')"><span class="ic c-orange">${icon('card', 20)}</span><span class="tx"><span class="t">${pend.length} cobros pendientes</span><span class="s">${clp(sum(pend, c => c.amount))}</span></span><span class="chev">${icon('chev', 18)}</span></button>` : '');
 };
@@ -2028,7 +2051,7 @@ const CV_SEED = { p_matias: { sel: ['Preselección Regional Metropolitana Sub-23
 route('/j/cv', {
   title: 'Currículum deportivo', roles: ['jugador'], render: () => {
     S.cvExtra = S.cvExtra || CV_SEED; const p = player(S.users.jugador), c = cvData(p.id);
-    return note('Se genera automáticamente con tu historial. Nunca se borra, aunque cambies de club.') + `<div class="kpis">${kpi('Partidos', c.played)}${kpi('Goles', c.goles, 'atext')}${kpi('Asistencias', c.asist)}${kpi('Minutos', thou(c.min))}</div>${sec('Clubes')}${c.ms.length ? list(c.ms.map(m => li({ av: clubLogo(club(m.clubId), 40), title: club(m.clubId).short, sub: `${SPORTS[m.sport]} ${m.sport} · ${fDateY(m.since)} a ${m.until ? fDateY(m.until) : 'hoy'}`, right: stBadge(m.status) }))) : empty('building', 'Sin clubes', 'Tu historial aparecerá aquí.')}${sec('Torneos')}${c.ts.length ? list(c.ts.map(t => li({ ic: 'trophy', color: 'yellow', title: esc(t.name), sub: fDateY(t.start), href: '/torneo/' + t.id }))) : '<p class="muted small center">Sin torneos registrados</p>'}${c.sel.length ? sec('Selecciones') + list(c.sel.map(x => li({ ic: 'flag', color: 'red', title: esc(x) }))) : ''}${c.logros.length ? sec('Logros') + list(c.logros.map(x => li({ ic: 'star', color: 'orange', title: esc(x) }))) : ''}${goBtn('Certificado acreditado con QR', '/j/cv-imprimir', 'ok', 'doc')}`;
+    return note('Se genera automáticamente con tu historial. Nunca se borra, aunque cambies de club.') + `<div class="kpis">${kpi('Partidos', c.played)}${kpi('Goles', c.goles, 'atext')}${kpi('Asistencias', c.asist)}${kpi('Minutos', thou(c.min))}</div>${sec('Clubes')}${c.ms.length ? list(c.ms.map(m => li({ av: clubLogo(club(m.clubId), 40), title: club(m.clubId).short, sub: `${SPORTS[m.sport]} ${m.sport} · ${fDateY(m.since)} a ${m.until ? fDateY(m.until) : 'hoy'}`, right: memBadge(m) }))) : empty('building', 'Sin clubes', 'Tu historial aparecerá aquí.')}${sec('Torneos')}${c.ts.length ? list(c.ts.map(t => li({ ic: 'trophy', color: 'yellow', title: esc(t.name), sub: fDateY(t.start), href: '/torneo/' + t.id }))) : '<p class="muted small center">Sin torneos registrados</p>'}${c.sel.length ? sec('Selecciones') + list(c.sel.map(x => li({ ic: 'flag', color: 'red', title: esc(x) }))) : ''}${c.logros.length ? sec('Logros') + list(c.logros.map(x => li({ ic: 'star', color: 'orange', title: esc(x) }))) : ''}${goBtn('Certificado acreditado con QR', '/j/cv-imprimir', 'ok', 'doc')}`;
   }
 });
 route('/j/cv-imprimir', {
@@ -2049,7 +2072,7 @@ route('/j/certificado', {
 });
 A.payFed = (sp, cid) => { const p = subj(); let c = S.charges.find(x => x.kind === 'federacion' && x.playerId === p.id && x.status === 'pendiente' && x.meta.sport === sp); if (!c) c = addCharge({ playerId: p.id, clubId: cid, concept: `Cuota anual ${season()} · ${fedName(sp)}`, kind: 'federacion', amount: S.fedConfig[sp].annual, meta: { sport: sp } }); save(); go('/pagar/' + c.id); };
 function credCard(p, m, cr) {
-  const st = m ? ST[m.status] : ST.desvinculado, c = club(cr.clubId); registerDoc(cr.code, 'Credencial federada', `${cr.sport} · temporada ${cr.season}`, p.name);
+  const st = m ? ST[memStatus(m)] : ST.desvinculado, c = club(cr.clubId); registerDoc(cr.code, 'Credencial federada', `${cr.sport} · temporada ${cr.season}`, p.name);
   return `<div class="cred mb12"><div class="row"><div class="sp"><div class="tiny" style="opacity:.8;text-transform:uppercase;letter-spacing:.06em">${esc(fedName(cr.sport))}</div><div class="b" style="font-size:17px">Credencial federada</div></div>${LOGO(46)}</div><div class="row mt12" style="align-items:flex-start;position:relative;z-index:1">${avatar(p.name, 74, p.photo)}<div class="sp"><div class="b" style="font-size:18px">${esc(p.name)}</div><div class="small" style="opacity:.9">RUT ${p.rut}</div><div class="small mt8">${SPORTS[cr.sport]} ${cr.sport}</div><div class="row gap8 small mt8">${clubLogo(c, 26)}<span>${esc(c.short)}</span></div><div class="small">Temporada ${cr.season}</div></div></div><div class="row mt12" style="position:relative;z-index:1"><div class="sp">${badge(st[0], st[1])}<div class="tiny mt8" style="opacity:.85">${cr.code}</div></div><span class="qrw">${qrLink(cr.code, 88)}</span></div></div>`;
 }
 route('/j/credencial', {
@@ -2066,14 +2089,14 @@ route('/j/credencial', {
    ====================================================================== */
 HOME_SUMMARY.apoderado = () => {
   const ks = myKids(), a = S.assemblies.find(x => x.status === 'en_curso' && myClubs().includes(x.clubId));
-  return `<div class="card hero"><div class="small muted">Pupilos</div><div class="b" style="font-size:18px">${ks.map(k => esc(k.player.first)).join(' y ')}</div></div>` + list(ks.map(k => { const d = debtOf(k.playerId), m = activeMems(k.playerId)[0]; return li({ av: avatar(k.player.name, 42, k.player.photo), title: esc(k.player.name), sub: m ? `${SPORTS[m.sport]} ${club(m.clubId).short}` : 'Sin club', right: d ? badge('Deuda ' + clp(d), 'bad') : (m ? stBadge(m.status) : ''), on: `A.pickKid('${k.playerId}','/a/pupilos')` }); })) + (linkedClubs().length ? sec('Clubes') + list(linkedClubs().map(c => clubRow(c))) : '') +
+  return `<div class="card hero"><div class="small muted">Pupilos</div><div class="b" style="font-size:18px">${ks.map(k => esc(k.player.first)).join(' y ')}</div></div>` + list(ks.map(k => { const d = debtOf(k.playerId), m = activeMems(k.playerId)[0]; return li({ av: avatar(k.player.name, 42, k.player.photo), title: esc(k.player.name), sub: m ? `${SPORTS[m.sport]} ${club(m.clubId).short}` : 'Sin club', right: m && memStatus(m) !== 'habil' ? memBadge(m) : d ? badge('Deuda ' + clp(d), 'bad') : (m ? memBadge(m) : ''), on: `A.pickKid('${k.playerId}','/a/pupilos')` }); })) + (linkedClubs().length ? sec('Clubes') + list(linkedClubs().map(c => clubRow(c))) : '') +
     (a ? `<button class="note ok" style="border:0;width:100%;text-align:left" onclick="go('/escanear')">${icon('scan', 18)}<div><b>Asamblea en curso:</b> ${esc(a.title)}. Toca para escanear el QR.</div></button>` : '');
 };
 A.pickKid = (id, href) => { S.ui.kid = id; save(); go(href); };
 route('/a/pupilos', {
   title: 'Mis pupilos', tab: 'pupilos', root: true, roles: ['apoderado'], render: () => {
     const p = subj(), k = myKids().find(x => x.playerId === p.id), ms = activeMems(p.id), ev = subjEvents(p.id).find(e => e.date >= today()), pend = pendingCharges(p.id);
-    return kidBar() + `<div class="card"><div class="row">${avatar(p.name, 56, p.photo)}<div class="sp"><h3>${esc(p.name)}</h3><div class="small muted">${k.rel === 'Madre' ? 'Eres su madre' : 'Parentesco: ' + esc(k.rel)} · ${ageOf(p.birth)} años</div><div class="small muted">RUT ${p.rut}</div></div></div></div>${kidAccess(p)}${sec('Clubes')}${ms.length ? list(ms.map(m => li({ av: clubLogo(club(m.clubId), 40), title: `${club(m.clubId).short}`, sub: `${SPORTS[m.sport]} ${m.sport}${m.teamId ? ' · ' + team(m.teamId).name : ''}`, right: stBadge(m.status), href: '/club/' + m.clubId }))) : empty('building', 'Sin club', 'Solicita su incorporación a un club.', goBtn('Unirme a un club', '/unirme'))}${ev ? sec('Próxima actividad') + evCard(ev, p.id) : ''}${list([li({ ic: 'card', color: 'orange', title: 'Cuotas y matrícula', sub: pend.length ? `${pend.length} pendientes · ${clp(sum(pend, c => c.amount))}` : 'Al día', href: '/pagos' }), li({ ic: 'chart', color: 'teal', title: 'Reportes', href: '/a/reportes' }), li({ ic: 'swap', color: 'indigo', title: 'Cambio de club', href: '/cambio-club' }), li({ ic: 'userminus', color: 'red', title: 'Renuncia', href: '/renuncia' }), li({ ic: 'clipboard', title: 'Trámites', href: '/tramites' })])}${goBtn('Registrar a un hijo', '/a/registrar-hijo', 's2', 'userplus')}`;
+    return kidBar() + `<div class="card"><div class="row">${avatar(p.name, 56, p.photo)}<div class="sp"><h3>${esc(p.name)}</h3><div class="small muted">${k.rel === 'Madre' ? 'Eres su madre' : 'Parentesco: ' + esc(k.rel)} · ${ageOf(p.birth)} años</div><div class="small muted">RUT ${p.rut}</div></div></div></div>${kidAccess(p)}${sec('Clubes')}${ms.length ? list(ms.map(m => li({ av: clubLogo(club(m.clubId), 40), title: `${club(m.clubId).short}`, sub: `${SPORTS[m.sport]} ${m.sport}${m.teamId ? ' · ' + team(m.teamId).name : ''}`, right: memBadge(m), href: '/club/' + m.clubId }))) : empty('building', 'Sin club', 'Solicita su incorporación a un club.', goBtn('Unirme a un club', '/unirme'))}${ev ? sec('Próxima actividad') + evCard(ev, p.id) : ''}${list([li({ ic: 'card', color: 'orange', title: 'Cuotas y matrícula', sub: pend.length ? `${pend.length} pendientes · ${clp(sum(pend, c => c.amount))}` : 'Al día', href: '/pagos' }), li({ ic: 'chart', color: 'teal', title: 'Reportes', href: '/a/reportes' }), li({ ic: 'swap', color: 'indigo', title: 'Cambio de club', href: '/cambio-club' }), li({ ic: 'userminus', color: 'red', title: 'Renuncia', href: '/renuncia' }), li({ ic: 'clipboard', title: 'Trámites', href: '/tramites' })])}${goBtn('Registrar a un hijo', '/a/registrar-hijo', 's2', 'userplus')}`;
   }
 });
 // Un pupilo registrado por su apoderado no tiene clave propia hasta que el apoderado le da acceso.
@@ -2113,7 +2136,7 @@ const curTeam = () => team(coach().teams.includes(S.ui.coachTeam) ? S.ui.coachTe
 const teamBar = () => chips('coachTeam', coachTeams().map(t => [t.id, t.name]), curTeam().id);
 const nextEvent = tid => S.events.filter(e => e.teamId === tid && e.date >= today()).sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time))[0];
 HOME_SUMMARY.entrenador = () => {
-  const t = curTeam(), e = nextEvent(t.id), pend = S.proposals.filter(p => p.status === 'pendiente' && p.by === coach().by), sus = teamMembers(t.id).filter(m => m.status === 'suspendido').length;
+  const t = curTeam(), e = nextEvent(t.id), pend = S.proposals.filter(p => p.status === 'pendiente' && p.by === coach().by), sus = teamMembers(t.id).filter(m => memStatus(m) === 'suspendido').length;
   return `<button class="card hero" style="border:0;width:100%;text-align:left" onclick="go('/club/${t.clubId}')"><div class="row">${clubLogo(club(t.clubId), 48)}<div class="sp"><div class="small muted">${esc(club(t.clubId).name)}</div><div class="b" style="font-size:18px">Head coach · ${coach().sport}</div></div></div></button>${teamBar()}<div class="kpis">${kpi('Plantel', teamMembers(t.id).length)}${kpi('Suspendidos', sus, sus ? 'dtext' : '')}${kpi('Propuestas en VB', pend.length, pend.length ? 'wtext' : '')}${kpi('Encuestas', S.polls.filter(p => p.by === coach().by && pollOpen(p)).length)}</div>${e ? sec('Próximo') + `<button class="card ev" style="border:0;width:100%;text-align:left;color:inherit" onclick="go('/e/evento/${e.id}')"><div class="when"><b>${parse(e.date).getDate()}</b><span>${MESES_C[parse(e.date).getMonth()]}</span></div><div class="sp"><div>${badge(...EV_TYPES[e.type])}</div><div class="b mt8">${esc(e.title)}</div><div class="small muted">${relDay(e.date)} · ${e.time} · ${e.cited.length} citados</div></div></button>` : ''}`;
 };
 route('/e/eventos', {
@@ -2135,7 +2158,7 @@ route('/e/nuevo-evento', {
   title: 'Nuevo evento', roles: ['entrenador'], render: () => teamBar() + `<div class="card">${select('ne-type', 'Tipo', [['partido', 'Partido'], ['entrenamiento', 'Entrenamiento']], 'partido')}${inp('ne-date', 'Fecha', `type="date" value="${addDays(today(), 3)}"`)}${inp('ne-time', 'Hora', 'type="time" value="19:30"')}${inp('ne-place', 'Lugar', `value="Cancha ${esc(club(coach().clubId).short)}" autocomplete="off"`)}${inp('ne-rival', 'Rival (solo partidos)', 'autocomplete="off"')}</div>${btn('Crear evento', 'A.addEvent()', 'ok')}`
 });
 A.cite = (eid, pid) => { const e = S.events.find(x => x.id === eid), i = e.cited.indexOf(pid); i >= 0 ? e.cited.splice(i, 1) : e.cited.push(pid); commit(); };
-A.citeAll = eid => { const e = S.events.find(x => x.id === eid); e.cited = teamMembers(e.teamId).filter(m => m.status === 'habil').map(m => m.playerId); notify('jugador', `Citación: ${e.title}, ${fDay(e.date)} ${e.time}.`, '/calendario'); notify('apoderado', `Citación: ${e.title}, ${fDay(e.date)} ${e.time}.`, '/calendario'); commit('Citación enviada a los deportistas hábiles'); };
+A.citeAll = eid => { const e = S.events.find(x => x.id === eid); e.cited = teamMembers(e.teamId).filter(m => ['habil', 'revision'].includes(memStatus(m))).map(m => m.playerId); notify('jugador', `Citación: ${e.title}, ${fDay(e.date)} ${e.time}.`, '/calendario'); notify('apoderado', `Citación: ${e.title}, ${fDay(e.date)} ${e.time}.`, '/calendario'); commit('Citación enviada a los deportistas hábiles'); };
 A.mark = (eid, pid) => { const e = S.events.find(x => x.id === eid), i = e.present.indexOf(pid); i >= 0 ? e.present.splice(i, 1) : e.present.push(pid); commit(); };
 A.saveResult = eid => { const e = S.events.find(x => x.id === eid), gf = val('rs-gf'), gc = val('rs-gc'); if (gf === '' || gc === '') return toast('Indica ambos marcadores', 'warn'); e.result = { gf: +gf, gc: +gc }; commit('Resultado registrado'); };
 A.statSheet = (eid, pid) => {
@@ -2147,11 +2170,11 @@ route('/e/evento/:id', {
   title: 'Detalle del evento', roles: ['entrenador'], render: p => {
     const e = S.events.find(x => x.id === p.id); if (!e) return empty('calendar', 'Evento no encontrado', '');
     const mem = teamMembers(e.teamId), t = S.ui.evSec || 'citar', att = S.att[e.id] || {};
-    const rows = mem.map(m => { const pl = player(m.playerId), sus = m.status === 'suspendido', cited = e.cited.includes(pl.id), a = att[pl.id];
-      if (t === 'citar') return `<div class="li">${avatar(pl.name, 38, pl.photo)}<span class="tx"><span class="t">${esc(pl.name)}</span><span class="s">${sus ? '' : a === 'si' ? 'Confirmó' : a === 'no' ? 'No asistirá' : 'Sin respuesta'}</span></span>${sus ? badge('Suspendido', 'bad') : tog(cited, `A.cite('${e.id}','${pl.id}')`)}</div>`;
+    const rows = mem.map(m => { const pl = player(m.playerId), sus = memStatus(m) === 'suspendido', cited = e.cited.includes(pl.id), a = att[pl.id];
+      if (t === 'citar') return `<div class="li">${avatar(pl.name, 38, pl.photo)}<span class="tx"><span class="t">${esc(pl.name)}</span><span class="s">${sus ? '' : memStatus(m) === 'revision' ? 'En revisión · ' : ''}${sus ? '' : a === 'si' ? 'Confirmó' : a === 'no' ? 'No asistirá' : 'Sin respuesta'}</span></span>${sus ? badge('Suspendido', 'bad') : tog(cited, `A.cite('${e.id}','${pl.id}')`)}</div>`;
       if (t === 'lista') return `<div class="li">${avatar(pl.name, 38, pl.photo)}<span class="tx"><span class="t">${esc(pl.name)}</span></span>${sus ? badge('Suspendido', 'bad') : tog(e.present.includes(pl.id), `A.mark('${e.id}','${pl.id}')`)}</div>`;
       const s = e.stats[pl.id]; return li({ av: avatar(pl.name, 38, pl.photo), title: esc(pl.name), sub: s ? `${s.goles} G · ${s.asist} A · ${s.min} min · ${s.ta} TA · ${s.tr} TR` : 'Sin registrar', on: `A.statSheet('${e.id}','${pl.id}')` }); }).join('');
-    const sus = mem.filter(m => m.status === 'suspendido').length;
+    const sus = mem.filter(m => memStatus(m) === 'suspendido').length;
     return `<div class="card"><div>${badge(...EV_TYPES[e.type])}</div><h3 class="mt8">${esc(e.title)}</h3><div class="small muted mt8">${fLong(e.date)} · ${e.time}<br>${esc(e.place)}</div></div>` + seg('evSec', [['citar', `Citar (${e.cited.length})`], ['lista', `Lista (${e.present.length})`], ['stats', 'Estadísticas']], t) +
       (t === 'citar' ? (sus ? note('Los deportistas suspendidos no pueden ser convocados.', 'bad', 'alert') : '') + btn('Citar a todos los hábiles', `A.citeAll('${e.id}')`, 's2', 'megaphone') + '<div class="mt12"></div>' : '') + `<div class="list">${rows}</div>` +
       (e.type === 'partido' && t !== 'citar' ? `${sec('Resultado')}<div class="card"><div class="row"><div class="sp">${inp('rs-gf', club(e.clubId).short, `type="number" inputmode="numeric" min="0" value="${e.result ? e.result.gf : ''}"`)}</div><div class="sp">${inp('rs-gc', esc(e.rival || 'Rival'), `type="number" inputmode="numeric" min="0" value="${e.result ? e.result.gc : ''}"`)}</div></div>${btn('Guardar resultado', `A.saveResult('${e.id}')`, 'ok')}</div>` : '');
@@ -2160,7 +2183,7 @@ route('/e/evento/:id', {
 route('/e/plantel', {
   title: 'Plantel', roles: ['entrenador'], render: () => {
     const t = curTeam(), l = teamMembers(t.id);
-    return teamBar() + (l.length ? list(l.map(m => { const p = player(m.playerId), evs = S.events.filter(e => e.stats[p.id]); return li({ av: avatar(p.name, 40, p.photo), title: `${m.number ? m.number + '. ' : ''}${esc(p.name)}`, sub: `${esc(p.position || '')} · ${ageOf(p.birth)} años · ${sum(evs, e => e.stats[p.id].goles)} goles`, right: stBadge(m.status) }); })) : empty('users', 'Plantel vacío', 'Usa la carga masiva para agregar deportistas.', goBtn('Carga masiva', '/e/carga')));
+    return teamBar() + (l.length ? list(l.map(m => { const p = player(m.playerId), evs = S.events.filter(e => e.stats[p.id]); return li({ av: avatar(p.name, 40, p.photo), title: `${m.number ? m.number + '. ' : ''}${esc(p.name)}`, sub: `${esc(p.position || '')} · ${ageOf(p.birth)} años · ${sum(evs, e => e.stats[p.id].goles)} goles`, right: memBadge(m) }); })) : empty('users', 'Plantel vacío', 'Usa la carga masiva para agregar deportistas.', goBtn('Carga masiva', '/e/carga')));
   }
 });
 A.addOption = () => { const n = $$('.pl-op').length + 1; if (n > 6) return toast('Máximo 6 opciones', 'warn'); $('#pl-ops').insertAdjacentHTML('beforeend', `<input class="input pl-op mb8" placeholder="Opción ${n}" aria-label="Opción ${n}" autocomplete="off">`); };
@@ -2341,7 +2364,7 @@ function incomeForm() {
   const k = val('in-k'), parte = PART_TYPES.includes(k), fijo = k === 'Matrícula' || k === 'Mensualidad', dw = $('#in-dw');
   dw.style.display = fijo ? 'none' : ''; $('label', dw).textContent = parte ? 'Plazo máximo para pagar (opcional)' : 'Vence'; $('#in-d').value = parte || fijo ? '' : addDays(today(), 15);
   $('#in-a').previousElementSibling.textContent = k === 'Mensualidad' ? 'Monto mensual por deportista' : 'Monto por deportista';
-  $('#in-h').textContent = k === 'Matrícula' ? 'Cobro único por deportista. No vence.' : k === 'Mensualidad' ? 'Se cobra cada mes a cada deportista y no vence. Las becas y montos propios se ajustan en Mensualidades.' : parte ? 'Solo se cobra a quienes confirmen su participación. Podrán pagar el total o un abono.' : '';
+  $('#in-h').textContent = k === 'Matrícula' ? 'Cobro único por deportista. No vence.' : k === 'Mensualidad' ? 'Se cobra cada mes a cada deportista y vence a fin de mes. Las becas y montos propios se ajustan en Mensualidades.' : parte ? 'Solo se cobra a quienes confirmen su participación. Podrán pagar el total o un abono.' : '';
 }
 A.incomeName = () => { $('#in-n').value = incomeDefault(val('in-k')); incomeForm(); };
 const scopeTeams = sc => S.teams.filter(t => t.clubId === myClubId() && (sc === 'club' || (sc.startsWith('sport:') && t.sport === sc.slice(6)) || sc === 'team:' + t.id));
@@ -2531,8 +2554,8 @@ route('/d/prestamo/:id', {
 });
 route('/d/jugadores', {
   title: 'Deportistas', roles: ['directivo'], render: () => {
-    const f = S.ui.djF || 'todos', l = clubMembers(cid()).filter(m => f === 'todos' || m.status === f || (f === 'moroso' && debtOf(m.playerId, cid()) > 0));
-    return chips('djF', [['todos', 'Todos'], ['habil', 'Hábiles'], ['suspendido', 'Suspendidos'], ['moroso', 'Con deuda']], f) + (l.length ? list(l.map(m => { const p = player(m.playerId), d = debtOf(p.id, cid()); return li({ av: avatar(p.name, 40, p.photo), title: esc(p.name), sub: `${SPORTS[m.sport]} ${m.teamId ? team(m.teamId).name : m.sport}${d ? ' · debe ' + clp(d) : ''}`, right: stBadge(m.status) }); })) : empty('users', 'Sin deportistas', 'No hay deportistas con este filtro.'));
+    const f = S.ui.djF || 'todos', l = clubMembers(cid()).filter(m => f === 'todos' || memStatus(m) === f || (f === 'moroso' && debtOf(m.playerId, cid()) > 0));
+    return chips('djF', [['todos', 'Todos'], ['habil', 'Hábiles'], ['revision', 'En revisión'], ['suspendido', 'Suspendidos'], ['moroso', 'Con deuda']], f) + (l.length ? list(l.map(m => { const p = player(m.playerId), d = debtOf(p.id, cid()); return li({ av: avatar(p.name, 40, p.photo), title: esc(p.name), sub: `${SPORTS[m.sport]} ${m.teamId ? team(m.teamId).name : m.sport}${overdueMonths(m) ? ' · ' + mesesTxt(overdueMonths(m)) : ''}${d ? ' · debe ' + clp(d) : ''}`, right: memBadge(m) }); })) : empty('users', 'Sin deportistas', 'No hay deportistas con este filtro.'));
   }
 });
 route('/d/masivo', { title: 'Mensaje masivo', roles: ['directivo'], render: () => massForm() });
@@ -2568,7 +2591,7 @@ function genMonthly() {
   S.teams.forEach(t => teamMembers(t.id).forEach(m => {
     if (!(t.mensualidad > 0) && !feeRule(t.clubId, m.playerId)) return;
     const id = `men_${t.id}_${m.playerId}_${per}`, a = monthFee(t, m.playerId), c = S.charges.find(x => x.id === id);
-    if (a > 0) { if (!c) S.charges.push({ id, status: 'pendiente', paidAt: null, playerId: m.playerId, clubId: t.clubId, teamId: t.id, concept: `Mensualidad ${mes} · ${t.name}`, kind: 'mensual', cat: 'Mensualidad', amount: a, due: null, period: per }); else if (c.status === 'pendiente') c.amount = a; }
+    if (a > 0) { if (!c) S.charges.push({ id, status: 'pendiente', paidAt: null, playerId: m.playerId, clubId: t.clubId, teamId: t.id, concept: `Mensualidad ${mes} · ${t.name}`, kind: 'mensual', cat: 'Mensualidad', amount: a, due: monthEnd(per), period: per }); else if (c.status === 'pendiente') { c.amount = a; c.due = monthEnd(per); } }
     else if (c && c.status === 'pendiente') S.charges = S.charges.filter(x => x.id !== id);
   }));
 }
@@ -2592,7 +2615,7 @@ A.saveFee = (pid, tid) => { if (!feeApply(pid, tid)) return; closeSheet(); genMo
 route('/d/mensualidades', {
   title: 'Mensualidades', roles: ['directivo'], render: () => {
     const ts = S.teams.filter(t => t.clubId === cid()), ms = clubMembers(cid()).filter(m => m.teamId && team(m.teamId));
-    return note('La mensualidad se cobra cada mes a cada deportista de la categoría y no vence.') + sec('Por categoría') + (ts.length ? list(ts.map(t => li({ ic: 'money', color: 'green', title: esc(t.name), sub: t.sport, right: `<b>${clp(t.mensualidad || 0)}</b>`, on: `A.feeTeamSheet('${t.id}')` }))) : empty('grid', 'Sin categorías', 'Crea categorías en Deportes del club.')) + sec('Por deportista') + (ms.length ? list(ms.map(m => { const p = player(m.playerId), t = team(m.teamId), r = feeRule(t.clubId, p.id); return li({ av: avatar(p.name, 40, p.photo), title: esc(p.name), sub: [esc(t.name), r && r.benefit ? `${r.benefit} ${r.mode === 'pct' ? r.value + '%' : clp(r.value)}` : '', r && r.amount != null ? 'Monto propio' : ''].filter(Boolean).join(' · '), right: `<b>${clp(monthFee(t, p.id))}</b>`, on: `A.feeSheet('${p.id}','${t.id}')` }); })) : empty('users', 'Sin deportistas', 'Los deportistas activos aparecerán aquí.'));
+    return note('La mensualidad se cobra cada mes y vence a fin de mes. Hasta 2 meses vencidos el deportista está <b>Hábil</b>, con 3 o 4 <b>En revisión</b> y con 5 o más <b>Suspendido</b> hasta pagar lo necesario. La matrícula y otros cobros no afectan el estado.') + sec('Por categoría') + (ts.length ? list(ts.map(t => li({ ic: 'money', color: 'green', title: esc(t.name), sub: t.sport, right: `<b>${clp(t.mensualidad || 0)}</b>`, on: `A.feeTeamSheet('${t.id}')` }))) : empty('grid', 'Sin categorías', 'Crea categorías en Deportes del club.')) + sec('Por deportista') + (ms.length ? list(ms.map(m => { const p = player(m.playerId), t = team(m.teamId), r = feeRule(t.clubId, p.id); return li({ av: avatar(p.name, 40, p.photo), title: esc(p.name), sub: [esc(t.name), r && r.benefit ? `${r.benefit} ${r.mode === 'pct' ? r.value + '%' : clp(r.value)}` : '', r && r.amount != null ? 'Monto propio' : ''].filter(Boolean).join(' · '), right: `<b>${clp(monthFee(t, p.id))}</b>`, on: `A.feeSheet('${p.id}','${t.id}')` }); })) : empty('users', 'Sin deportistas', 'Los deportistas activos aparecerán aquí.'));
   }
 });
 
@@ -3053,7 +3076,7 @@ function hydrate(d, ui) {
   (d.directory || { clubs: [], teams: [] }).clubs.forEach(c => { if (!s.clubs.some(x => x.id === c.id)) s.clubs.push({ ...c, rut: '', logo: null, board: [], socios: 0, founded: '', constituted: null, city: c.city || '', region: c.region || '' }); });
   (d.directory || { clubs: [], teams: [] }).teams.forEach(t => { if (!s.teams.some(x => x.id === t.id)) s.teams.push({ id: t.id, clubId: t.club_id, sport: t.sport, name: t.name, category: t.category, sex: t.sex, coach: t.coach, matricula: 0 }); });
   s.players = d.players.map(p => ({ id: p.id, first: p.name.split(' ')[0], name: p.name, sex: p.sex, birth: p.birth, rut: p.rut, email: p.email || '', phone: p.phone || '', position: p.position || '', city: p.city, height: p.height, size: p.size || '', photo: p.photo, accountId: p.account_id, guardianId: p.guardian_id, rel: p.rel, accessEmail: p.access_email || '' }));
-  s.memberships = d.memberships.map(m => ({ id: m.id, playerId: m.player_id, clubId: m.club_id, sport: m.sport, teamId: m.team_id, status: m.status, since: day(m.resolved_at || m.created_at), until: m.until, federated: !!m.federated, number: m.number }));
+  s.memberships = d.memberships.map(m => ({ id: m.id, playerId: m.player_id, clubId: m.club_id, sport: m.sport, teamId: m.team_id, status: m.status, since: day(m.resolved_at || m.created_at), until: m.until, federated: !!m.federated, number: m.number, feeMonths: (d.fee_months || {})[m.id] || 0 }));
   s.requests = d.memberships.filter(m => m.status === 'pendiente' || m.resolved_at).map(m => ({ id: m.id, playerId: m.player_id, clubId: m.club_id, sport: m.sport, membershipId: m.id, date: day(m.created_at), status: m.status === 'pendiente' ? 'pendiente' : m.status === 'rechazada' ? 'rechazada' : 'aceptada', note: m.note || '' }));
   const toAcc = a => ({ id: a.public_id, uid: a.user_id, type: a.type, role: roleOf(a.type), name: a.name, rut: a.rut, email: a.email, phone: a.phone, date: day(a.created_at), photo: a.photo, city: a.city, specialty: a.specialty, web: a.web, sport: a.sport });
   s.accounts = d.accounts.map(toAcc);
@@ -3296,7 +3319,7 @@ function realHome() {
   const a = acct(), r = role(), cl = (a.clubId && club(a.clubId)) || club(linkedClubs()[0] && linkedClubs()[0].id);
   const hero = `<div class="card hero"><div class="row">${r === 'directivo' ? clubLogo(club(a.clubId), 48) : avatar(a.name, 48, myPhoto(a))}<div class="sp"><div class="b" style="font-size:18px">${esc(a.name)}</div><div class="small muted">${a.type === 'dirigente' ? `${esc(S.users.directivo.cargo)} · ${esc(club(a.clubId).short)}` : typeLabel(a.type)} · ID ${a.id}</div></div></div></div>`;
   if (r === 'directivo') return hero + `<div class="kpis">${kpi('Deportistas', clubMembers(a.clubId).length)}${kpi('Por resolver', HOME_BADGE.solicitudes())}</div>` + (club(a.clubId).sports.length ? '' : note('Agrega tus deportes y equipos para que los deportistas puedan vincularse.'));
-  if (r === 'jugador') { const ms = activeMems(a.refId); return hero + (ms.length ? list(ms.map(m => li({ av: clubLogo(club(m.clubId), 42), title: esc(club(m.clubId).short), sub: m.sport, right: stBadge(m.status), href: '/club/' + m.clubId }))) : '') + (myGuardianLinks().some(l => l.status === 'pendiente') ? goBtn('Revisar solicitud de apoderado', '/apoderados', 'naranjo', 'users') + '<div class="mt8"></div>' : isMinorAcc() && !myGuardianLinks().length ? note(`Eres menor de edad: dale tu ID <b>${a.id}</b> a tu apoderado para que se vincule.${needsGuardian() ? ' Lo necesitas para unirte a un club.' : ''}`) : '') + (needsGuardian() ? '' : goBtn('Unirme a un club', '/unirme', 'ok', 'building') + '<div class="mt8"></div>'); }
+  if (r === 'jugador') { const ms = activeMems(a.refId); return hero + (ms.length ? list(ms.map(m => li({ av: clubLogo(club(m.clubId), 42), title: esc(club(m.clubId).short), sub: m.sport, right: memBadge(m), href: '/club/' + m.clubId }))) : '') + (myGuardianLinks().some(l => l.status === 'pendiente') ? goBtn('Revisar solicitud de apoderado', '/apoderados', 'naranjo', 'users') + '<div class="mt8"></div>' : isMinorAcc() && !myGuardianLinks().length ? note(`Eres menor de edad: dale tu ID <b>${a.id}</b> a tu apoderado para que se vincule.${needsGuardian() ? ' Lo necesitas para unirte a un club.' : ''}`) : '') + (needsGuardian() ? '' : goBtn('Unirme a un club', '/unirme', 'ok', 'building') + '<div class="mt8"></div>'); }
   if (r === 'apoderado' && needsKid()) return hero + note('Registra a tu hijo o hija, o vincúlate con su ID, para ver sus cuotas, actividades y mensajes.') + goBtn('Registrar a un hijo', '/a/registrar-hijo', 'ok', 'userplus') + '<div class="mt8"></div>' + goBtn('Vincular a un hijo con su ID', '/a/vincular-pupilo', 's2', 'id') + '<div class="mt8"></div>';
   if (r === 'entrenador' && needsClub()) return hero + note(a.clubId ? 'Tu club aún no tiene equipos. Cuando el club cree uno podrás usar todas estas secciones.' : 'Vincúlate a un club para usar todas estas secciones. El club debe aprobar tu solicitud.') + (a.clubId ? '' : goBtn('Vincular al club', '/vincular', 'ok', 'building') + '<div class="mt8"></div>');
   if (r === 'apoderado' || r === 'entrenador') return hero + (cl ? list([clubRow(cl)]) : '');

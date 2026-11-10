@@ -680,9 +680,41 @@ def correr(br, check, errores):
     club.ir('/d/finanzas')
     hoja(club, "A.incomeSheet('Mensualidad')", {'#in-a': '25000', '#in-s': 'team:' + equipo}, 'A.addIncome()')
     club.p.wait_for_timeout(500)
-    check('mensualidad se cobra sin vencimiento', en_base(club, "S.charges.some(c => c.kind === 'mensual' && c.amount === 25000 && c.due === null)"))
+    check('mensualidad vence a fin de mes', en_base(club, "S.charges.some(c => c.kind === 'mensual' && c.amount === 25000 && c.due === monthEnd(today()))"))
     t = recarga(dep, '/pagos')
-    check('deportista ve la mensualidad sin vencimiento', 'sin vencimiento' in t)
+    check('deportista ve el vencimiento', 'Mensualidad' in t and 'vence' in t)
+
+    # Estado por mensualidades vencidas
+    pid_est = dep.p.evaluate("subj().id")
+    cid_est = club.p.evaluate("cid()")
+
+    def vencidas(meses):
+        with Api.db.cursor() as q:
+            for mes in meses:
+                rid = f'est_{mes}'
+                q.execute('insert into public.records (kind, id, club_ids, player_id, data) values (%s, %s, %s::uuid[], %s, %s)',
+                          ('charges', rid, [cid_est], pid_est, json.dumps({'id': rid, 'playerId': pid_est, 'clubId': cid_est, 'teamId': equipo, 'kind': 'mensual', 'cat': 'Mensualidad', 'amount': 1000, 'status': 'pendiente', 'concept': f'Mensualidad vieja {mes}', 'paidAt': None, 'due': f'2020-{mes:02d}-28'})))
+        Api.db.commit()
+
+    def pagar(ids):
+        club.p.evaluate(f"SB.rpc('record_manual_payment', {{ p_ids: {json.dumps(ids)}, p_method: 'Efectivo' }})")
+        club.p.wait_for_timeout(500)
+    estado = lambda tel: tel.p.evaluate(f"(async () => {{ await refreshReal(); const m = S.memberships.find(x => x.playerId === '{pid_est}' && x.clubId === '{cid_est}' && ['habil', 'suspendido'].includes(x.status)); return memStatus(m); }})()")
+    vencidas([1, 2])
+    check('dos meses vencidos sigue hábil', estado(dep) == 'habil')
+    vencidas([3])
+    check('tres meses queda en revisión', estado(dep) == 'revision' and estado(club) == 'revision')
+    check('deportista ve el aviso de revisión', 'En revisión' in recarga(dep, '/pagos'))
+    vencidas([4, 5])
+    check('cinco meses queda suspendido', estado(club) == 'suspendido')
+    check('entrenador también lo ve suspendido', estado(ent) == 'suspendido')
+    t = recarga(club, '/d/jugadores')
+    check('club ve meses vencidos y estado', '5 mensualidades vencidas' in t and 'Suspendido' in t)
+    pagar(['est_1'])
+    check('pagar uno pasa a revisión', estado(club) == 'revision')
+    pagar(['est_2', 'est_3'])
+    check('pagar lo necesario vuelve a hábil', estado(club) == 'habil')
+    pagar(['est_4', 'est_5'])
     hoja(club, "A.incomeSheet('Partido')", {'#in-n': 'Clásico real', '#in-a': '9000', '#in-s': 'team:' + equipo}, 'A.addIncome()')
     check('partido no cobra antes de confirmar', en_base(club, "S.incomeItems.some(i => i.name === 'Clásico real') && !S.charges.some(c => c.concept === 'Clásico real')"))
     t = recarga(dep, '/pagos')
