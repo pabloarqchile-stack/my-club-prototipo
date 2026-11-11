@@ -62,6 +62,8 @@ Eliminar cuenta (`A.deleteAsk`), páginas públicas `#/legal/privacidad`, `termi
 - **Directivos:** tipo de cuenta `dirigente` (ID con M, rol interno `directivo`, en pantalla "Directivo"). El club crea la ficha en `#/d/directivos` (`club_directors`, `save_director`) con email, RUT y funciones (`DIR_PERMS`); la persona se registra con esos datos y `register_account` la vincula. `canDo`, `TILE_PERM` y `ROUTE_PERM` ocultan menús, y en la base rigen `_club_can`, `_admin_any` y `_kind_perm`. Perfil del club, cuenta y pagos en línea y directivos son solo de la cuenta del club. Un email con otra cuenta de My Club no puede ser directivo. `club_guardians` lista apoderados.
 - **Cuerpo técnico:** `#/d/cuerpo`, tipo `techStaff`. `pay_staff` exige el archivo (liquidación o boleta), registra `staffPays` y el egreso. Los archivos están en `staff_docs`, fuera de `my_state`, y se leen con `staff_doc`.
 - **Infraestructura:** `#/d/infra`, tipos `facilities` y `bookings`, con horarios semanales.
+- **Partidos y torneos:** `create_match` guarda un `incomeItems` con `minPlayers`. `confirm_participation` crea el evento (`cv_<item>_<team>`) y los cobros (`due` = fecha del partido) recién al alcanzar el mínimo; después, cada nuevo confirmado se cobra de inmediato.
+- **Encuestas:** tablas `surveys` y `survey_responses`, sin acceso directo; solo `save_survey`, `answer_survey`, `set_survey_status` y `my_surveys`. Quien administra ve respuestas sin identificar a nadie.
 - **Estado por mensualidades:** cada mensualidad vence el último día de su mes. `my_fee_months` (club y deporte) y `memStatus` en la app dan 0–2 meses vencidos Hábil (verde), 3–4 En revisión (amarillo), 5 o más Suspendido (rojo, no convocable). Se calcula, no se guarda; `memberships.status` queda para los trámites. La matrícula y los demás cobros no cuentan.
 - **Reglas de cobro:** matrícula única y sin vencimiento; mensualidad con `teams.mensualidad` y `feeRules` por deportista, vence a fin de mes, generada por `run_monthly` al ingresar alguien del club; `PART_TYPES` se cobra solo al confirmar (`confirm_participation`) y admite abonos (`_apply_partial`).
 - **Mercado Pago por club:** cada club pega su Access Token en Perfil → Cuenta y pagos en línea (`set_club_pay_key`). Queda en `club_pay_keys`, sin acceso para la app; `clubs.pay_provider` solo dice si está conectado. `mp-crear-pago` y `mp-webhook` (sin desplegar) usan el token del club, y `confirm_payment` compara club y monto. Pendiente: guardar el token con Supabase Vault y sumar Flow, Khipu o Webpay. La cuenta para transferencias es el dato `clubPay`.
@@ -82,13 +84,13 @@ Se cambia de rol desde **Perfil → Cambiar de rol** sin cerrar sesión.
 
 ## Rutas
 - Compartidas: `#/login`, `#/registro`, `#/inicio`, `#/perfil`, `#/notificaciones`, `#/mensajes`, `#/chat/:id`,
-  `#/pagar/:ids`, `#/comprobante/:id`, `#/verificar/:code`, `#/torneo/:id`, `#/encuestas`, `#/encuesta/:id`,
+  `#/pagar/:ids`, `#/comprobante/:id`, `#/verificar/:code`, `#/torneo/:id`, `#/encuestas`, `#/encuestas/nueva`, `#/encuestas/:id`, `#/encuesta/:id` (votaciones antiguas), `#/convocatorias`, `#/convocatorias/:id`,
   `#/marketplace`, `#/proveedor/:id`, `#/vincular`, `#/escanear`, `#/asamblea/:id`, `#/plazo/:id`, `#/calendario`, `#/muro`, `#/rutinas`.
 - Jugador / Apoderado (sujeto = el jugador o el pupilo elegido): `#/asistencia`, `#/pagos`, `#/unirme`, `#/cambio-club`,
   `#/renuncia`, `#/tramites`.
 - Jugador: `#/j/cv`, `#/j/cv-imprimir`, `#/j/certificado`, `#/j/credencial`.
 - Apoderado: `#/a/pupilos`, `#/a/registrar-hijo`, `#/a/reportes`.
-- Entrenador: `#/e/eventos`, `#/e/evento/:id`, `#/e/nuevo-evento`, `#/torneos`, `#/e/proponer`, `#/e/encuesta-nueva`,
+- Entrenador: `#/e/eventos`, `#/e/evento/:id`, `#/e/nuevo-evento`, `#/torneos`, `#/e/proponer`, 
   `#/e/masivo`, `#/e/rutinas`, `#/e/staff`, `#/e/carga`, `#/e/plantel`.
 - Club: `#/d/deportes`, `#/d/finanzas`, `#/d/aprobaciones`, `#/d/asambleas`, `#/d/solicitudes`, `#/d/bajas`,
   `#/d/reclamos`, `#/d/prestamos`, `#/d/prestamo/:id`, `#/d/jugadores`, `#/d/masivo`.

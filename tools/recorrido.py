@@ -10,7 +10,7 @@ OUT = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 
 RUTAS = {
  'jugador': ['/inicio','/calendario','/asistencia','/pagos','/muro','/mensajes','/chat/ch2','/encuestas','/encuesta/po1','/j/cv','/j/cv-imprimir','/j/certificado','/j/credencial','/unirme','/cambio-club','/renuncia','/rutinas','/tramites','/escanear','/perfil','/perfil/editar','/notificaciones'],
  'apoderado': ['/inicio','/a/pupilos','/pagos','/asistencia','/calendario','/mensajes','/a/reportes','/a/registrar-hijo','/cambio-club','/renuncia','/encuestas','/tramites','/perfil'],
- 'entrenador': ['/inicio','/e/eventos','/e/nuevo-evento','/e/plantel','/torneos','/torneo/t1','/e/proponer','/encuestas','/e/encuesta-nueva','/e/masivo','/rutinas','/e/staff','/e/carga','/marketplace','/mensajes','/perfil'],
+ 'entrenador': ['/inicio','/e/eventos','/e/nuevo-evento','/e/plantel','/torneos','/torneo/t1','/e/proponer','/encuestas','/encuestas/nueva','/convocatorias','/e/masivo','/rutinas','/e/staff','/e/carga','/marketplace','/mensajes','/perfil'],
  'directivo': ['/inicio','/d/finanzas','/d/deportes','/d/aprobaciones','/d/asambleas','/d/asamblea/as1','/d/solicitudes','/d/bajas','/d/reclamos','/d/prestamos','/d/prestamo/ln1','/d/jugadores','/d/masivo','/marketplace','/cotizacion/q2','/plazo/sp1','/mensajes','/club/halcones','/perfil','/perfil/editar'],
  'federacion': ['/inicio','/f/dashboard','/f/clubes','/f/comunicados','/f/valores','/f/ficha','/f/estadisticas','/perfil'],
  'proveedor': ['/inicio','/p/perfil','/p/catalogo','/p/categorias','/p/recintos','/p/cotizaciones','/p/cotizacion/q1','/p/torneos','/p/pagos','/perfil'],

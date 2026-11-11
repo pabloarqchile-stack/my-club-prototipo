@@ -139,6 +139,16 @@ with sync_playwright() as p:
     nav('/d/jugadores'); g.wait_for_timeout(120); t=g.inner_text('#view'); ok('En revisión' in t and 'mensualidades vencidas' in t,'club ve estado en amarillo y meses vencidos')
     ok(g.locator('#view .b-yel').count()>0,'en revisión usa amarillo')
     ev("(()=>{S.charges.filter(c=>c.playerId==='p_maxi'&&c.kind==='mensual'&&c.status==='pendiente'&&c.due<today()).slice(0,1).forEach(c=>c.status='pagado')})()"); ok(est('p_maxi')=='revision','pagar lo necesario cambia de estado')
+    # Partidos y torneos, y encuestas
+    nav('/convocatorias'); g.wait_for_timeout(120); ok('Amistoso de aniversario' in g.inner_text('#view'),'módulo de partidos y torneos abre')
+    ev("A.matchSheet()"); g.wait_for_timeout(200); g.fill('#mt-n','Final demo'); g.fill('#mt-a','4000'); g.fill('#mt-m','1'); g.select_option('#mt-s','team:hal-fut-adu'); ev("A.matchCreate()"); g.wait_for_timeout(350)
+    ok(ev("S.incomeItems.some(i=>i.name==='Final demo'&&!i.active)&&!S.events.some(e=>e.title==='Final demo')&&!S.charges.some(c=>c.concept==='Final demo')"),'sin mínimo no agenda ni cobra')
+    ev("(()=>{const i=S.incomeItems.find(x=>x.name==='Final demo');A.partAnswer(i.id,i.playerIds[0],true)})()"); g.wait_for_timeout(150)
+    ok(ev("(i=>i.active&&S.events.some(e=>e.itemId===i.id&&e.date===i.matchDate)&&S.charges.some(c=>c.concept==='Final demo'&&c.due===i.matchDate))(S.incomeItems.find(x=>x.name==='Final demo'))"),'al llegar al mínimo agenda y cobra con la fecha')
+    nav('/encuestas'); g.wait_for_timeout(120); ok('Horarios y recintos' in g.inner_text('#view'),'club ve encuestas')
+    nav('/encuestas/sv_demo'); g.wait_for_timeout(150); t=g.inner_text('#view'); ok('Participación' in t and 'Promedio' in t and 'Sábado AM' in t,'dashboard con resultados')
+    ev("SV=null;go('/encuestas/nueva')"); g.wait_for_timeout(200); ev("A.svAdd()"); g.wait_for_timeout(120); ok(g.locator('.sv-q').count()==2,'agrega preguntas'); ev("A.svType(1,'escala')"); g.wait_for_timeout(120); ok(g.locator('#sv-mx1').count()==1,'cambia a escala lineal')
+    g.locator('.sv-q').first.fill('¿Vienes?'); ev("SV.questions[0].options=['Sí','No'];SV.title='Nueva demo';SV.questions[1].text='Nota';A.svPublish()"); g.wait_for_timeout(200); ok(ev("S.surveys[0].title==='Nueva demo'&&S.surveys[0].questions[1].type==='escala'"),'publica encuesta')
     # Directivos: el club crea la ficha y el directivo solo ve sus funciones
     nav('/d/directivos'); g.wait_for_timeout(120); ev("A.dirSheet()"); g.wait_for_timeout(200)
     rd=rut(18000011); g.fill('#dr-n','Teresa Demo'); g.fill('#dr-r',rd); g.fill('#dr-e','teresa@prueba.cl'); g.fill('#dr-c','Tesorera')

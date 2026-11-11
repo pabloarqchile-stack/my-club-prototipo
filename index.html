@@ -356,9 +356,9 @@ const CATEGORIAS = ['Sub-13', 'Sub-15', 'Sub-18', 'Adulto', 'Senior +35', 'Todo 
 const FED_NAMES = { 'Fútbol': 'Federación de Fútbol Amateur de Chile', 'Básquetbol': 'Federación de Básquetbol de Chile', 'Vóleibol': 'Federación de Vóleibol de Chile', 'Atletismo': 'Federación Atlética de Chile', 'Rugby': 'Federación de Rugby de Chile', 'Remo': 'Federación Chilena de Remo', 'Natación': 'Federación Chilena de Natación' };
 const PROV_CATS = ['Alimentación', 'Implementación deportiva', 'Productoras de eventos', 'Formulación de proyectos', 'Auspiciadores', 'Ropa deportiva', 'Recintos deportivos'];
 const EXP_CATS = ['Honorarios cuerpo técnico', 'Pagos a directores', 'Implementos', 'Viajes', 'Alojamiento', 'Alimentación', 'Arriendo de recintos', 'Arbitrajes'];
-const INCOME_TYPES = ['Matrícula', 'Mensualidad', 'Torneo', 'Partido', 'Viaje', 'Camiseta', 'Vestuario'];
+const INCOME_TYPES = ['Matrícula', 'Mensualidad', 'Viaje', 'Camiseta', 'Vestuario'];
 // Estos cargos solo se cobran a quienes confirman su participación.
-const PART_TYPES = ['Partido', 'Viaje', 'Torneo'];
+const PART_TYPES = ['Viaje'];
 const BENEFITS = ['Beca', 'Descuento', 'Convenio'];
 const TS_ROLES = ['Head coach', 'Entrenador', 'Asistente', 'Kinesiólogo', 'Sicólogo', 'Médico'];
 const TS_FORMS = [['entrenamiento', 'Por entrenamiento'], ['sesion', 'Por sesión'], ['mensual', 'Mensual'], ['viatico_comuna', 'Viático en la comuna'], ['viatico_fuera', 'Viático fuera de la comuna'], ['viatico_aloj', 'Viático con alojamiento']];
@@ -652,6 +652,10 @@ function seedSocial(s, D, T, teamPlayers) {
   s.expenseCats = EXP_CATS.slice();
   s.incomeCats = [];
   s.techStaff = []; s.staffPays = []; s.feeRules = [];
+  const convocados = s.memberships.filter(m => m.teamId === 'hal-fut-adu' && m.status === 'habil').map(m => m.playerId);
+  const demoMatch = { id: 'cv_demo', clubId: 'halcones', kind: 'Partido', name: 'Amistoso de aniversario', amount: 5000, target: 'Fútbol', scope: 'match', due: D(12), by: 'Rodrigo Saavedra', date: D(-2), confirm: true, playerIds: convocados, answers: Object.fromEntries(convocados.slice(1, 4).map(p => [p, 'si'])), minPlayers: Math.min(5, convocados.length), matchDate: D(12), time: '11:00', place: 'Cancha Los Halcones', teamIds: ['hal-fut-adu'], active: false };
+  const opS = ['Sábado AM', 'Sábado PM', 'Domingo'], rS = [...Array(9)].map((_, i) => ({ by: 'demo' + i, who: i % 3 ? 'jugadores' : 'apoderados', answers: { q1: opS[i % 4 ? 0 : i % 3], q2: 3 + i % 3, q3: i % 2 ? ['Camarines', 'Iluminación'] : ['Iluminación'], ...(i % 4 ? {} : { q4: 'Más horarios para las categorías juveniles.' }) }, date: D(-1) }));
+  s.surveys = [{ id: 'sv_demo', clubId: 'halcones', by: 'Directorio', title: 'Horarios y recintos 2027', message: 'Queremos conocer tu opinión para planificar la próxima temporada.', questions: [{ id: 'q1', text: '¿Qué horario prefieres para los partidos?', type: 'unica', required: true, options: opS }, { id: 'q2', text: '¿Qué tan conforme estás con los recintos?', type: 'escala', required: true, min: 1, max: 5, minLabel: 'Nada', maxLabel: 'Mucho' }, { id: 'q3', text: '¿Qué debemos mejorar?', type: 'multiple', required: false, options: ['Camarines', 'Iluminación', 'Galerías'] }, { id: 'q4', text: 'Comentarios', type: 'parrafo', required: false }], audience: ['jugadores', 'apoderados'], teamIds: s.teams.filter(t => t.clubId === 'halcones').map(t => t.id), scope: 'Todo el club', status: 'abierta', date: D(-3), responses: rS }];
   s.facilities = [{ id: 'fc1', clubId: 'halcones', name: 'Cancha principal', type: 'Cancha' }, { id: 'fc2', clubId: 'halcones', name: 'Gimnasio techado', type: 'Gimnasio' }]; s.bookings = [];
   s.directors = [{ id: 'dir1', clubId: 'halcones', accountId: null, name: 'Luis Araya Soto', rut: fmtRut(12888777), cargo: 'Tesorero', email: 'tesorero@ejemplo.cl', perms: ['finanzas', 'marketplace'], active: true }];
   s.clubPay = [{ id: 'halcones', clubId: 'halcones', bank: 'BancoEstado', accType: 'Cuenta corriente', number: '000123456789', holder: 'Club Deportivo Los Halcones', rut: fmtRut(65123456), email: 'tesoreria@ejemplo.cl' }];
@@ -660,7 +664,7 @@ function seedSocial(s, D, T, teamPlayers) {
     { id: 'ii2', kind: 'Cuota mensual', name: 'Cuota mensual adulto', amount: 25000, target: 'Categorías adultas' },
     { id: 'ii3', kind: 'Cuota mensual', name: 'Cuota mensual formativa', amount: 18000, target: 'Sub-13 a Sub-18' },
     { id: 'ii4', kind: 'Partido', name: 'Cuota por partido de local', amount: 3000, target: 'Fútbol Adulto' },
-    { id: 'ii5', kind: 'Implementación', name: 'Kit de entrenamiento 2027', amount: 35000, target: 'Todos los deportistas' }
+    { id: 'ii5', kind: 'Implementación', name: 'Kit de entrenamiento 2027', amount: 35000, target: 'Todos los deportistas' }, demoMatch
   ];
   s.discounts = [
     { id: 'ds1', kind: 'Beca', name: 'Beca deportiva por rendimiento', value: 100, unit: '%', target: 'Antonia Reyes Campos' },
@@ -830,7 +834,7 @@ const STORE_KEY = 'myclub-demo-v1', SESSION_KEY = 'myclub-sesion-v1', REAL_UI_KE
 const CFG = window.MYCLUB_CONFIG || {}, HAS_DB = !!(CFG.url && CFG.key);
 let S;
 function load() {
-  try { const raw = localStorage.getItem(STORE_KEY); if (raw) { const o = JSON.parse(raw); if (o && o.v === 3) { o.guardianLinks = o.guardianLinks || []; o.incomeCats = o.incomeCats || []; o.directors = o.directors || []; ['techStaff', 'staffPays', 'feeRules', 'facilities', 'bookings'].forEach(k => { o[k] = o[k] || []; }); o.clubPay = o.clubPay || []; return o; } } } catch (e) { console.warn('Estado no disponible', e); }
+  try { const raw = localStorage.getItem(STORE_KEY); if (raw) { const o = JSON.parse(raw); if (o && o.v === 3) { o.guardianLinks = o.guardianLinks || []; o.incomeCats = o.incomeCats || []; o.directors = o.directors || []; ['techStaff', 'staffPays', 'feeRules', 'facilities', 'bookings', 'surveys'].forEach(k => { o[k] = o[k] || []; }); o.clubPay = o.clubPay || []; return o; } } } catch (e) { console.warn('Estado no disponible', e); }
   return seed();
 }
 function save() { if (S.session.real) { try { localStorage.setItem(REAL_UI_KEY, JSON.stringify({ home: S.home })); } catch (e) { } syncSoon(); return true; } try { localStorage.setItem(STORE_KEY, JSON.stringify(S)); return true; } catch (e) { console.warn('No se pudo guardar', e); return false; } }
@@ -914,13 +918,13 @@ const nextId = letter => { S.idSeq[letter] = (S.idSeq[letter] || 0) + 1; return 
 const acct = () => S.accounts.find(a => a.id === S.session.accountId);
 const isDemo = () => { const a = acct(); return !a || !!a.demo; };
 // Funciones que el club activa o desactiva a cada directivo. La base de datos las hace cumplir.
-const DIR_PERMS = [['deportes', 'Deportes y categorías'], ['deportistas', 'Deportistas, apoderados y entrenadores'], ['solicitudes', 'Solicitudes y transferencias'], ['bajas', 'Bajas, reclamos y préstamos'], ['finanzas', 'Finanzas, ingresos y cobros'], ['aprobaciones', 'Aprobaciones'], ['asambleas', 'Asambleas'], ['masivo', 'Mensajes masivos'], ['marketplace', 'Marketplace'], ['cuerpo', 'Cuerpo técnico y sus pagos'], ['infra', 'Infraestructura']];
+const DIR_PERMS = [['deportes', 'Deportes y categorías'], ['deportistas', 'Deportistas, apoderados y entrenadores'], ['solicitudes', 'Solicitudes y transferencias'], ['bajas', 'Bajas, reclamos y préstamos'], ['finanzas', 'Finanzas, ingresos y cobros'], ['aprobaciones', 'Aprobaciones'], ['asambleas', 'Asambleas'], ['masivo', 'Mensajes masivos'], ['marketplace', 'Marketplace'], ['cuerpo', 'Cuerpo técnico y sus pagos'], ['infra', 'Infraestructura'], ['partidos', 'Partidos y torneos'], ['encuestas', 'Encuestas']];
 const myDirector = () => { const a = acct(); return a && a.type === 'dirigente' ? S.directors.find(d => d.accountId === (a.uid || a.id)) : null; };
 // 'club' es lo que solo hace la cuenta del club.
 function canDo(p) { const a = acct(); if (!a || a.type !== 'dirigente') return true; if (p === 'club') return false; const d = myDirector(); return !!d && d.active && d.perms.includes(p); }
-const TILE_PERM = { deportes: 'deportes', finanzas: 'finanzas', aprobaciones: 'aprobaciones', asambleas: 'asambleas', solicitudes: 'solicitudes', bajas: 'bajas', reclamos: 'bajas', prestamos: 'bajas', jugadores: 'deportistas', apoderados: 'deportistas', entrenadores: 'deportistas', masivo: 'masivo', marketplace: 'marketplace', directivos: 'club', cuerpo: 'cuerpo', infra: 'infra' };
+const TILE_PERM = { deportes: 'deportes', finanzas: 'finanzas', aprobaciones: 'aprobaciones', asambleas: 'asambleas', solicitudes: 'solicitudes', bajas: 'bajas', reclamos: 'bajas', prestamos: 'bajas', jugadores: 'deportistas', apoderados: 'deportistas', entrenadores: 'deportistas', masivo: 'masivo', marketplace: 'marketplace', directivos: 'club', cuerpo: 'cuerpo', infra: 'infra', partidos: 'partidos', encuestas: 'encuestas' };
 const tileOk = id => role() !== 'directivo' || !TILE_PERM[id] || canDo(TILE_PERM[id]);
-const ROUTE_PERM = { '/d/deportes': 'deportes', '/d/finanzas': 'finanzas', '/d/pagos-club': 'club', '/d/aprobaciones': 'aprobaciones', '/d/asambleas': 'asambleas', '/d/asamblea/:id': 'asambleas', '/d/solicitudes': 'solicitudes', '/d/bajas': 'bajas', '/d/reclamos': 'bajas', '/d/prestamos': 'bajas', '/d/prestamo/:id': 'bajas', '/d/jugadores': 'deportistas', '/d/apoderados': 'deportistas', '/d/entrenadores': 'deportistas', '/d/masivo': 'masivo', '/d/directivos': 'club', '/marketplace': 'marketplace', '/d/cuerpo': 'cuerpo', '/d/infra': 'infra', '/d/mensualidades': 'finanzas' };
+const ROUTE_PERM = { '/d/deportes': 'deportes', '/d/finanzas': 'finanzas', '/d/pagos-club': 'club', '/d/aprobaciones': 'aprobaciones', '/d/asambleas': 'asambleas', '/d/asamblea/:id': 'asambleas', '/d/solicitudes': 'solicitudes', '/d/bajas': 'bajas', '/d/reclamos': 'bajas', '/d/prestamos': 'bajas', '/d/prestamo/:id': 'bajas', '/d/jugadores': 'deportistas', '/d/apoderados': 'deportistas', '/d/entrenadores': 'deportistas', '/d/masivo': 'masivo', '/d/directivos': 'club', '/marketplace': 'marketplace', '/d/cuerpo': 'cuerpo', '/d/infra': 'infra', '/d/mensualidades': 'finanzas', '/convocatorias': 'partidos', '/convocatorias/:id': 'partidos', '/encuestas': 'encuestas', '/encuestas/nueva': 'encuestas', '/encuestas/:id': 'encuestas' };
 const demoAccount = r => S.accounts.find(a => a.demo && a.role === r);
 function syncCoach() {
   const a = acct();
@@ -1361,10 +1365,10 @@ window.addEventListener('hashchange', () => {
    ====================================================================== */
 // --- Accesos del inicio por rol: [id, etiqueta, ícono, color, ruta] ---
 const HOME = {
-  jugador: [['calendario', 'Calendario', 'calendar', 'blue', '/calendario'], ['asistencia', 'Asistencia', 'check', 'green', '/asistencia'], ['pagos', 'Pagos', 'card', 'orange', '/pagos'], ['muro', 'Muro', 'image', 'pink', '/muro'], ['mensajes', 'Mensajes', 'chat', 'indigo', '/mensajes'], ['encuestas', 'Votaciones', 'poll', 'purple', '/encuestas'], ['cv', 'Currículum', 'cv', 'teal', '/j/cv'], ['certificado', 'Certificados', 'doc', 'blue', '/j/certificado'], ['credencial', 'Credencial', 'id', 'green', '/j/credencial'], ['unirme', 'Unirme a club', 'userplus', 'yellow', '/unirme'], ['cambio', 'Cambio de club', 'swap', 'indigo', '/cambio-club'], ['renuncia', 'Renuncia', 'userminus', 'red', '/renuncia'], ['rutinas', 'Rutinas', 'dumbbell', 'orange', '/rutinas'], ['escanear', 'Escanear QR', 'scan', 'gray', '/escanear'], ['tramites', 'Mis trámites', 'clipboard', 'teal', '/tramites']],
-  apoderado: [['pupilos', 'Pupilos', 'users', 'blue', '/a/pupilos'], ['vincular-hijo', 'Vincular hijo', 'id', 'teal', '/a/vincular-pupilo'], ['pagos', 'Pagos', 'card', 'orange', '/pagos'], ['asistencia', 'Asistencia', 'check', 'green', '/asistencia'], ['calendario', 'Calendario', 'calendar', 'indigo', '/calendario'], ['mensajes', 'Mensajes', 'chat', 'purple', '/mensajes'], ['reportes', 'Reportes', 'chart', 'teal', '/a/reportes'], ['registrar', 'Registrar hijo', 'userplus', 'yellow', '/a/registrar-hijo'], ['encuestas', 'Votaciones', 'poll', 'pink', '/encuestas'], ['cambio', 'Cambio de club', 'swap', 'indigo', '/cambio-club'], ['renuncia', 'Renuncia', 'userminus', 'red', '/renuncia'], ['escanear', 'Escanear QR', 'scan', 'gray', '/escanear'], ['tramites', 'Trámites', 'clipboard', 'teal', '/tramites']],
-  entrenador: [['eventos', 'Partidos y entrenos', 'calendar', 'blue', '/e/eventos'], ['plantel', 'Plantel', 'users', 'green', '/e/plantel'], ['torneos', 'Base de torneos', 'trophy', 'yellow', '/torneos'], ['proponer', 'Proponer', 'flag', 'orange', '/e/proponer'], ['encuestas', 'Encuestas', 'poll', 'purple', '/encuestas'], ['masivo', 'Mensaje masivo', 'megaphone', 'pink', '/e/masivo'], ['ingresos', 'Ingresos', 'money', 'green', '/e/ingresos'], ['rutinas', 'Rutinas', 'dumbbell', 'teal', '/rutinas'], ['staff', 'Cuerpo técnico', 'shield', 'indigo', '/e/staff'], ['carga', 'Carga masiva', 'upload', 'gray', '/e/carga'], ['marketplace', 'Marketplace', 'store', 'red', '/marketplace']],
-  directivo: [['deportes', 'Deportes del club', 'grid', 'blue', '/d/deportes'], ['finanzas', 'Finanzas', 'bank', 'green', '/d/finanzas'], ['aprobaciones', 'Aprobaciones', 'vote', 'orange', '/d/aprobaciones'], ['asambleas', 'Asambleas', 'hall', 'purple', '/d/asambleas'], ['solicitudes', 'Solicitudes', 'userplus', 'teal', '/d/solicitudes'], ['bajas', 'Bajas y renuncias', 'userminus', 'red', '/d/bajas'], ['reclamos', 'Reclamos', 'flag', 'yellow', '/d/reclamos'], ['prestamos', 'Préstamos', 'swap', 'indigo', '/d/prestamos'], ['jugadores', 'Deportistas', 'users', 'pink', '/d/jugadores'], ['apoderados', 'Apoderados', 'users', 'orange', '/d/apoderados'], ['entrenadores', 'Entrenadores', 'clipboard', 'purple', '/d/entrenadores'], ['directivos', 'Directivos', 'shield', 'indigo', '/d/directivos'], ['cuerpo', 'Cuerpo técnico', 'clipboard', 'green', '/d/cuerpo'], ['infra', 'Infraestructura', 'building', 'teal', '/d/infra'], ['masivo', 'Mensaje masivo', 'megaphone', 'gray', '/d/masivo'], ['marketplace', 'Marketplace', 'store', 'blue', '/marketplace']],
+  jugador: [['calendario', 'Calendario', 'calendar', 'blue', '/calendario'], ['asistencia', 'Asistencia', 'check', 'green', '/asistencia'], ['pagos', 'Pagos', 'card', 'orange', '/pagos'], ['muro', 'Muro', 'image', 'pink', '/muro'], ['mensajes', 'Mensajes', 'chat', 'indigo', '/mensajes'], ['encuestas', 'Encuestas', 'poll', 'purple', '/encuestas'], ['cv', 'Currículum', 'cv', 'teal', '/j/cv'], ['certificado', 'Certificados', 'doc', 'blue', '/j/certificado'], ['credencial', 'Credencial', 'id', 'green', '/j/credencial'], ['unirme', 'Unirme a club', 'userplus', 'yellow', '/unirme'], ['cambio', 'Cambio de club', 'swap', 'indigo', '/cambio-club'], ['renuncia', 'Renuncia', 'userminus', 'red', '/renuncia'], ['rutinas', 'Rutinas', 'dumbbell', 'orange', '/rutinas'], ['escanear', 'Escanear QR', 'scan', 'gray', '/escanear'], ['tramites', 'Mis trámites', 'clipboard', 'teal', '/tramites']],
+  apoderado: [['pupilos', 'Pupilos', 'users', 'blue', '/a/pupilos'], ['vincular-hijo', 'Vincular hijo', 'id', 'teal', '/a/vincular-pupilo'], ['pagos', 'Pagos', 'card', 'orange', '/pagos'], ['asistencia', 'Asistencia', 'check', 'green', '/asistencia'], ['calendario', 'Calendario', 'calendar', 'indigo', '/calendario'], ['mensajes', 'Mensajes', 'chat', 'purple', '/mensajes'], ['reportes', 'Reportes', 'chart', 'teal', '/a/reportes'], ['registrar', 'Registrar hijo', 'userplus', 'yellow', '/a/registrar-hijo'], ['encuestas', 'Encuestas', 'poll', 'pink', '/encuestas'], ['cambio', 'Cambio de club', 'swap', 'indigo', '/cambio-club'], ['renuncia', 'Renuncia', 'userminus', 'red', '/renuncia'], ['escanear', 'Escanear QR', 'scan', 'gray', '/escanear'], ['tramites', 'Trámites', 'clipboard', 'teal', '/tramites']],
+  entrenador: [['eventos', 'Partidos y entrenos', 'calendar', 'blue', '/e/eventos'], ['partidos', 'Partidos y torneos', 'trophy', 'orange', '/convocatorias'], ['plantel', 'Plantel', 'users', 'green', '/e/plantel'], ['torneos', 'Base de torneos', 'trophy', 'yellow', '/torneos'], ['proponer', 'Proponer', 'flag', 'orange', '/e/proponer'], ['encuestas', 'Encuestas', 'poll', 'purple', '/encuestas'], ['masivo', 'Mensaje masivo', 'megaphone', 'pink', '/e/masivo'], ['ingresos', 'Ingresos', 'money', 'green', '/e/ingresos'], ['rutinas', 'Rutinas', 'dumbbell', 'teal', '/rutinas'], ['staff', 'Cuerpo técnico', 'shield', 'indigo', '/e/staff'], ['carga', 'Carga masiva', 'upload', 'gray', '/e/carga'], ['marketplace', 'Marketplace', 'store', 'red', '/marketplace']],
+  directivo: [['deportes', 'Deportes del club', 'grid', 'blue', '/d/deportes'], ['finanzas', 'Finanzas', 'bank', 'green', '/d/finanzas'], ['aprobaciones', 'Aprobaciones', 'vote', 'orange', '/d/aprobaciones'], ['asambleas', 'Asambleas', 'hall', 'purple', '/d/asambleas'], ['solicitudes', 'Solicitudes', 'userplus', 'teal', '/d/solicitudes'], ['bajas', 'Bajas y renuncias', 'userminus', 'red', '/d/bajas'], ['reclamos', 'Reclamos', 'flag', 'yellow', '/d/reclamos'], ['prestamos', 'Préstamos', 'swap', 'indigo', '/d/prestamos'], ['jugadores', 'Deportistas', 'users', 'pink', '/d/jugadores'], ['apoderados', 'Apoderados', 'users', 'orange', '/d/apoderados'], ['entrenadores', 'Entrenadores', 'clipboard', 'purple', '/d/entrenadores'], ['directivos', 'Directivos', 'shield', 'indigo', '/d/directivos'], ['cuerpo', 'Cuerpo técnico', 'clipboard', 'green', '/d/cuerpo'], ['infra', 'Infraestructura', 'building', 'teal', '/d/infra'], ['partidos', 'Partidos y torneos', 'trophy', 'yellow', '/convocatorias'], ['encuestas', 'Encuestas', 'poll', 'purple', '/encuestas'], ['masivo', 'Mensaje masivo', 'megaphone', 'gray', '/d/masivo'], ['marketplace', 'Marketplace', 'store', 'blue', '/marketplace']],
   federacion: [['dashboard', 'Dashboard', 'chart', 'blue', '/f/dashboard'], ['clubes', 'Clubes', 'building', 'green', '/f/clubes'], ['comunicados', 'Comunicados', 'megaphone', 'orange', '/f/comunicados'], ['valores', 'Valores y cobros', 'money', 'purple', '/f/valores'], ['ficha', 'Ficha tipo', 'clipboard', 'teal', '/f/ficha'], ['estadisticas', 'Estadísticas', 'poll', 'indigo', '/f/estadisticas']],
   proveedor: [['perfil', 'Mi perfil', 'store', 'blue', '/p/perfil'], ['catalogo', 'Catálogo', 'tag', 'green', '/p/catalogo'], ['categorias', 'Categorías', 'grid', 'purple', '/p/categorias'], ['recintos', 'Recintos', 'pin', 'teal', '/p/recintos'], ['cotizaciones', 'Cotizaciones', 'receipt', 'orange', '/p/cotizaciones'], ['torneos', 'Torneos nuevos', 'trophy', 'yellow', '/p/torneos'], ['pagos', 'Pagos recibidos', 'money', 'indigo', '/p/pagos']]
 };
@@ -1687,13 +1691,46 @@ route('/pagos', {
     return kidBar() + partCards(p.id) + seg('payTab', [['pend', `Pendientes (${pend.length})`], ['hist', 'Pagados']], t) + body;
   }, after: () => { if ($('#pay-btn')) A.toggleCh(); }
 });
+const matchYes = i => Object.values(i.answers || {}).filter(v => v === 'si').length;
 function partCards(pid) {
-  const l = S.incomeItems.filter(i => i.confirm && (i.playerIds || []).includes(pid)).map(i => { const ans = (i.answers || {})[pid], ch = S.charges.find(c => c.id === `part_${i.id}_${pid}`); return { i, ans, ch }; }).filter(x => !(x.ch && x.ch.status === 'pagado') && (x.ans === 'si' || !x.i.due || x.i.due >= today()));
+  const l = S.incomeItems.filter(i => i.confirm && !i.canceled && (i.playerIds || []).includes(pid)).map(i => { const ans = (i.answers || {})[pid], ch = S.charges.find(c => c.id === `part_${i.id}_${pid}`); return { i, ans, ch }; }).filter(x => !(x.ch && x.ch.status === 'pagado') && (x.ans === 'si' || !x.i.due || x.i.due >= today()) && !(x.i.minPlayers && !x.i.active && x.i.due < today()));
   if (!l.length) return '';
-  return sec('Convocatorias') + l.map(({ i, ans, ch }) => `<div class="card"><div class="row"><div class="sp"><div class="b">${esc(i.name)}</div><div class="small muted">${esc(i.kind)} · ${esc((club(i.clubId) || {}).short || '')}${i.due ? ' · pagar hasta ' + fDate(i.due) : ''}</div></div><b>${clp(i.amount)}</b></div>${ans === 'si' ? `<div class="mt8">${badge('Confirmado', 'ok')}</div>${ch && !ch.original ? `<div class="mt8">${btn('Cancelar participación', `A.partAnswer('${i.id}','${pid}',false)`, 'dsoft sm')}</div>` : ''}` : ans === 'no' ? `<div class="mt8">${badge('No participa', 'mute')}</div><div class="mt8">${btn('Confirmar participación', `A.partAnswer('${i.id}','${pid}',true)`, 'ok sm')}</div>` : `<div class="btns">${btn('No participa', `A.partAnswer('${i.id}','${pid}',false)`, 'dsoft sm')}${btn('Confirmar', `A.partAnswer('${i.id}','${pid}',true)`, 'ok sm')}</div>`}</div>`).join('');
+  return sec('Convocatorias') + l.map(({ i, ans, ch }) => {
+    const m = i.minPlayers && activeMems(pid).find(x => (i.teamIds || []).includes(x.teamId)), sus = m && memStatus(m) === 'suspendido', espera = i.minPlayers && !i.active, n = matchYes(i);
+    const puedeCancelar = espera || (ch && !ch.original);
+    const info = i.minPlayers ? `${fDate(i.matchDate)} · ${esc(i.time)}${i.place ? ' · ' + esc(i.place) : ''}` : i.due ? 'pagar hasta ' + fDate(i.due) : '';
+    const avance = espera ? `<div class="small muted mt8">${n} de ${i.minPlayers} confirmados. Se jugará y se cobrará al llegar al mínimo.</div><div class="prog mt8"><i style="width:${Math.min(100, Math.round(n * 100 / i.minPlayers))}%"></i></div>` : i.minPlayers ? `<div class="mt8">${badge('En calendario', 'ok')}</div>` : '';
+    const acciones = ans === 'si' ? `<div class="mt8">${badge('Confirmado', 'ok')}</div>${puedeCancelar ? `<div class="mt8">${btn('Cancelar participación', `A.partAnswer('${i.id}','${pid}',false)`, 'dsoft sm')}</div>` : ''}`
+      : sus ? `<div class="mt8">${badge('Suspendido: no puede confirmar', 'bad')}</div>`
+        : ans === 'no' ? `<div class="mt8">${badge('No participa', 'mute')}</div><div class="mt8">${btn('Confirmar participación', `A.partAnswer('${i.id}','${pid}',true)`, 'ok sm')}</div>`
+          : `<div class="btns">${btn('No participa', `A.partAnswer('${i.id}','${pid}',false)`, 'dsoft sm')}${btn('Confirmar', `A.partAnswer('${i.id}','${pid}',true)`, 'ok sm')}</div>`;
+    return `<div class="card"><div class="row"><div class="sp"><div class="b">${esc(i.name)}</div><div class="small muted">${esc(i.kind)} · ${esc((club(i.clubId) || {}).short || '')}${info ? ' · ' + info : ''}</div></div><b>${clp(i.amount)}</b></div>${avance}${acciones}</div>`;
+  }).join('');
+}
+function matchApply(i, pid) {
+  const m = S.memberships.find(x => x.playerId === pid && x.clubId === i.clubId && ['habil', 'suspendido'].includes(x.status) && i.teamIds.includes(x.teamId)); if (!m) return;
+  const cid_ = `part_${i.id}_${pid}`, eid = `cv_${i.id}_${m.teamId}`;
+  if (!S.charges.some(c => c.id === cid_)) S.charges.push({ id: cid_, status: 'pendiente', paidAt: null, playerId: pid, clubId: i.clubId, teamId: m.teamId, concept: i.name, kind: 'extraordinaria', cat: i.kind, amount: i.amount, due: i.matchDate, by: i.by, partial: true, meta: { itemId: i.id } });
+  let e = S.events.find(x => x.id === eid);
+  if (!e) { e = { id: eid, type: i.kind === 'Torneo' ? 'torneo' : 'partido', clubId: i.clubId, sport: m.sport, teamId: m.teamId, date: i.matchDate, time: i.time, place: i.place, title: i.name, itemId: i.id, cited: [], present: [], result: null, stats: {} }; S.events.push(e); }
+  if (!e.cited.includes(pid)) e.cited.push(pid);
+}
+function matchAnswer(i, pid, ok) {
+  const cid_ = `part_${i.id}_${pid}`, ch = S.charges.find(c => c.id === cid_), m = S.memberships.find(x => x.playerId === pid && x.clubId === i.clubId && ['habil', 'suspendido'].includes(x.status) && i.teamIds.includes(x.teamId));
+  if (ok && !m) return toast('El deportista no está activo en este club', 'warn');
+  if (ok && memStatus(m) === 'suspendido') return toast('Un deportista suspendido no puede confirmar su participación', 'warn');
+  if (!ok && ch && (ch.status !== 'pendiente' || ch.original)) return toast('Ya registra pagos: habla con el club', 'warn');
+  i.answers = { ...(i.answers || {}), [pid]: ok ? 'si' : 'no' };
+  if (!ok) { S.charges = S.charges.filter(c => c.id !== cid_); S.events.filter(e => e.itemId === i.id).forEach(e => { e.cited = e.cited.filter(x => x !== pid); }); return commit('Respuesta guardada'); }
+  if (i.active) { matchApply(i, pid); return commit('Participación confirmada'); }
+  if (matchYes(i) < i.minPlayers) return commit('Participación confirmada');
+  i.active = true; Object.keys(i.answers).filter(k => i.answers[k] === 'si').forEach(k => matchApply(i, k));
+  notify(['jugador', 'apoderado'], `${i.name} ya está confirmado: quedó en el calendario y se cargó su cobro.`, '/calendario', i.clubId);
+  commit('Se alcanzó el mínimo: ya está en el calendario');
 }
 A.partAnswer = (id, pid, ok) => {
-  const i = S.incomeItems.find(x => x.id === id), cid_ = `part_${id}_${pid}`, ch = S.charges.find(c => c.id === cid_), m = S.memberships.find(x => x.playerId === pid && x.clubId === i.clubId && ['habil', 'suspendido'].includes(x.status));
+  const i = S.incomeItems.find(x => x.id === id); if (i.minPlayers) return matchAnswer(i, pid, ok);
+  const cid_ = `part_${id}_${pid}`, ch = S.charges.find(c => c.id === cid_), m = S.memberships.find(x => x.playerId === pid && x.clubId === i.clubId && ['habil', 'suspendido'].includes(x.status));
   if (ok && !ch) { if (!m) return toast('El deportista no está activo en este club', 'warn'); S.charges.push({ id: cid_, status: 'pendiente', paidAt: null, playerId: pid, clubId: i.clubId, teamId: m.teamId || null, concept: i.name, kind: 'extraordinaria', cat: i.kind, amount: i.amount, due: i.due, by: i.by, partial: true, meta: { itemId: id } }); }
   if (!ok && ch) { if (ch.status !== 'pendiente' || ch.original) return toast('Ya registra pagos: habla con el club', 'warn'); S.charges = S.charges.filter(c => c.id !== cid_); }
   i.answers = { ...(i.answers || {}), [pid]: ok ? 'si' : 'no' }; commit(ok ? 'Participación confirmada' : 'Respuesta guardada');
@@ -1743,7 +1780,7 @@ route('/verificar/:code', {
 });
 
 // --- Calendario y asistencia (deportista y apoderado) ---
-const EV_TYPES = { entrenamiento: ['Entrenamiento', 'info'], partido: ['Partido', 'ok'], torneo: ['Campeonato', 'warn'], actividad: ['Actividad', 'mute'] };
+const EV_TYPES = { entrenamiento: ['Entrenamiento', 'info'], partido: ['Partido', 'ok'], torneo: ['Torneo', 'warn'], actividad: ['Actividad', 'mute'] };
 function subjEvents(pid) {
   const tm = activeMems(pid).filter(m => m.status !== 'pendiente').map(m => m.teamId);
   return S.events.filter(e => tm.includes(e.teamId)).sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time));
@@ -1768,8 +1805,8 @@ route('/calendario', {
     if (!ms.length) return kidBar() + empty('calendar', 'Aún no tienes calendario', 'Cuando un club acepte tu solicitud verás entrenamientos y partidos.', goBtn('Unirme a un club', '/unirme'));
     const next = all.filter(e => e.date >= start).slice(0, 12), past = all.filter(e => e.date < t).slice(-4).reverse();
     const upT = S.tournaments.filter(x => x.end >= t && x.teams.some(id => ms.some(m => m.teamId === id)));
-    return kidBar() + `<div class="week">${week.map(d => { const n = evs.filter(e => e.date === d).length, dd = parse(d); return `<button class="wd ${d === start ? 'on' : ''}" onclick="A.ui('calDay','${d}')" aria-label="${fDay(d)}"><span class="d">${DIAS_C[dd.getDay()]}</span><span class="n">${dd.getDate()}</span><span class="dots">${'<i></i>'.repeat(Math.min(n, 3))}</span></button>`; }).join('')}</div>` +
-      chips('calF', [['todo', 'Todo'], ['entrenamiento', 'Entrenamientos'], ['partido', 'Partidos'], ['torneo', 'Campeonatos']], f) +
+    return kidBar() + partCards(p.id) + `<div class="week">${week.map(d => { const n = evs.filter(e => e.date === d).length, dd = parse(d); return `<button class="wd ${d === start ? 'on' : ''}" onclick="A.ui('calDay','${d}')" aria-label="${fDay(d)}"><span class="d">${DIAS_C[dd.getDay()]}</span><span class="n">${dd.getDate()}</span><span class="dots">${'<i></i>'.repeat(Math.min(n, 3))}</span></button>`; }).join('')}</div>` +
+      chips('calF', [['todo', 'Todo'], ['entrenamiento', 'Entrenamientos'], ['partido', 'Partidos'], ['torneo', 'Torneos']], f) +
       (next.length ? next.map(e => evCard(e, p.id)).join('') : empty('calendar', 'Nada por aquí', 'No hay actividades con este filtro.')) +
       (upT.length ? sec('Torneos del club') + list(upT.map(x => li({ ic: 'trophy', color: 'yellow', title: esc(x.name), sub: `${fDate(x.start)} al ${fDate(x.end)} · ${esc(x.city)}`, href: '/torneo/' + x.id }))) : '') +
       (past.length ? sec('Recientes') + past.map(e => evCard(e, p.id, false)).join('') : '');
@@ -1779,7 +1816,7 @@ route('/asistencia', {
   title: 'Confirmar asistencia', roles: ['jugador', 'apoderado'], render: () => {
     const p = subj(), l = subjEvents(p.id).filter(e => e.date >= today()), up = l.slice(0, 10), done = l.filter(e => attOf(e.id, p.id)).length;
     const sus = activeMems(p.id).filter(m => m.status === 'suspendido');
-    return kidBar() + sus.map(m => note(`<b>Suspendido en ${m.sport}.</b> Durante el plazo no puede ser convocado.`, 'bad', 'alert')).join('') + feeNotes(p.id) + (up.length ? `<div class="kpis">${kpi('Por confirmar', l.length - done)}${kpi('Confirmados', done, 'atext')}</div>` + up.map(e => evCard(e, p.id)).join('') : empty('check', 'Sin citaciones', 'Las próximas actividades aparecerán aquí.'));
+    return kidBar() + sus.map(m => note(`<b>Suspendido en ${m.sport}.</b> Durante el plazo no puede ser convocado.`, 'bad', 'alert')).join('') + feeNotes(p.id) + partCards(p.id) + (up.length ? `<div class="kpis">${kpi('Por confirmar', l.length - done)}${kpi('Confirmados', done, 'atext')}</div>` + up.map(e => evCard(e, p.id)).join('') : empty('check', 'Sin citaciones', 'Las próximas actividades aparecerán aquí.'));
   }
 });
 
@@ -1809,12 +1846,6 @@ function myPolls() {
 }
 const pollOpen = p => p.closes >= today();
 A.vote = (id, i) => { const p = S.polls.find(x => x.id === id); p.votes[me().id] = i; commit('Voto registrado'); };
-route('/encuestas', {
-  title: 'Votaciones y encuestas', roles: ['jugador', 'apoderado', 'entrenador'], render: () => {
-    const l = myPolls();
-    return (role() === 'entrenador' ? goBtn('Crear encuesta', '/e/encuesta-nueva', 's2', 'plus') + '<div class="mt12"></div>' : '') + (l.length ? list(l.map(p => li({ ic: 'poll', color: 'purple', title: esc(p.title), sub: `${esc(p.by)} · ${Object.keys(p.votes).length} votos`, right: pollOpen(p) ? (p.votes[me().id] != null ? badge('Votaste', 'ok') : badge('Abierta')) : badge('Cerrada', 'mute'), href: '/encuesta/' + p.id }))) : empty('poll', 'Sin encuestas', 'Cuando tu club publique una votación aparecerá aquí.'));
-  }
-});
 route('/encuesta/:id', {
   title: 'Encuesta', render: x => {
     const p = S.polls.find(q => q.id === x.id); if (!p) return empty('poll', 'Encuesta no encontrada', '');
@@ -2137,7 +2168,7 @@ const teamBar = () => chips('coachTeam', coachTeams().map(t => [t.id, t.name]), 
 const nextEvent = tid => S.events.filter(e => e.teamId === tid && e.date >= today()).sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time))[0];
 HOME_SUMMARY.entrenador = () => {
   const t = curTeam(), e = nextEvent(t.id), pend = S.proposals.filter(p => p.status === 'pendiente' && p.by === coach().by), sus = teamMembers(t.id).filter(m => memStatus(m) === 'suspendido').length;
-  return `<button class="card hero" style="border:0;width:100%;text-align:left" onclick="go('/club/${t.clubId}')"><div class="row">${clubLogo(club(t.clubId), 48)}<div class="sp"><div class="small muted">${esc(club(t.clubId).name)}</div><div class="b" style="font-size:18px">Head coach · ${coach().sport}</div></div></div></button>${teamBar()}<div class="kpis">${kpi('Plantel', teamMembers(t.id).length)}${kpi('Suspendidos', sus, sus ? 'dtext' : '')}${kpi('Propuestas en VB', pend.length, pend.length ? 'wtext' : '')}${kpi('Encuestas', S.polls.filter(p => p.by === coach().by && pollOpen(p)).length)}</div>${e ? sec('Próximo') + `<button class="card ev" style="border:0;width:100%;text-align:left;color:inherit" onclick="go('/e/evento/${e.id}')"><div class="when"><b>${parse(e.date).getDate()}</b><span>${MESES_C[parse(e.date).getMonth()]}</span></div><div class="sp"><div>${badge(...EV_TYPES[e.type])}</div><div class="b mt8">${esc(e.title)}</div><div class="small muted">${relDay(e.date)} · ${e.time} · ${e.cited.length} citados</div></div></button>` : ''}`;
+  return `<button class="card hero" style="border:0;width:100%;text-align:left" onclick="go('/club/${t.clubId}')"><div class="row">${clubLogo(club(t.clubId), 48)}<div class="sp"><div class="small muted">${esc(club(t.clubId).name)}</div><div class="b" style="font-size:18px">Head coach · ${coach().sport}</div></div></div></button>${teamBar()}<div class="kpis">${kpi('Plantel', teamMembers(t.id).length)}${kpi('Suspendidos', sus, sus ? 'dtext' : '')}${kpi('Propuestas en VB', pend.length, pend.length ? 'wtext' : '')}${kpi('Encuestas', svList().filter(x => x.status === 'abierta').length)}</div>${e ? sec('Próximo') + `<button class="card ev" style="border:0;width:100%;text-align:left;color:inherit" onclick="go('/e/evento/${e.id}')"><div class="when"><b>${parse(e.date).getDate()}</b><span>${MESES_C[parse(e.date).getMonth()]}</span></div><div class="sp"><div>${badge(...EV_TYPES[e.type])}</div><div class="b mt8">${esc(e.title)}</div><div class="small muted">${relDay(e.date)} · ${e.time} · ${e.cited.length} citados</div></div></button>` : ''}`;
 };
 route('/e/eventos', {
   title: 'Partidos y entrenamientos', tab: 'partidos', root: true, roles: ['entrenador'],
@@ -2186,14 +2217,168 @@ route('/e/plantel', {
     return teamBar() + (l.length ? list(l.map(m => { const p = player(m.playerId), evs = S.events.filter(e => e.stats[p.id]); return li({ av: avatar(p.name, 40, p.photo), title: `${m.number ? m.number + '. ' : ''}${esc(p.name)}`, sub: `${esc(p.position || '')} · ${ageOf(p.birth)} años · ${sum(evs, e => e.stats[p.id].goles)} goles`, right: memBadge(m) }); })) : empty('users', 'Plantel vacío', 'Usa la carga masiva para agregar deportistas.', goBtn('Carga masiva', '/e/carga')));
   }
 });
-A.addOption = () => { const n = $$('.pl-op').length + 1; if (n > 6) return toast('Máximo 6 opciones', 'warn'); $('#pl-ops').insertAdjacentHTML('beforeend', `<input class="input pl-op mb8" placeholder="Opción ${n}" aria-label="Opción ${n}" autocomplete="off">`); };
-A.addPoll = () => {
-  const title = val('pl-t'), o = $$('.pl-op').map(i => i.value.trim()).filter(Boolean); if (!title || o.length < 2) return toast('Escribe la pregunta y al menos 2 opciones', 'warn');
-  const t = curTeam(), id = uid('po'); S.polls.unshift({ id, title, options: o, votes: {}, by: coach().by, audience: val('pl-a'), teamId: t.id, clubId: t.clubId, closes: addDays(today(), +val('pl-c')) });
-  notify(val('pl-a') === 'apoderados' ? 'apoderado' : 'jugador', `Nueva encuesta: ${title}`, '/encuesta/' + id); save(); replaceTo('/encuestas'); toast('Encuesta publicada');
+// --- Partidos y torneos: entran al calendario y cobran solo al alcanzar el mínimo de confirmados ---
+const matchTeams = sc => sc === 'mis' ? coachTeams() : scopeTeams(sc);
+const matchList = () => S.incomeItems.filter(i => i.minPlayers && i.clubId === myClubId() && (role() !== 'entrenador' || i.teamIds.some(t => coach().teams.includes(t)))).sort((a, b) => b.matchDate.localeCompare(a.matchDate));
+const matchStatus = i => i.canceled ? ['Cancelado', 'mute'] : i.active ? ['En calendario', 'ok'] : i.due < today() ? ['No alcanzó el mínimo', 'mute'] : ['Esperando mínimo', 'warn'];
+A.matchSheet = () => sheet('Nuevo partido o torneo', `${select('mt-k', 'Tipo', [['Partido', 'Partido'], ['Torneo', 'Torneo']], 'Partido')}${inp('mt-n', 'Nombre', 'maxlength="120" autocomplete="off"')}${inp('mt-d', 'Fecha', `type="date" value="${addDays(today(), 14)}" min="${today()}"`)}${inp('mt-h', 'Hora', 'type="time" value="10:00"')}${inp('mt-p', 'Lugar', 'maxlength="120" autocomplete="off"')}${inp('mt-a', 'Monto a pagar por deportista', 'type="number" inputmode="numeric" min="1"')}${inp('mt-m', 'Mínimo de deportistas que deben confirmar', 'type="number" inputmode="numeric" min="1"')}${select('mt-s', 'Convocar a', incomeScopes().filter(x => x[0] !== 'none'), role() === 'entrenador' ? 'mis' : 'club')}<div class="hint mb8">Aparecerá en el calendario y se cobrará a cada confirmado, con esa fecha, cuando se alcance el mínimo.</div><div class="err mb8" id="mt-err"></div>${btn('Crear y pedir confirmación', 'A.matchCreate()', 'ok')}`);
+function matchForm() {
+  const o = { kind: val('mt-k'), name: val('mt-n'), date: val('mt-d'), time: val('mt-h'), place: val('mt-p'), amount: Math.round(+val('mt-a')), min: Math.round(+val('mt-m')), sc: val('mt-s') }, err = m => { $('#mt-err').textContent = m; return null; };
+  if (!o.name) return err('Escribe el nombre.'); if (!o.date || o.date < today()) return err('Indica una fecha desde hoy en adelante.'); if (!(o.amount > 0)) return err('Indica un monto mayor que cero.'); if (!(o.min >= 1)) return err('Indica la cantidad mínima de deportistas.');
+  o.teams = matchTeams(o.sc).map(t => t.id); if (!o.teams.length) return err('Elige a quién convocar.'); o.target = incScopeLabel(o.sc); return o;
+}
+A.matchCreate = () => {
+  const o = matchForm(); if (!o) return;
+  const ids = [...new Set(S.memberships.filter(m => o.teams.includes(m.teamId) && ['habil', 'suspendido'].includes(m.status)).map(m => m.playerId))];
+  if (!ids.length) { $('#mt-err').textContent = 'No hay deportistas activos en esa selección.'; return; }
+  if (o.min > ids.length) { $('#mt-err').textContent = `El mínimo no puede superar a los ${ids.length} deportistas convocados.`; return; }
+  S.incomeItems.unshift({ id: uid('cv'), clubId: myClubId(), kind: o.kind, name: o.name, amount: o.amount, target: o.target, scope: 'match', due: o.date, by: role() === 'entrenador' ? coach().by : 'Directorio', date: today(), confirm: true, playerIds: ids, answers: {}, minPlayers: o.min, matchDate: o.date, time: o.time || '10:00', place: o.place, teamIds: o.teams, active: false });
+  notify(['jugador', 'apoderado'], `Confirma tu participación: ${o.name}`, '/calendario', myClubId(), null, o.teams);
+  closeSheet(); commit('Convocatoria enviada');
 };
-route('/e/encuesta-nueva', {
-  title: 'Crear encuesta', roles: ['entrenador'], render: () => teamBar() + `<div class="card">${inp('pl-t', 'Pregunta', 'autocomplete="off"')}<div class="field"><label>Opciones</label><div id="pl-ops"><input class="input pl-op mb8" placeholder="Opción 1" aria-label="Opción 1" autocomplete="off"><input class="input pl-op mb8" placeholder="Opción 2" aria-label="Opción 2" autocomplete="off"></div>${btn('Agregar opción', 'A.addOption()', 'ghost', 'plus')}</div>${select('pl-a', 'Dirigida a', [['jugadores', 'Deportistas'], ['apoderados', 'Apoderados'], ['todos', 'Todos']], 'jugadores')}${select('pl-c', 'Cierra en', [['3', '3 días'], ['7', '7 días'], ['14', '14 días']], '7')}</div>${btn('Publicar encuesta', 'A.addPoll()', 'ok')}`
+A.matchCancelSheet = id => confirmSheet('Cancelar convocatoria', 'Se avisará a quienes ya confirmaron.', 'Cancelar convocatoria', `A.matchCancel('${id}')`, 'danger');
+A.matchCancel = id => { const i = S.incomeItems.find(x => x.id === id); i.canceled = true; closeSheet(); commit('Convocatoria cancelada'); };
+route('/convocatorias', {
+  title: 'Partidos y torneos', roles: ['directivo', 'entrenador'], render: () => {
+    const l = matchList();
+    return btn('Crear partido o torneo', 'A.matchSheet()', 'ok', 'plus') + '<div class="mt12"></div>' + (l.length ? list(l.map(i => li({ ic: 'trophy', color: i.active ? 'green' : 'yellow', title: esc(i.name), sub: `${esc(i.kind)} · ${fDate(i.matchDate)} · ${matchYes(i)} de ${i.minPlayers} confirmados · ${clp(i.amount)}`, right: badge(...matchStatus(i)), href: '/convocatorias/' + i.id }))) : empty('trophy', 'Sin convocatorias', 'Crea un partido o torneo y pide confirmación a tus deportistas.'));
+  }
+});
+route('/convocatorias/:id', {
+  title: 'Convocatoria', roles: ['directivo', 'entrenador'], render: x => {
+    const i = S.incomeItems.find(q => q.id === x.id && q.minPlayers); if (!i) return empty('trophy', 'Convocatoria no encontrada', '');
+    const n = matchYes(i), a = i.answers || {}, nombre = id => esc((player(id) || {}).name || 'Deportista');
+    const grupo = (t, ids) => ids.length ? sec(`${t} (${ids.length})`) + list(ids.map(id => li({ ic: 'user', color: 'gray', title: nombre(id) }))) : '';
+    const si = i.playerIds.filter(p => a[p] === 'si'), no = i.playerIds.filter(p => a[p] === 'no'), sin = i.playerIds.filter(p => !a[p]);
+    return `<div class="card"><div class="row"><div class="sp"><h3>${esc(i.name)}</h3><div class="small muted mt8">${esc(i.kind)} · ${fLong(i.matchDate)} · ${esc(i.time)}${i.place ? '<br>' + esc(i.place) : ''}<br>${esc(i.target)}</div></div>${badge(...matchStatus(i))}</div><div class="row mt12"><span class="sp small muted">${n} de ${i.minPlayers} confirmados</span><b>${clp(i.amount)}</b></div><div class="prog mt8"><i style="width:${Math.min(100, Math.round(n * 100 / i.minPlayers))}%"></i></div></div>` + grupo('Confirmaron', si) + grupo('No participan', no) + grupo('Sin respuesta', sin) + (!i.active && !i.canceled && i.due >= today() ? `<div class="mt12">${btn('Cancelar convocatoria', `A.matchCancelSheet('${i.id}')`, 'dsoft')}</div>` : '');
+  }
+});
+
+// --- Encuestas: formulario con varias preguntas, para deportistas y apoderados, y dashboard de resultados ---
+const SV_TYPES = [['unica', 'Varias opciones'], ['multiple', 'Casillas'], ['lista', 'Desplegable'], ['corta', 'Respuesta corta'], ['parrafo', 'Párrafo'], ['escala', 'Escala lineal'], ['fecha', 'Fecha']];
+const svChoice = t => ['unica', 'multiple', 'lista'].includes(t);
+const svManager = () => ['directivo', 'entrenador'].includes(role());
+const svTeams = () => role() === 'entrenador' ? coachTeams() : S.teams.filter(t => t.clubId === myClubId());
+const svQ = () => ({ text: '', type: 'unica', required: true, options: ['', ''], min: 1, max: 5, minLabel: '', maxLabel: '' });
+const svNew = () => ({ title: '', message: '', questions: [svQ()], audience: ['jugadores', 'apoderados'], teamIds: svTeams().map(t => t.id) });
+let SV = null;
+const svToggle = (arr, v, on) => { const i = arr.indexOf(v); if (on && i < 0) arr.push(v); if (!on && i >= 0) arr.splice(i, 1); };
+A.svAdd = () => { SV.questions.push(svQ()); rerender(); };
+A.svDel = n => { if (SV.questions.length === 1) return toast('La encuesta necesita al menos una pregunta', 'warn'); SV.questions.splice(n, 1); rerender(); };
+A.svDup = n => { SV.questions.splice(n + 1, 0, JSON.parse(JSON.stringify(SV.questions[n]))); rerender(); };
+A.svType = (n, v) => { SV.questions[n].type = v; rerender(); };
+A.svOpAdd = n => { SV.questions[n].options.push(''); rerender(); };
+A.svOpDel = (n, i) => { if (SV.questions[n].options.length === 2) return toast('Se necesitan al menos 2 opciones', 'warn'); SV.questions[n].options.splice(i, 1); rerender(); };
+A.svAll = on => { SV.teamIds = on ? svTeams().map(t => t.id) : []; rerender(); };
+const svIconBtn = (ic, label, on) => `<button class="btn sm s2" style="width:44px;min-height:44px;padding:0;flex-shrink:0" aria-label="${label}" title="${label}" onclick="${on}">${icon(ic, 18)}</button>`;
+const svOpt = (q, n, o, i) => `<div class="row gap8 mb8"><span class="muted" style="width:20px;text-align:center" aria-hidden="true">${q.type === 'unica' ? '○' : q.type === 'multiple' ? '☐' : (i + 1) + '.'}</span><input class="input sp" style="min-width:0" placeholder="Opción ${i + 1}" aria-label="Opción ${i + 1}" maxlength="200" autocomplete="off" value="${esc(o)}" oninput="SV.questions[${n}].options[${i}]=this.value">${svIconBtn('x', 'Quitar opción', `A.svOpDel(${n},${i})`)}</div>`;
+const svNums = (id, label, from, to, sel, on) => select(id, label, [...Array(to - from + 1)].map((_, i) => [String(from + i), String(from + i)]), String(sel), `onchange="${on}"`);
+function svEditQ(q, n) {
+  let body = '';
+  if (svChoice(q.type)) body = `<div class="field"><label>Opciones</label>${q.options.map((o, i) => svOpt(q, n, o, i)).join('')}${btn('Agregar opción', `A.svOpAdd(${n})`, 'ghost sm', 'plus')}</div>`;
+  else if (q.type === 'escala') body = `<div class="row gap8"><div class="sp">${svNums('sv-mn' + n, 'Desde', 0, 1, q.min, `SV.questions[${n}].min=+this.value`)}</div><div class="sp">${svNums('sv-mx' + n, 'Hasta', 2, 10, q.max, `SV.questions[${n}].max=+this.value`)}</div></div><div class="row gap8"><div class="sp"><div class="field"><label>Etiqueta inicial</label><input class="input" maxlength="40" autocomplete="off" value="${esc(q.minLabel)}" oninput="SV.questions[${n}].minLabel=this.value"></div></div><div class="sp"><div class="field"><label>Etiqueta final</label><input class="input" maxlength="40" autocomplete="off" value="${esc(q.maxLabel)}" oninput="SV.questions[${n}].maxLabel=this.value"></div></div></div>`;
+  return `<div class="card"><div class="field"><label>Pregunta ${n + 1}</label><input class="input sv-q" maxlength="300" autocomplete="off" value="${esc(q.text)}" oninput="SV.questions[${n}].text=this.value"></div>${select('sv-t' + n, 'Tipo de respuesta', SV_TYPES, q.type, `onchange="A.svType(${n},this.value)"`)}${body}<div class="row gap8 mt8"><label class="check sp"><input type="checkbox" ${q.required ? 'checked' : ''} onchange="SV.questions[${n}].required=this.checked"><span>Obligatoria</span></label>${svIconBtn('doc', 'Duplicar pregunta', `A.svDup(${n})`)}${svIconBtn('x', 'Eliminar pregunta', `A.svDel(${n})`)}</div></div>`;
+}
+const svCheck = (label, on, ch) => `<label class="check"><input type="checkbox" ${ch ? 'checked' : ''} onchange="${on}"><span>${label}</span></label>`;
+function svClean() {
+  const d = SV, title = d.title.trim(), message = d.message.trim();
+  if (!title) return toast('Escribe el título de la encuesta', 'warn');
+  if (!limpio(title + ' ' + message)) return;
+  if (!d.audience.length) return toast('Elige deportistas, apoderados o ambos', 'warn');
+  if (!d.teamIds.length) return toast('Elige al menos una categoría', 'warn');
+  const questions = [];
+  for (let n = 0; n < d.questions.length; n++) {
+    const q = d.questions[n], text = q.text.trim(); if (!text) return toast(`Escribe la pregunta ${n + 1}`, 'warn'); if (!limpio(text)) return;
+    const o = { text, type: q.type, required: q.required };
+    if (svChoice(q.type)) { o.options = q.options.map(x => x.trim()); if (o.options.some(x => !x)) return toast(`Completa las opciones de la pregunta ${n + 1}`, 'warn'); if (new Set(o.options).size !== o.options.length) return toast(`La pregunta ${n + 1} tiene opciones repetidas`, 'warn'); }
+    if (q.type === 'escala') Object.assign(o, { min: q.min, max: q.max, minLabel: q.minLabel.trim(), maxLabel: q.maxLabel.trim() });
+    questions.push(o);
+  }
+  const all = d.teamIds.length === svTeams().length, scope = all ? (role() === 'entrenador' ? 'Mis categorías' : 'Todo el club') : d.teamIds.map(t => team(t).name).join(', ');
+  return { title, message, questions, audience: d.audience, teams: d.teamIds, scope };
+}
+A.svPublish = () => {
+  const p = svClean(); if (!p) return;
+  const id = uid('sv'); S.surveys.unshift({ id, clubId: myClubId(), by: role() === 'entrenador' ? coach().by : 'Directorio', title: p.title, message: p.message, questions: p.questions.map((q, i) => ({ ...q, id: 'q' + (i + 1) })), audience: p.audience, teamIds: p.teams, scope: p.scope, status: 'abierta', date: today(), responses: [] });
+  notify(p.audience.map(k => BC_ROLES[k]), `Nueva encuesta: ${p.title}`, '/encuestas/' + id, myClubId(), null, p.teams);
+  SV = null; save(); replaceTo('/encuestas'); toast('Encuesta publicada');
+};
+A.svStatus = (id, open) => { S.surveys.find(x => x.id === id).status = open ? 'abierta' : 'cerrada'; commit(open ? 'Encuesta abierta' : 'Encuesta cerrada'); };
+function svRead(x) {
+  const a = {};
+  for (const q of x.questions) {
+    const nm = 'sva-' + q.id; let v = null;
+    if (q.type === 'unica' || q.type === 'escala') { const e = $(`input[name="${nm}"]:checked`); if (e) v = q.type === 'escala' ? +e.value : q.options[+e.value]; }
+    else if (q.type === 'multiple') { v = checked(nm).map(i => q.options[+i]); if (!v.length) v = null; }
+    else if (q.type === 'lista') { const e = $('#' + nm).value; if (e !== '') v = q.options[+e]; }
+    else { v = $('#' + nm).value.trim() || null; if (v && !limpio(v)) return null; }
+    if (v === null) { if (q.required) { toast('Responde: ' + q.text, 'warn'); return null; } continue; }
+    a[q.id] = v;
+  }
+  return a;
+}
+A.svSubmit = id => { const x = S.surveys.find(q => q.id === id), a = svRead(x); if (!a) return; x.responses.push({ by: me().id, who: audienceKey(), answers: a, date: today() }); commit('Respuesta enviada. ¡Gracias!'); };
+function svList() {
+  const r = role();
+  if (S.session.real) return svManager() ? S.surveys.filter(x => x.manage) : S.surveys;
+  if (r === 'directivo') return S.surveys.filter(x => x.clubId === myClubId());
+  if (r === 'entrenador') return S.surveys.filter(x => x.clubId === coach().clubId && x.by === coach().by);
+  const k = audienceKey(), tm = myTeams(); return S.surveys.filter(x => x.audience.includes(k) && x.teamIds.some(t => tm.includes(t)));
+}
+const svDone = x => S.session.real ? x.answered : x.responses.some(r => r.by === me().id);
+function svEligible(x) {
+  if (S.session.real) return x.eligible || 0;
+  const ids = new Set(S.memberships.filter(m => x.teamIds.includes(m.teamId) && ['habil', 'suspendido'].includes(m.status)).map(m => m.playerId));
+  return (x.audience.includes('jugadores') ? ids.size : 0) + (x.audience.includes('apoderados') ? S.guardians.filter(g => g.kids.some(k => ids.has(k.playerId))).length : 0);
+}
+const svBar = (label, n, base) => { const p = base ? Math.round(n * 100 / base) : 0; return `<div class="mt12" title="${esc(label)}: ${n} (${p}%)"><div class="row small"><span class="sp" style="min-width:0;overflow-wrap:anywhere">${esc(label)}</span><span class="muted">${n}</span><b style="min-width:42px;text-align:right">${p}%</b></div><div class="prog mt8"><i style="width:${p}%"></i></div></div>`; };
+function svResult(q, rs) {
+  const vals = rs.map(r => r.answers[q.id]).filter(v => v !== undefined), n = vals.length; let body;
+  if (!n) body = '<p class="small muted" style="margin:8px 0 0">Sin respuestas todavía.</p>';
+  else if (svChoice(q.type)) body = q.options.map(o => svBar(o, vals.filter(v => q.type === 'multiple' ? v.includes(o) : v === o).length, n)).join('');
+  else if (q.type === 'escala') body = `<div class="small muted mt8">Promedio <b>${(sum(vals, v => v) / n).toFixed(1).replace('.', ',')}</b> de ${q.max}</div>` + [...Array(q.max - q.min + 1)].map((_, i) => { const v = q.min + i; return svBar(`${v}${v === q.min && q.minLabel ? ' · ' + q.minLabel : v === q.max && q.maxLabel ? ' · ' + q.maxLabel : ''}`, vals.filter(y => y === v).length, n); }).join('');
+  else body = `<div class="mt8">${vals.slice(0, 30).map(v => `<div class="small" style="padding:8px 0;border-top:1px solid var(--line);overflow-wrap:anywhere">${esc(q.type === 'fecha' ? fDate(v) : v)}</div>`).join('')}</div>${n > 30 ? `<div class="small muted mt8">Y ${n - 30} respuestas más.</div>` : ''}`;
+  return `<div class="card"><div class="b">${esc(q.text)}</div><div class="small muted">${n} respuesta${n === 1 ? '' : 's'}${q.type === 'multiple' ? ' · podían marcar varias' : ''}</div>${body}</div>`;
+}
+function svDash(x) {
+  const f = x.audience.length > 1 ? (S.ui.svWho || 'todos') : 'todos', rs = x.responses.filter(r => f === 'todos' || r.who === f), el = svEligible(x), tot = x.responses.length, pct = el ? Math.min(100, Math.round(tot * 100 / el)) : 0, open = x.status === 'abierta';
+  return `<div class="card"><div class="row"><div class="sp"><h3>${esc(x.title)}</h3><div class="small muted mt8">${esc(x.by)} · ${fDate(x.date)} · ${esc(x.scope)}</div></div>${open ? badge('Abierta', 'ok') : badge('Cerrada', 'mute')}</div>${x.message ? `<p class="small" style="margin:10px 0 0;white-space:pre-line">${esc(x.message)}</p>` : ''}</div><div class="kpis">${kpi('Respuestas', tot, 'atext')}${kpi('Destinatarios', el)}${kpi('Participación', pct + '%')}</div>${x.audience.length > 1 ? chips('svWho', [['todos', 'Todos'], ['jugadores', 'Deportistas'], ['apoderados', 'Apoderados']], f) : ''}${x.questions.map(q => svResult(q, rs)).join('')}${btn(open ? 'Cerrar encuesta' : 'Volver a abrir', `A.svStatus('${x.id}',${!open})`, 's2')}`;
+}
+function svField(q) {
+  const nm = 'sva-' + q.id;
+  if (q.type === 'unica') return q.options.map((o, i) => `<label class="check"><input type="radio" name="${nm}" value="${i}"><span>${esc(o)}</span></label>`).join('');
+  if (q.type === 'multiple') return q.options.map((o, i) => check(nm, String(i), esc(o))).join('');
+  if (q.type === 'lista') return `<select class="input" id="${nm}" aria-label="${esc(q.text)}"><option value="">Elige una opción</option>${q.options.map((o, i) => `<option value="${i}">${esc(o)}</option>`).join('')}</select>`;
+  if (q.type === 'corta') return `<input class="input" id="${nm}" maxlength="300" autocomplete="off" aria-label="${esc(q.text)}">`;
+  if (q.type === 'parrafo') return `<textarea class="input" id="${nm}" maxlength="3000" aria-label="${esc(q.text)}"></textarea>`;
+  if (q.type === 'fecha') return `<input class="input" id="${nm}" type="date" aria-label="${esc(q.text)}">`;
+  return `<div class="row wrap gap8 mt8">${[...Array(q.max - q.min + 1)].map((_, i) => `<label class="center small" style="min-width:36px"><input type="radio" name="${nm}" value="${q.min + i}" style="width:22px;height:22px;accent-color:var(--primary2)"><br>${q.min + i}</label>`).join('')}</div>${q.minLabel || q.maxLabel ? `<div class="row small muted mt8"><span class="sp">${esc(q.minLabel)}</span><span>${esc(q.maxLabel)}</span></div>` : ''}`;
+}
+function svFill(x) {
+  const head = `<div class="card"><h3>${esc(x.title)}</h3><div class="small muted mt8">${esc(x.by)}</div>${x.message ? `<p class="small" style="margin:10px 0 0;white-space:pre-line">${esc(x.message)}</p>` : ''}</div>`;
+  if (svDone(x)) return head + note('Ya respondiste esta encuesta. ¡Gracias!', 'ok', 'check');
+  if (x.status !== 'abierta') return head + note('Esta encuesta está cerrada.');
+  return head + x.questions.map(q => `<div class="card"><div class="b">${esc(q.text)}${q.required ? ' <span style="color:var(--dtext)">*</span>' : ''}</div><div class="mt8">${svField(q)}</div></div>`).join('') + (x.questions.some(q => q.required) ? '<p class="hint">* Pregunta obligatoria</p>' : '') + btn('Enviar respuesta', `A.svSubmit('${x.id}')`, 'ok', 'send');
+}
+route('/encuestas', {
+  title: 'Encuestas', roles: ['jugador', 'apoderado', 'entrenador', 'directivo'], render: () => {
+    const l = svList(), mg = svManager(), viejas = role() === 'directivo' ? [] : myPolls();
+    const fila = x => li({ ic: 'poll', color: 'purple', title: esc(x.title), sub: mg ? `${esc(x.scope)} · ${x.responses.length} respuesta${x.responses.length === 1 ? '' : 's'}` : `${esc(x.by)} · ${fDate(x.date)}`, right: x.status !== 'abierta' ? badge('Cerrada', 'mute') : mg ? badge('Abierta', 'ok') : svDone(x) ? badge('Respondida', 'ok') : badge('Pendiente', 'warn'), href: '/encuestas/' + x.id });
+    return (mg ? btn('Crear encuesta', "SV=null;go('/encuestas/nueva')", 'ok', 'plus') + '<div class="mt12"></div>' : '') + (l.length ? list(l.map(fila)) : empty('poll', 'Sin encuestas', mg ? 'Crea una encuesta y verás aquí sus resultados.' : 'Cuando tu club publique una encuesta aparecerá aquí.')) + (viejas.length ? sec('Votaciones') + list(viejas.map(p => li({ ic: 'vote', color: 'blue', title: esc(p.title), sub: `${esc(p.by)} · ${Object.keys(p.votes).length} votos`, right: pollOpen(p) ? (p.votes[me().id] != null ? badge('Votaste', 'ok') : badge('Abierta')) : badge('Cerrada', 'mute'), href: '/encuesta/' + p.id }))) : '');
+  }
+});
+route('/encuestas/nueva', {
+  title: 'Crear encuesta', roles: ['directivo', 'entrenador'], render: () => {
+    if (!SV) SV = svNew();
+    const ts = svTeams(), all = SV.teamIds.length === ts.length && ts.length > 0;
+    return `<div class="card"><div class="field"><label>Título de la encuesta</label><input class="input" id="sv-title" maxlength="150" autocomplete="off" value="${esc(SV.title)}" oninput="SV.title=this.value"></div><div class="field"><label>Mensaje</label><textarea class="input" id="sv-msg" maxlength="2000" oninput="SV.message=this.value">${esc(SV.message)}</textarea></div></div>${SV.questions.map(svEditQ).join('')}${btn('Agregar pregunta', 'A.svAdd()', 's2', 'plus')}${sec('Destinatarios')}<div class="card">${svCheck('Deportistas', "svToggle(SV.audience,'jugadores',this.checked)", SV.audience.includes('jugadores'))}${svCheck('Apoderados', "svToggle(SV.audience,'apoderados',this.checked)", SV.audience.includes('apoderados'))}</div>${sec('Categorías')}<div class="card">${svCheck('<b>Todas las categorías</b>', 'A.svAll(this.checked)', all)}${ts.map(t => svCheck(`${esc(t.sport)} · ${esc(t.name)}`, `svToggle(SV.teamIds,'${t.id}',this.checked);rerender()`, SV.teamIds.includes(t.id))).join('')}</div>${btn('Publicar encuesta', 'A.svPublish()', 'ok', 'send')}`;
+  }
+});
+route('/encuestas/:id', {
+  title: 'Encuesta', roles: ['jugador', 'apoderado', 'entrenador', 'directivo'], render: x => {
+    const q = svList().find(y => y.id === x.id); if (!q) return empty('poll', 'Encuesta no encontrada', '');
+    return svManager() ? svDash(q) : svFill(q);
+  }
 });
 // Mensaje masivo. El club elige deporte, categoría y perfiles; el entrenador escribe a la categoría elegida arriba.
 const BC_ROLES = { jugadores: 'jugador', apoderados: 'apoderado', dirigentes: 'directivo', entrenadores: 'entrenador' };
@@ -2359,7 +2544,7 @@ function scopeMembers(sc) {
   const vistos = new Set(); return ms.filter(m => !vistos.has(m.playerId) && vistos.add(m.playerId));
 }
 const incScopeLabel = sc => sc === 'club' ? 'Todo el club' : sc === 'mis' ? 'Mis categorías' : sc === 'none' ? 'Sin cobro' : sc.startsWith('sport:') ? sc.slice(6) : (team(sc.slice(5)) || {}).name || '';
-A.incomeSheet = (k = role() === 'entrenador' ? 'Torneo' : 'Mensualidad') => { sheet('Crear ingreso', `${select('in-k', 'Tipo de ingreso', incomeTypes(), k, 'onchange="A.incomeName()"')}${inp('in-n', 'Nombre del cobro', `value="${esc(incomeDefault(k))}" maxlength="120" autocomplete="off"`)}${inp('in-a', 'Monto por deportista', 'type="number" inputmode="numeric" min="1"')}<div id="in-dw">${inp('in-d', 'Vence', `type="date" value="${addDays(today(), 15)}"`)}</div>${select('in-s', 'Cobrar a', incomeScopes(), role() === 'entrenador' ? 'mis' : 'club')}<div class="hint mb8" id="in-h"></div><div class="err mb8" id="in-err"></div>${btn('Crear ingreso', 'A.addIncome()', 'ok')}`); incomeForm(); };
+A.incomeSheet = (k = role() === 'entrenador' ? 'Viaje' : 'Mensualidad') => { sheet('Crear ingreso', `${select('in-k', 'Tipo de ingreso', incomeTypes(), k, 'onchange="A.incomeName()"')}${inp('in-n', 'Nombre del cobro', `value="${esc(incomeDefault(k))}" maxlength="120" autocomplete="off"`)}${inp('in-a', 'Monto por deportista', 'type="number" inputmode="numeric" min="1"')}<div id="in-dw">${inp('in-d', 'Vence', `type="date" value="${addDays(today(), 15)}"`)}</div>${select('in-s', 'Cobrar a', incomeScopes(), role() === 'entrenador' ? 'mis' : 'club')}<div class="hint mb8" id="in-h"></div><div class="err mb8" id="in-err"></div>${btn('Crear ingreso', 'A.addIncome()', 'ok')}`); incomeForm(); };
 function incomeForm() {
   const k = val('in-k'), parte = PART_TYPES.includes(k), fijo = k === 'Matrícula' || k === 'Mensualidad', dw = $('#in-dw');
   dw.style.display = fijo ? 'none' : ''; $('label', dw).textContent = parte ? 'Plazo máximo para pagar (opcional)' : 'Vence'; $('#in-d').value = parte || fijo ? '' : addDays(today(), 15);
@@ -3090,6 +3275,7 @@ function hydrate(d, ui) {
   if (type === 'club') { const c = s.clubs.find(x => x.ownerId === uid_); a.clubId = c.id; a.profile = { name: (c.board[0] || {}).name || a.name, cargo: 'Cuenta del club' }; }
   if (type === 'entrenador') { a.clubId = accepted[0] || null; a.profile = { name: a.name, by: a.name, clubId: null, sport: null, teams: [] }; }
   if (type === 'federacion') a.profile = { name: a.name, cargo: 'Representante' };
+  s.surveys = (d.surveys || []).map(x => ({ id: x.id, clubId: x.club_id, by: x.by_name, title: x.title, message: x.message, questions: x.questions, audience: x.audience, teamIds: x.team_ids, scope: x.scope_label, status: x.status, date: day(x.created_at), responses: x.responses || [], answered: x.answered, eligible: x.eligible, manage: x.manage }));
   s.directors = (d.directors || []).map(x => ({ id: x.id, clubId: x.club_id, accountId: x.account_id, name: x.name, rut: x.rut, cargo: x.cargo, email: x.email, perms: x.perms, active: x.active }));
   if (type === 'dirigente') { const f = s.directors.find(x => x.accountId === uid_); a.clubId = f && f.active ? f.clubId : null; a.profile = { name: a.name, cargo: f ? f.cargo : '' }; }
   if (type === 'proveedor') { a.refId = 'pv_' + a.id; s.providers = [{ id: a.refId, name: a.name, cat: me_.category, region: me_.region || '', city: me_.city || '', web: me_.web || '', ig: me_.ig || '', desc: me_.descr || '', photo: me_.photo, rating: 5, items: [] }]; }
@@ -3260,6 +3446,11 @@ real('saveDir', async id => {
 real('delDir', id => { closeSheet(); return realDo(() => SB.rpc('remove_director', { p_id: id }), 'Directivo quitado'); });
 real('setFee', (ids, a) => { syncNow(); return realDo(() => SB.rpc('set_team_fee', { p_teams: ids, p_amount: a }), 'Mensualidad actualizada'); });
 real('saveFee', (pid, tid) => { if (!feeApply(pid, tid)) return; closeSheet(); save(); syncNow(); return realDo(() => SB.rpc('run_monthly'), 'Mensualidad del deportista actualizada'); });
+real('matchCreate', async () => { const o = matchForm(); if (!o) return; const { sc, ...p } = o; closeSheet(); return realDo(() => SB.rpc('create_match', { p }), 'Convocatoria enviada'); });
+real('matchCancel', id => { closeSheet(); return realDo(() => SB.rpc('cancel_match', { p_item: id }), 'Convocatoria cancelada'); });
+real('svPublish', async () => { const p = svClean(); if (!p) return; if (await realDo(() => SB.rpc('save_survey', { p }), 'Encuesta publicada')) { SV = null; replaceTo('/encuestas'); } });
+real('svSubmit', async id => { const a = svRead(S.surveys.find(q => q.id === id)); if (!a) return; return realDo(() => SB.rpc('answer_survey', { p_id: id, p_answers: a }), 'Respuesta enviada. ¡Gracias!'); });
+real('svStatus', (id, open) => realDo(() => SB.rpc('set_survey_status', { p_id: id, p_open: open }), open ? 'Encuesta abierta' : 'Encuesta cerrada'));
 real('partAnswer', (id, pid, ok) => realDo(() => SB.rpc('confirm_participation', { p_item: id, p_player: pid, p_ok: ok }), ok ? 'Participación confirmada' : 'Respuesta guardada'));
 real('tsCoach', (tid, n) => realDo(() => SB.rpc('set_team_coach', { p_team: tid, p_coach: n })));
 real('payStaff', async id => {
@@ -3328,7 +3519,7 @@ function realHome() {
 
 // Solo se ingresan datos con una sesión de una cuenta creada. Quien revisa la app con el usuario demo
 // solo consulta, y en una cuenta real una acción que aún no tiene base de datos avisa: nunca finge guardar.
-const SOLO_VER = new Set('back ui homeEdit homeMove homeFlag homeReset login logout completeReg recover newPass linkSearch linkPick linkCheck addCargo regType installHelp openNotif roleSheet setRole demoPick resetDemo doReset time rhClub pickKid addSport sportOther deleteAsk tfUpd certUpd bajaDebt loanType qtLine qtTotal showCom showReceipt playVideo comments claimView chatMenu toggleCh setMethod tpl csvSample addOption delTeamSheet teamSheetEdit newChat newPost resign withdraw baja proposeT bcSport incomeName copyBank partToggle tsCargo tsPayCalc tsDoc'.split(' '));
+const SOLO_VER = new Set('svAdd svDel svDup svType svOpAdd svOpDel svAll back ui homeEdit homeMove homeFlag homeReset login logout completeReg recover newPass linkSearch linkPick linkCheck addCargo regType installHelp openNotif roleSheet setRole demoPick resetDemo doReset time rhClub pickKid addSport sportOther deleteAsk tfUpd certUpd bajaDebt loanType qtLine qtTotal showCom showReceipt playVideo comments claimView chatMenu toggleCh setMethod tpl csvSample delTeamSheet teamSheetEdit newChat newPost resign withdraw baja proposeT bcSport incomeName copyBank partToggle tsCargo tsPayCalc tsDoc'.split(' '));
 // Funciones que solo existen para simular en el demo. La carga masiva crearía deportistas sin cuenta ni apoderado.
 const SOLO_DEMO = new Set('time simLink simReply simJoin simVotes asmSim csvSample csvImport resetDemo doReset scan'.split(' '));
 const MSG_CREA_CUENTA = 'Estás en el modo demo: crea una cuenta para ingresar datos.';
