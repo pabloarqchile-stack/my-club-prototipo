@@ -1414,10 +1414,13 @@ A.login = () => {
 // Modo demo: un solo usuario y clave (demo / demo) para recorrer todos los perfiles con datos inventados.
 const DEMO_USER = 'demo';
 A.demoPick = () => sheet('Modo demo', `<p class="small muted center" style="margin:-8px 0 12px">Datos inventados, solo para consultar. Para ingresar datos, crea una cuenta. Elige un perfil; puedes cambiarlo en Perfil → Cambiar de rol.</p>` + list(Object.entries(ROLES).map(([k, v]) => li({ ic: v.icon, title: v.label, sub: v.desc, on: `A.setRole('${k}')` }))));
+// Enlace "Probar la demo" de la página web (?demo=1): el ingreso trae demo / demo escritos.
+const DEMO_LINK = new URLSearchParams(location.search).has('demo');
+const loginFill = () => DEMO_LINK ? [DEMO_USER, 'demo'] : HAS_DB ? ['', ''] : ['demo@myclub.cl', 'demo'];
 route('/login', {
-  public: true, bare: true, render: () => `<div class="login"><img class="brand" src="icons/logo.png" alt="My Club">
-    <div class="card">${inp('lg-em', 'Email', `type="text" inputmode="email" ${HAS_DB ? '' : 'value="demo@myclub.cl"'} autocomplete="off" autocapitalize="off"`)}${inp('lg-pw', 'Clave', `type="password" ${HAS_DB ? '' : 'value="demo"'} autocomplete="off" onkeydown="if(event.key==='Enter')A.login()"`)}<div class="err" id="lg-err"></div></div>
-    ${btn('INGRESAR', 'A.login()', 'naranjo')}<div class="mt8">${goBtn('REGISTRARSE', '/registro', 'calipso')}</div>${HAS_DB ? `<div class="center mt12"><a class="small" href="#/recuperar">Olvidé mi clave</a></div>` : ''}</div>`
+  public: true, bare: true, render: () => { const [fe, fp] = loginFill(); return `<div class="login"><img class="brand" src="icons/logo.png" alt="My Club">
+    <div class="card">${inp('lg-em', 'Email', `type="text" inputmode="email" ${fe ? `value="${fe}"` : ''} autocomplete="off" autocapitalize="off"`)}${inp('lg-pw', 'Clave', `type="password" ${fp ? `value="${fp}"` : ''} autocomplete="off" onkeydown="if(event.key==='Enter')A.login()"`)}<div class="err" id="lg-err"></div></div>
+    ${btn('INGRESAR', 'A.login()', 'naranjo')}<div class="mt8">${goBtn('REGISTRARSE', '/registro', 'calipso')}</div>${HAS_DB ? `<div class="center mt12"><a class="small" href="#/recuperar">Olvidé mi clave</a></div>` : ''}</div>`; }
 });
 
 // --- Vinculación por ID de club ---
