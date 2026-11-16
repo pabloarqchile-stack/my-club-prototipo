@@ -95,6 +95,7 @@ body.ocupado .btn{opacity:.6;pointer-events:none}
 .btn.s2{background:var(--psoft);color:var(--ptext)}
 .btn.ok{background:var(--accent)}.btn.danger{background:var(--danger)}
 .btn.naranjo{background:#F47A1F;color:#0E2A44}.btn.calipso{background:#1CD1BF;color:#0E2A44}
+.btn.bio{background:transparent;color:#fff;border:1.5px solid rgba(255,255,255,.6)}
 .btn.dsoft{background:var(--dsoft);color:var(--dtext)}
 .btn.ghost{background:transparent;color:var(--ptext)}
 .btn.sm{min-height:44px;font-size:14px;padding:0 14px;width:auto;border-radius:12px}
@@ -1408,8 +1409,44 @@ route('/inicio', { title: () => 'Hola, ' + me().name.split(' ')[0], tab: 'inicio
 A.login = () => {
   const em = val('lg-em').toLowerCase(), unico = em === DEMO_USER, a = S.accounts.find(x => x.email === (unico ? 'demo@myclub.cl' : em));
   if (!a || a.pass !== hash(val('lg-pw'))) { $('#lg-err').textContent = 'Email o clave incorrectos.'; return; }
+  enterLocal(a, unico, unico ? DEMO_USER : a.email);
+};
+// Entra con una cuenta local; si el equipo tiene Face ID o huella y aún no se activó, pregunta antes del selector de perfil.
+const enterLocal = async (a, unico, email) => {
   S.session.loggedIn = true; S.session.homeId = a.id; applyAccount(a); save(); NAV.length = 0; replaceTo('/inicio');
-  if (unico) setTimeout(A.demoPick, 350);
+  if (await bioAsk()) { _bio = { email, unico }; setTimeout(bioSheet, 350); } else if (unico) setTimeout(A.demoPick, 350);
+};
+
+// --- Face ID o huella (WebAuthn del equipo). Solo cuentas locales (demo): la clave nunca se guarda. ---
+const BIO_KEY = 'myclub-bio', BIO_NO = 'myclub-bio-no';
+let _bio = null;
+const bioGet = () => { try { const b = JSON.parse(localStorage.getItem(BIO_KEY)); return b && b.id ? b : null; } catch (e) { return null; } };
+const bioAvail = async () => { try { return !!(window.PublicKeyCredential && await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable()); } catch (e) { return false; } };
+const bioSkipped = () => { try { return !!sessionStorage.getItem(BIO_NO); } catch (e) { return false; } };
+const bioAsk = async () => !bioGet() && !bioSkipped() && await bioAvail();
+const b64u = b => btoa(String.fromCharCode(...new Uint8Array(b))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+const unb64u = s => Uint8Array.from(atob(s.replace(/-/g, '+').replace(/_/g, '/')), c => c.charCodeAt(0));
+const bioRnd = n => crypto.getRandomValues(new Uint8Array(n));
+const bioSheet = () => sheet('Face ID o huella', `<p class="center muted" style="margin:0 0 16px">¿Quieres ingresar con Face ID o huella? La próxima vez entrarás sin escribir usuario ni clave.</p>${btn('SÍ, ACTIVAR', 'A.bioOn()', 'naranjo')}<div class="mt8">${btn('Ahora no', 'A.bioSkip()', 's2')}</div>`);
+const bioDone = () => { const p = _bio; _bio = null; closeSheet(); if (p && p.unico) setTimeout(A.demoPick, 350); };
+A.bioOn = async () => {
+  const p = _bio; if (!p) return closeSheet();
+  try {
+    const c = await navigator.credentials.create({ publicKey: { challenge: rnd(32), rp: { name: 'My Club' }, user: { id: rnd(16), name: p.email, displayName: p.email }, pubKeyCredParams: [{ type: 'public-key', alg: -7 }, { type: 'public-key', alg: -257 }], authenticatorSelection: { authenticatorAttachment: 'platform', userVerification: 'required', residentKey: 'discouraged' }, timeout: 60000, attestation: 'none' } });
+    localStorage.setItem(BIO_KEY, JSON.stringify({ id: b64u(c.rawId), email: p.email }));
+    toast('Listo: la próxima vez ingresa con Face ID o huella');
+  } catch (e) { toast('No se activó Face ID ni huella', 'warn'); }
+  bioDone();
+};
+A.bioSkip = () => { try { sessionStorage.setItem(BIO_NO, '1'); } catch (e) { } bioDone(); };
+A.bioLogin = async () => {
+  const b = bioGet(), err = t => { const e = $('#lg-err'); if (e) e.textContent = t; };
+  if (!b) return;
+  try { await navigator.credentials.get({ publicKey: { challenge: rnd(32), allowCredentials: [{ type: 'public-key', id: unb64u(b.id) }], userVerification: 'required', timeout: 60000 } }); }
+  catch (e) { return err('No se pudo verificar. Ingresa con usuario y clave.'); }
+  const unico = b.email === DEMO_USER, a = S.accounts.find(x => x.email === (unico ? 'demo@myclub.cl' : b.email));
+  if (!a) { try { localStorage.removeItem(BIO_KEY); } catch (e) { } render(true); return err('Esa cuenta ya no está en este equipo. Ingresa con usuario y clave.'); }
+  enterLocal(a, unico, b.email);
 };
 // Modo demo: un solo usuario y clave (demo / demo) para recorrer todos los perfiles con datos inventados.
 const DEMO_USER = 'demo';
@@ -1420,7 +1457,7 @@ const loginFill = () => DEMO_LINK ? [DEMO_USER, 'demo'] : HAS_DB ? ['', ''] : ['
 route('/login', {
   public: true, bare: true, render: () => { const [fe, fp] = loginFill(); return `<div class="login"><img class="brand" src="icons/logo.png" alt="My Club">
     <div class="card">${inp('lg-em', 'Email', `type="text" inputmode="email" ${fe ? `value="${fe}"` : ''} autocomplete="off" autocapitalize="off"`)}${inp('lg-pw', 'Clave', `type="password" ${fp ? `value="${fp}"` : ''} autocomplete="off" onkeydown="if(event.key==='Enter')A.login()"`)}<div class="err" id="lg-err"></div></div>
-    ${btn('INGRESAR', 'A.login()', 'naranjo')}<div class="mt8">${goBtn('REGISTRARSE', '/registro', 'calipso')}</div>${HAS_DB ? `<div class="center mt12"><a class="small" href="#/recuperar">Olvidé mi clave</a></div>` : ''}</div>`; }
+    ${btn('INGRESAR', 'A.login()', 'naranjo')}${bioGet() ? `<div class="mt8">${btn('INGRESAR CON FACE ID O HUELLA', 'A.bioLogin()', 'bio', 'lock')}</div>` : ''}<div class="mt8">${goBtn('REGISTRARSE', '/registro', 'calipso')}</div>${HAS_DB ? `<div class="center mt12"><a class="small" href="#/recuperar" style="color:#fff">RECUPERAR MI CLAVE</a></div>` : ''}</div>`; }
 });
 
 // --- Vinculación por ID de club ---
@@ -3522,7 +3559,7 @@ function realHome() {
 
 // Solo se ingresan datos con una sesión de una cuenta creada. Quien revisa la app con el usuario demo
 // solo consulta, y en una cuenta real una acción que aún no tiene base de datos avisa: nunca finge guardar.
-const SOLO_VER = new Set('svAdd svDel svDup svType svOpAdd svOpDel svAll back ui homeEdit homeMove homeFlag homeReset login logout completeReg recover newPass linkSearch linkPick linkCheck addCargo regType installHelp openNotif roleSheet setRole demoPick resetDemo doReset time rhClub pickKid addSport sportOther deleteAsk tfUpd certUpd bajaDebt loanType qtLine qtTotal showCom showReceipt playVideo comments claimView chatMenu toggleCh setMethod tpl csvSample delTeamSheet teamSheetEdit newChat newPost resign withdraw baja proposeT bcSport incomeName copyBank partToggle tsCargo tsPayCalc tsDoc'.split(' '));
+const SOLO_VER = new Set('svAdd svDel svDup svType svOpAdd svOpDel svAll back ui homeEdit homeMove homeFlag homeReset login bioOn bioSkip bioLogin logout completeReg recover newPass linkSearch linkPick linkCheck addCargo regType installHelp openNotif roleSheet setRole demoPick resetDemo doReset time rhClub pickKid addSport sportOther deleteAsk tfUpd certUpd bajaDebt loanType qtLine qtTotal showCom showReceipt playVideo comments claimView chatMenu toggleCh setMethod tpl csvSample delTeamSheet teamSheetEdit newChat newPost resign withdraw baja proposeT bcSport incomeName copyBank partToggle tsCargo tsPayCalc tsDoc'.split(' '));
 // Funciones que solo existen para simular en el demo. La carga masiva crearía deportistas sin cuenta ni apoderado.
 const SOLO_DEMO = new Set('time simLink simReply simJoin simVotes asmSim csvSample csvImport resetDemo doReset scan'.split(' '));
 const MSG_CREA_CUENTA = 'Estás en el modo demo: crea una cuenta para ingresar datos.';
