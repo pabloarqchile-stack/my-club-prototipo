@@ -5,6 +5,10 @@ Prototipo navegable e interactivo de **My Club**, app para administrar clubes de
 federaciones de Chile (todos los deportes). Sirve para visualizar y validar el producto. El **modo demo** usa datos de ejemplo
 en `localStorage` (clave `myclub-demo-v1`, versión de estado 3). El **modo real** usa Supabase (ver abajo).
 
+**Publicación:** GitHub Pages en https://demo.app-myclub.cl/ (la página web está en https://app-myclub.cl/, repo `my-club-web`).
+El archivo `CNAME` conecta ese dominio: no borrarlo. Hacer `git pull` antes de cada push. El enlace `?demo=1` de la página web
+abre el ingreso con demo / demo ya escritos.
+
 ## Formato (obligatorio)
 - Logo: `tools/logo-original.png`; `tools/generar_iconos.py` genera `icons/logo.png`, `icons/escudo.png` y los íconos de instalación.
 - PWA instalable en iPhone, sin frameworks, sin CDN ni recursos externos, sin paso de compilación.
