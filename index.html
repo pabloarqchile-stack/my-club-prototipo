@@ -138,6 +138,12 @@ textarea.input{min-height:96px;resize:vertical}
 .chip.on{background:var(--primary);border-color:var(--primary);color:#fff}
 /* Grilla de inicio */
 .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px 6px;padding:4px 0}
+.sp-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
+.sp-card{border:0;background:var(--card);border-radius:var(--r);box-shadow:var(--shadow);padding:16px 10px 14px;display:flex;flex-direction:column;align-items:center;gap:4px;text-align:center;color:var(--text);min-width:0}
+.sp-card .sp-n{font-weight:700;font-size:15px;line-height:1.2;overflow-wrap:anywhere}
+.sp-card .sp-s{font-size:12px;color:var(--muted);line-height:1.3;overflow-wrap:anywhere}
+.sp-logo{width:60px;height:60px;border-radius:50%;background:var(--psoft);display:grid;place-items:center;font-size:32px;line-height:1;margin-bottom:4px;flex-shrink:0}
+.sp-logo.lg{width:76px;height:76px;font-size:42px;margin:0 auto 8px}
 .tile{border:0;background:none;display:flex;flex-direction:column;align-items:center;gap:6px;padding:0;min-height:88px;position:relative}
 .tile .ti{width:58px;height:58px;border-radius:17px;display:grid;place-items:center;color:#fff;box-shadow:0 4px 10px rgba(16,24,40,.12);transition:transform .15s}
 .tile:active .ti{transform:scale(.92)}
@@ -416,10 +422,10 @@ function seed() {
 
   // --- Equipos ---
   s.teams = [
-    { id: 'hal-fut-adu', clubId: 'halcones', sport: 'Fútbol', name: 'Fútbol Adulto', category: 'Adulto', sex: 'Masculino', coach: 'Rodrigo Saavedra' },
-    { id: 'hal-fut-s15', clubId: 'halcones', sport: 'Fútbol', name: 'Fútbol Sub-15', category: 'Sub-15', sex: 'Masculino', coach: 'Rodrigo Saavedra' },
-    { id: 'hal-bas-fem', clubId: 'halcones', sport: 'Básquetbol', name: 'Básquetbol Femenino', category: 'Adulto', sex: 'Femenino', coach: 'Claudia Espinoza' },
-    { id: 'hal-vol-mix', clubId: 'halcones', sport: 'Vóleibol', name: 'Vóleibol Juvenil', category: 'Sub-18', sex: 'Mixto', coach: 'Hernán Salinas' },
+    { id: 'hal-fut-adu', clubId: 'halcones', sport: 'Fútbol', name: 'Fútbol Adulto', category: 'Adulto', sex: 'Masculino', coach: 'Rodrigo Saavedra Ortiz', coachId: 'E00000001' },
+    { id: 'hal-fut-s15', clubId: 'halcones', sport: 'Fútbol', name: 'Fútbol Sub-15', category: 'Sub-15', sex: 'Masculino', coach: 'Rodrigo Saavedra Ortiz', coachId: 'E00000001' },
+    { id: 'hal-bas-fem', clubId: 'halcones', sport: 'Básquetbol', name: 'Básquetbol Femenino', category: 'Adulto', sex: 'Femenino', coach: 'Claudia Espinoza', coachId: 'E00000002' },
+    { id: 'hal-vol-mix', clubId: 'halcones', sport: 'Vóleibol', name: 'Vóleibol Juvenil', category: 'Sub-18', sex: 'Mixto', coach: 'Hernán Salinas', coachId: 'E00000003' },
     { id: 'bio-atl', clubId: 'biobio', sport: 'Atletismo', name: 'Atletismo Pista', category: 'Todo competidor', sex: 'Mixto', coach: 'Paula Riquelme' },
     { id: 'bio-rug', clubId: 'biobio', sport: 'Rugby', name: 'Rugby XV', category: 'Adulto', sex: 'Masculino', coach: 'Andrés Vidal' },
     { id: 'nau-rem', clubId: 'nautico', sport: 'Remo', name: 'Remo Competitivo', category: 'Adulto', sex: 'Mixto', coach: 'Gonzalo Pérez' },
@@ -506,7 +512,8 @@ function seed() {
   };
   // --- Cuentas de demostración e ID correlativo (letra del perfil + 8 dígitos) ---
   s.clubs.forEach((c, i) => c.code = 'C' + String(i + 1).padStart(8, '0'));
-  s.idSeq = { C: 7, D: 1, A: 1, E: 1, F: 1, P: 1 };
+  s.idSeq = { C: 7, D: 1, A: 1, E: 3, F: 1, P: 1 };
+  s.clubs[0].sportCoaches = { 'Fútbol': { id: 'E00000001', name: s.users.entrenador.name }, 'Básquetbol': { id: 'E00000002', name: 'Claudia Espinoza' } };
   s.guardianLinks = [];
   Object.assign(s.clubs[0], { constituted: '1987-04-12', regNumber: '1987-4521', email: 'contacto@loshalcones.cl', phone: '+56 2 2555 0101', address: 'Av. Irarrázaval 3450', web: 'www.loshalcones.cl', ig: '@loshalcones', desc: 'Club de barrio con ramas de fútbol, básquetbol y vóleibol.', board: [{ cargo: 'Presidenta', name: 'Patricia Lagos Moreno' }, { cargo: 'Vicepresidente', name: 'Germán Ibarra Soto' }, { cargo: 'Tesorero', name: 'Sergio Molina Paz' }, { cargo: 'Secretaria', name: 'Rosa Fuentes Díaz' }] });
   Object.assign(s.clubs[1], { constituted: '1962-08-20', regNumber: '1962-0187', address: 'Av. Collao 1202', web: 'www.atleticobiobio.cl', desc: 'Atletismo y rugby en Concepción.', board: [{ cargo: 'Presidente', name: 'Andrés Vidal Soto' }, { cargo: 'Tesorera', name: 'Paula Riquelme Lara' }, { cargo: 'Secretario', name: 'Tomás Jara Mena' }] });
@@ -518,7 +525,10 @@ function seed() {
     demo('E00000001', 'entrenador', 'entrenador@myclub.cl', s.users.entrenador.name, fmtRut(13579246), { profile: { ...s.users.entrenador }, clubId: 'halcones' }),
     demo('C00000001', 'club', 'club@myclub.cl', s.clubs[0].name, s.clubs[0].rut, { role: 'directivo', profile: { ...s.users.directivo }, clubId: 'halcones' }),
     demo('F00000001', 'federacion', 'federacion@myclub.cl', s.users.federacion.name, fmtRut(10987654), { profile: { ...s.users.federacion }, sport: 'Fútbol' }),
-    demo('P00000001', 'proveedor', 'proveedor@myclub.cl', 'Deportes Andes SpA', fmtRut(76111222), { refId: 'pv1' })
+    demo('P00000001', 'proveedor', 'proveedor@myclub.cl', 'Deportes Andes SpA', fmtRut(76111222), { refId: 'pv1' }),
+    // Entrenadores vinculados al club, sin acceso de demostración.
+    { id: 'E00000002', type: 'entrenador', role: 'entrenador', email: 'claudia@loshalcones.cl', pass: null, name: 'Claudia Espinoza', rut: fmtRut(15432876), phone: '+56 9 5555 0102', date: T, clubId: 'halcones' },
+    { id: 'E00000003', type: 'entrenador', role: 'entrenador', email: 'hernan@loshalcones.cl', pass: null, name: 'Hernán Salinas', rut: fmtRut(14223344), phone: '+56 9 5555 0103', date: T, clubId: 'halcones' }
   ];
   s.linkRequests = []; s.reports = []; s.blocks = {};
   seedMore(s, D, T, teamOf);
@@ -925,7 +935,7 @@ const myDirector = () => { const a = acct(); return a && a.type === 'dirigente' 
 function canDo(p) { const a = acct(); if (!a || a.type !== 'dirigente') return true; if (p === 'club') return false; const d = myDirector(); return !!d && d.active && d.perms.includes(p); }
 const TILE_PERM = { deportes: 'deportes', finanzas: 'finanzas', aprobaciones: 'aprobaciones', asambleas: 'asambleas', solicitudes: 'solicitudes', bajas: 'bajas', reclamos: 'bajas', prestamos: 'bajas', jugadores: 'deportistas', apoderados: 'deportistas', entrenadores: 'deportistas', masivo: 'masivo', marketplace: 'marketplace', directivos: 'club', cuerpo: 'cuerpo', infra: 'infra', partidos: 'partidos', encuestas: 'encuestas' };
 const tileOk = id => role() !== 'directivo' || !TILE_PERM[id] || canDo(TILE_PERM[id]);
-const ROUTE_PERM = { '/d/deportes': 'deportes', '/d/finanzas': 'finanzas', '/d/pagos-club': 'club', '/d/aprobaciones': 'aprobaciones', '/d/asambleas': 'asambleas', '/d/asamblea/:id': 'asambleas', '/d/solicitudes': 'solicitudes', '/d/bajas': 'bajas', '/d/reclamos': 'bajas', '/d/prestamos': 'bajas', '/d/prestamo/:id': 'bajas', '/d/jugadores': 'deportistas', '/d/apoderados': 'deportistas', '/d/entrenadores': 'deportistas', '/d/masivo': 'masivo', '/d/directivos': 'club', '/marketplace': 'marketplace', '/d/cuerpo': 'cuerpo', '/d/infra': 'infra', '/d/mensualidades': 'finanzas', '/convocatorias': 'partidos', '/convocatorias/:id': 'partidos', '/encuestas': 'encuestas', '/encuestas/nueva': 'encuestas', '/encuestas/:id': 'encuestas' };
+const ROUTE_PERM = { '/d/deportes': 'deportes', '/d/deportes/:sp': 'deportes', '/d/finanzas': 'finanzas', '/d/pagos-club': 'club', '/d/aprobaciones': 'aprobaciones', '/d/asambleas': 'asambleas', '/d/asamblea/:id': 'asambleas', '/d/solicitudes': 'solicitudes', '/d/bajas': 'bajas', '/d/reclamos': 'bajas', '/d/prestamos': 'bajas', '/d/prestamo/:id': 'bajas', '/d/jugadores': 'deportistas', '/d/apoderados': 'deportistas', '/d/entrenadores': 'deportistas', '/d/masivo': 'masivo', '/d/directivos': 'club', '/marketplace': 'marketplace', '/d/cuerpo': 'cuerpo', '/d/infra': 'infra', '/d/mensualidades': 'finanzas', '/convocatorias': 'partidos', '/convocatorias/:id': 'partidos', '/encuestas': 'encuestas', '/encuestas/nueva': 'encuestas', '/encuestas/:id': 'encuestas' };
 const demoAccount = r => S.accounts.find(a => a.demo && a.role === r);
 function syncCoach() {
   const a = acct();
@@ -2519,7 +2529,20 @@ HOME_SUMMARY.directivo = () => {
   return `<button class="card hero" style="border:0;width:100%;text-align:left" onclick="go('/club/${cid()}')"><div class="row">${clubLogo(club(cid()), 48)}<div class="sp"><div class="small muted">${esc(club(cid()).name)}</div><div class="b" style="font-size:18px">${esc(S.users.directivo.cargo)}</div><div class="small muted">${clubMembers(cid()).length} deportistas · ${club(cid()).sports.length} deportes</div><div class="small muted">ID del club: ${club(cid()).code}</div></div></div></button><div class="kpis">${kpi('Ingresos del mes', clp(ing), 'atext')}${kpi('Egresos del mes', clp(eg))}${kpi('Morosidad', clp(sum(od, x => x.amt)), od.length ? 'dtext' : '')}${kpi('Por resolver', pend, pend ? 'wtext' : '')}</div>${a ? `<button class="note ok" style="border:0;width:100%;text-align:left" onclick="go('/d/asamblea/${a.id}')">${icon('hall', 18)}<div><b>Asamblea en curso:</b> ${esc(a.title)}</div></button>` : ''}`;
 };
 // --- Deportes, equipos y categorías ---
-A.addSport = () => sheet('Agregar deporte', `<div id="ds-l">${select('ds-s', 'Deporte', OLIMPICOS_LISTA.filter(s => !club(cid()).sports.includes(s)))}<div class="mb8">${btn('OTRO', 'A.sportOther()', 's2')}</div></div><div id="ds-o" style="display:none">${inp('ds-n', 'Nombre del deporte', 'maxlength="40" autocomplete="off"')}</div><div class="err mb8" id="ds-err"></div>${btn('Agregar', 'A.doAddSport()', 'ok')}`);
+const sportCoach = sp => (club(cid()).sportCoaches || {})[sp] || null;
+// Lista para elegir entrenador. Si el actual ya no está vinculado (o se escribió a mano), se ofrece mantenerlo.
+function coachSelect(id, label, curId, curName) {
+  const l = clubCoaches().map(a => [a.id, a.name]), o = [['', 'Por asignar'], ...l];
+  let sel = curId && l.some(x => x[0] === curId) ? curId : '';
+  if (!sel && curName && curName !== 'Por asignar') { o.splice(1, 0, ['=', curName + ' (actual)']); sel = '='; }
+  return select(id, label, o, sel, '', l.length ? '' : 'Aún no hay entrenadores vinculados. Aparecen aquí cuando el club acepta su vinculación.');
+}
+// null = mantener el actual; id null = por asignar.
+const coachPick = id => { const v = val(id); if (v === '=') return null; const a = v && S.accounts.find(x => x.id === v); return a ? { id: a.id, uid: a.uid, name: a.name } : { id: null, uid: null, name: 'Por asignar' }; };
+function setSportCoach(sp, k) { const c = club(cid()); c.sportCoaches = c.sportCoaches || {}; if (k.id) c.sportCoaches[sp] = { id: k.id, name: k.name }; else delete c.sportCoaches[sp]; }
+A.sportSheet = sp => { const k = sportCoach(sp); sheet(`${SPORTS[sp]} ${esc(sp)}`, `<p class="center muted small" style="margin:0 0 12px">El entrenador a cargo coordina todas las categorías del deporte.</p>${coachSelect('sc-c', 'Entrenador a cargo', k && k.id, k && k.name)}${btn('Guardar', `A.saveSportCoach('${sp}')`, 'ok')}`); };
+A.saveSportCoach = sp => { const k = coachPick('sc-c'); closeSheet(); if (!k) return; setSportCoach(sp, k); commit(k.id ? 'Entrenador a cargo asignado' : 'Deporte sin entrenador a cargo'); };
+A.addSport = () => sheet('Agregar deporte', `<div id="ds-l">${select('ds-s', 'Deporte', OLIMPICOS_LISTA.filter(s => !club(cid()).sports.includes(s)))}<div class="mb8">${btn('OTRO', 'A.sportOther()', 's2')}</div></div><div id="ds-o" style="display:none">${inp('ds-n', 'Nombre del deporte', 'maxlength="40" autocomplete="off"')}</div>${coachSelect('ds-c', 'Entrenador a cargo', null, null)}<div class="err mb8" id="ds-err"></div>${btn('Agregar', 'A.doAddSport()', 'ok')}`);
 A.sportOther = () => { $('#ds-l').style.display = 'none'; $('#ds-o').style.display = ''; $('#ds-n').focus(); };
 // El nombre libre se muestra en muchas pantallas: solo admite letras, números y puntuación simple.
 const SPORT_RE = /^[A-Za-z0-9ÁÉÍÓÚÜÑáéíóúüñ ().-]{2,40}$/;
@@ -2531,9 +2554,9 @@ function pickSport() {
   if (same(club(cid()).sports)) return err('Ese deporte ya está en tu club.');
   return same(OLIMPICOS_LISTA) || n;
 }
-A.doAddSport = () => { const s = pickSport(); if (!s) return; club(cid()).sports.push(s); closeSheet(); commit(s + ' agregado al club'); };
-A.teamSheet = sp => sheet('Nuevo equipo o categoría', `${inp('dt-n', 'Nombre', `value="${sp} Sub-13" autocomplete="off"`)}${select('dt-c', 'Categoría', CATEGORIAS, 'Sub-13')}${select('dt-x', 'Sexo', ['Masculino', 'Femenino', 'Mixto'], 'Mixto')}${inp('dt-e', 'Entrenador', 'value="Por asignar" autocomplete="off"')}${inp('dt-m', 'Matrícula', `type="number" inputmode="numeric" min="0" value="${sportMatricula(sp)}"`)}${btn('Crear equipo', `A.addTeam('${sp}')`, 'ok')}`);
-A.addTeam = sp => { const n = val('dt-n'); if (!n) return toast('Escribe un nombre', 'warn'); S.teams.push({ id: uid('t'), clubId: cid(), sport: sp, name: n, category: val('dt-c'), sex: val('dt-x'), coach: val('dt-e') || 'Por asignar', matricula: +val('dt-m') || 0 }); closeSheet(); commit('Equipo creado'); };
+A.doAddSport = () => { const s = pickSport(); if (!s) return; const k = coachPick('ds-c'); club(cid()).sports.push(s); if (k && k.id) setSportCoach(s, k); closeSheet(); commit(s + ' agregado al club'); };
+A.teamSheet = sp => sheet('Nueva categoría', `${inp('dt-n', 'Nombre', `value="${sp} Sub-13" autocomplete="off"`)}${select('dt-c', 'Categoría', CATEGORIAS, 'Sub-13')}${select('dt-x', 'Sexo', ['Masculino', 'Femenino', 'Mixto'], 'Mixto')}${coachSelect('dt-e', 'Entrenador', (sportCoach(sp) || {}).id, null)}${inp('dt-m', 'Matrícula', `type="number" inputmode="numeric" min="0" value="${sportMatricula(sp)}"`)}${btn('Crear categoría', `A.addTeam('${sp}')`, 'ok')}`);
+A.addTeam = sp => { const n = val('dt-n'); if (!n) return toast('Escribe un nombre', 'warn'); const k = coachPick('dt-e') || { id: null, name: 'Por asignar' }; S.teams.push({ id: uid('t'), clubId: cid(), sport: sp, name: n, category: val('dt-c'), sex: val('dt-x'), coach: k.name, coachId: k.id, matricula: +val('dt-m') || 0 }); closeSheet(); commit('Categoría creada'); };
 // --- Matrícula: se define por deporte, llega a todas sus categorías y cada categoría puede tener su monto ---
 const sportTeams = sp => S.teams.filter(t => t.clubId === cid() && t.sport === sp);
 const sportMatricula = sp => { const t = sportTeams(sp)[0]; return t ? t.matricula || 0 : 0; };
@@ -2549,17 +2572,33 @@ function setMatricula(t, monto) {
 }
 A.matSheet = sp => sheet(`Matrícula de ${sp}`, `<p class="center muted small" style="margin:0 0 12px">Se aplica a todas las categorías y a sus deportistas. Después puedes ajustar cada categoría.</p>${inp('dm-a', 'Monto de la matrícula', `type="number" inputmode="numeric" min="0" value="${sportMatricula(sp)}"`)}<div class="err mb8" id="dm-err"></div>${btn('Aplicar a todo el deporte', `A.saveMat('${sp}')`, 'ok')}`);
 A.saveMat = sp => { const v = val('dm-a'); if (v === '' || +v < 0) { $('#dm-err').textContent = 'Indica un monto válido.'; return; } sportTeams(sp).forEach(t => setMatricula(t, +v)); closeSheet(); commit('Matrícula aplicada a todas las categorías'); };
-A.teamSheetEdit = id => { const t = team(id); sheet('Editar categoría', `${inp('te-n', 'Nombre', `value="${esc(t.name)}" autocomplete="off"`)}${select('te-c', 'Categoría', CATEGORIAS, t.category)}${select('te-x', 'Sexo', ['Masculino', 'Femenino', 'Mixto'], t.sex)}${inp('te-e', 'Entrenador', `value="${esc(t.coach)}" autocomplete="off"`)}${inp('te-m', 'Matrícula de esta categoría', `type="number" inputmode="numeric" min="0" value="${t.matricula || 0}"`)}<div class="err mb8" id="te-err"></div>${btn('Guardar', `A.saveTeam('${id}')`, 'ok')}<div class="mt8">${btn('Eliminar categoría', `A.delTeamSheet('${id}')`, 'danger', 'trash')}</div>`); };
+A.teamSheetEdit = id => { const t = team(id); sheet('Editar categoría', `${inp('te-n', 'Nombre', `value="${esc(t.name)}" autocomplete="off"`)}${select('te-c', 'Categoría', CATEGORIAS, t.category)}${select('te-x', 'Sexo', ['Masculino', 'Femenino', 'Mixto'], t.sex)}${coachSelect('te-e', 'Entrenador', t.coachId, t.coach)}${inp('te-m', 'Matrícula de esta categoría', `type="number" inputmode="numeric" min="0" value="${t.matricula || 0}"`)}<div class="err mb8" id="te-err"></div>${btn('Guardar', `A.saveTeam('${id}')`, 'ok')}<div class="mt8">${btn('Eliminar categoría', `A.delTeamSheet('${id}')`, 'danger', 'trash')}</div>`); };
 A.saveTeam = id => {
   const n = val('te-n'), m = val('te-m'); if (!n) { $('#te-err').textContent = 'Escribe un nombre.'; return; } if (m === '' || +m < 0) { $('#te-err').textContent = 'Indica un monto válido.'; return; }
-  const t = team(id); Object.assign(t, { name: n, category: val('te-c'), sex: val('te-x'), coach: val('te-e') || 'Por asignar' }); setMatricula(t, +m); closeSheet(); commit('Categoría actualizada');
+  const t = team(id), k = coachPick('te-e'); Object.assign(t, { name: n, category: val('te-c'), sex: val('te-x') }, k ? { coach: k.name, coachId: k.id } : {}); setMatricula(t, +m); closeSheet(); commit('Categoría actualizada');
 };
 A.delTeamSheet = id => { const t = team(id); if (teamMembers(id).length || S.memberships.some(m => m.teamId === id && m.status === 'pendiente')) { closeSheet(); return toast('Esta categoría tiene deportistas. Muévelos a otra antes de eliminarla.', 'warn'); } confirmSheet('Eliminar categoría', `Se eliminará ${esc(t.name)}. Esta acción no se puede deshacer.`, 'Eliminar', `A.delTeam('${id}')`, 'danger'); };
 A.delTeam = id => { S.teams = S.teams.filter(t => t.id !== id); closeSheet(); commit('Categoría eliminada'); };
 A.coachSheet = id => { const t = team(id); sheet('Asignar entrenador', `<p class="center muted small" style="margin:0 0 12px">${esc(t.name)}</p>${inp('dc-n', 'Entrenador', `value="${esc(t.coach)}" autocomplete="off"`)}${btn('Asignar', `A.setCoach('${id}')`, 'ok')}`); };
-A.setCoach = id => { const n = val('dc-n'); if (!n) return; team(id).coach = n; closeSheet(); commit('Entrenador asignado'); };
+A.setCoach = id => { const n = val('dc-n'); if (!n) return; Object.assign(team(id), { coach: n, coachId: null }); closeSheet(); commit('Entrenador asignado'); };
+const sportUrl = sp => '/d/deportes/' + encodeURIComponent(sp);
 route('/d/deportes', {
-  title: 'Deportes del club', roles: ['directivo'], render: () => club(cid()).sports.map(sp => { const ts = S.teams.filter(t => t.clubId === cid() && t.sport === sp); return secLink(`${SPORTS[sp]} ${sp}`, 'Agregar equipo', `A.teamSheet('${sp}')`) + (ts.length ? list(ts.map(t => li({ ic: 'users', title: esc(t.name), sub: `${t.category} · ${t.sex} · ${teamMembers(t.id).length} deportistas<br>Entrenador: ${esc(t.coach)}<br>Matrícula: ${clp(t.matricula || 0)}`, on: `A.teamSheetEdit('${t.id}')` }))) + btn(`Matrícula de ${esc(sp)}`, `A.matSheet('${sp}')`, 's2 sm', 'money') + '<div class="mt8"></div>' : '<p class="center muted small">Aún sin equipos</p>'); }).join('') + '<div class="mt12"></div>' + btn('Agregar deporte', 'A.addSport()', 'ok', 'plus')
+  title: 'Deportes del club', roles: ['directivo'], render: () => {
+    const sps = club(cid()).sports;
+    const card = sp => { const n = sportTeams(sp).length, k = sportCoach(sp); return `<button class="sp-card" onclick="go('${sportUrl(sp)}')"><span class="sp-logo">${SPORTS[sp]}</span><span class="sp-n">${esc(sp)}</span><span class="sp-s">${n ? `${n} categoría${n === 1 ? '' : 's'}` : 'Sin categorías'}</span><span class="sp-s">${k ? esc(k.name) : 'Sin entrenador a cargo'}</span></button>`; };
+    return (sps.length ? `<div class="sp-grid">${sps.map(card).join('')}</div>` : empty('trophy', 'Aún sin deportes', 'Agrega los deportes que practica tu club.')) + btn('Agregar deporte', 'A.addSport()', 'ok', 'plus');
+  }
+});
+route('/d/deportes/:sp', {
+  title: x => x.sp, roles: ['directivo'], render: x => {
+    const sp = x.sp; if (!club(cid()).sports.includes(sp)) return empty('trophy', 'Deporte no encontrado', '', goBtn('Ver deportes', '/d/deportes'));
+    const ts = sportTeams(sp), k = sportCoach(sp), dep = sum(ts, t => teamMembers(t.id).length);
+    return `<div class="card center"><span class="sp-logo lg">${SPORTS[sp]}</span><div class="b" style="font-size:20px">${esc(sp)}</div><div class="small muted">${ts.length} categoría${ts.length === 1 ? '' : 's'} · ${dep} deportista${dep === 1 ? '' : 's'}</div></div>`
+      + sec('Entrenador a cargo') + list([li({ av: k ? avatar(k.name, 40) : '', ic: 'clipboard', color: 'purple', title: k ? esc(k.name) : 'Por asignar', sub: k ? 'Toca para cambiarlo' : 'Toca para elegir un entrenador del club', on: `A.sportSheet('${sp}')` })])
+      + secLink('Categorías', 'Agregar', `A.teamSheet('${sp}')`)
+      + (ts.length ? list(ts.map(t => li({ ic: 'users', title: esc(t.name), sub: `${esc(t.category)} · ${esc(t.sex)} · ${teamMembers(t.id).length} deportistas<br>Entrenador: ${esc(t.coach)}<br>Matrícula: ${clp(t.matricula || 0)}`, on: `A.teamSheetEdit('${t.id}')` }))) + btn(`Matrícula de ${esc(sp)}`, `A.matSheet('${sp}')`, 's2 sm', 'money')
+        : empty('users', 'Aún sin categorías', 'Crea la primera y elige su entrenador.', btn('Agregar categoría', `A.teamSheet('${sp}')`, 'ok', 'plus')));
+  }
 });
 // --- Finanzas ---
 function dashboardTab() {
@@ -2798,7 +2837,7 @@ const clubCoaches = () => { const ids = S.linkRequests.filter(l => l.clubId === 
 route('/d/entrenadores', {
   title: 'Entrenadores', roles: ['directivo'], render: () => {
     const l = clubCoaches(), ts = S.teams.filter(t => t.clubId === cid());
-    return (l.length ? list(l.map(a => li({ av: avatar(a.name, 40, a.photo), title: esc(a.name), sub: [esc(a.email), esc(a.phone)].filter(Boolean).join(' · '), chev: false }))) : empty('clipboard', 'Sin entrenadores', 'Aparecerán aquí cuando el club acepte su vinculación.')) + (ts.length ? sec('Por categoría') + list(ts.map(t => li({ ic: 'clipboard', color: 'purple', title: esc(t.name), sub: `${t.sport} · ${esc(t.coach)}`, chev: false }))) : '');
+    return (l.length ? list(l.map(a => li({ av: avatar(a.name, 40, a.photo), title: esc(a.name), sub: [esc(a.email), esc(a.phone)].filter(Boolean).join(' · '), chev: false }))) : empty('clipboard', 'Sin entrenadores', 'Aparecerán aquí cuando el club acepte su vinculación.')) + (club(cid()).sports.length ? sec('Por deporte') + list(club(cid()).sports.map(sp => li({ av: `<span class="sp-logo" style="width:40px;height:40px;font-size:22px;margin:0">${SPORTS[sp]}</span>`, title: esc(sp), sub: sportCoach(sp) ? esc(sportCoach(sp).name) : 'Sin entrenador a cargo', href: sportUrl(sp) }))) : '') + (ts.length ? sec('Por categoría') + list(ts.map(t => li({ ic: 'clipboard', color: 'purple', title: esc(t.name), sub: `${t.sport} · ${esc(t.coach)}`, href: sportUrl(t.sport) }))) : '');
   }
 });
 
@@ -2871,7 +2910,7 @@ A.saveTs = id => {
   closeSheet(); commit(x ? 'Integrante actualizado' : 'Integrante agregado');
   if (c === 'Entrenador' && canDo('deportes')) return A.tsCoach(o.teamId, n);
 };
-A.tsCoach = (tid, n) => { team(tid).coach = n; save(); };
+A.tsCoach = (tid, n) => { Object.assign(team(tid), { coach: n, coachId: null }); save(); };
 A.tsPaySheet = id => {
   const x = tsOf(id), fs = TS_FORMS.filter(([k]) => x.rates[k]), per = `${MESES[parse(today()).getMonth()]} ${today().slice(0, 4)}`;
   sheet(`Pago a ${esc(x.name)}`, `${select('tp-f', 'Forma de pago', fs, fs[0][0], `onchange="A.tsPayCalc('${id}')"`)}${inp('tp-q', 'Cantidad', 'type="number" inputmode="numeric" min="1" value="1"' + ` oninput="A.tsPayCalc('${id}')"`)}${inp('tp-a', 'Monto a pagar', `type="number" inputmode="numeric" min="1" value="${fs[0] ? x.rates[fs[0][0]] : ''}"`)}${inp('tp-p', 'Período o detalle', `value="${per}" maxlength="60" autocomplete="off"`)}${field(tsDocType(x) + ' (obligatoria)', '<input class="input" id="tp-d" type="file" accept="application/pdf,image/jpeg,image/png">', 'PDF hasta 440 KB, o foto.')}<div class="err mb8" id="tp-err"></div>${btn('Registrar pago', `A.payStaff('${id}')`, 'ok', 'check')}`);
@@ -3296,7 +3335,7 @@ function blankState() {
 function hydrate(d, ui) {
   const s = blankState(), me_ = d.account, type = me_.type, r = roleOf(type), day = x => (x || '').slice(0, 10), uid_ = me_.user_id;
   s.clubs = d.clubs.map(c => ({ id: c.id, code: c.code, name: c.name, short: c.short, rut: c.rut, city: c.city || '', region: c.region || '', sports: c.sports, color: c.color, logo: c.logo, payProvider: c.pay_provider || null, founded: +c.constituted.slice(0, 4), socios: c.board.length, constituted: c.constituted, regNumber: c.reg_number, email: c.email, phone: c.phone, address: c.address, web: c.web, ig: c.ig, desc: c.descr, board: c.board, ownerId: c.owner_id }));
-  s.teams = d.teams.map(t => ({ id: t.id, clubId: t.club_id, sport: t.sport, name: t.name, category: t.category, sex: t.sex, coach: t.coach, matricula: t.matricula || 0, mensualidad: t.mensualidad || 0 }));
+  s.teams = d.teams.map(t => ({ id: t.id, clubId: t.club_id, sport: t.sport, name: t.name, category: t.category, sex: t.sex, coach: t.coach, coachUid: t.coach_id || null, matricula: t.matricula || 0, mensualidad: t.mensualidad || 0 }));
   // Directorio: otros clubes y equipos se ven con sus datos públicos, para transferencias, torneos y marketplace.
   (d.directory || { clubs: [], teams: [] }).clubs.forEach(c => { if (!s.clubs.some(x => x.id === c.id)) s.clubs.push({ ...c, rut: '', logo: null, board: [], socios: 0, founded: '', constituted: null, city: c.city || '', region: c.region || '' }); });
   (d.directory || { clubs: [], teams: [] }).teams.forEach(t => { if (!s.teams.some(x => x.id === t.id)) s.teams.push({ id: t.id, clubId: t.club_id, sport: t.sport, name: t.name, category: t.category, sex: t.sex, coach: t.coach, matricula: 0 }); });
@@ -3306,6 +3345,8 @@ function hydrate(d, ui) {
   const toAcc = a => ({ id: a.public_id, uid: a.user_id, type: a.type, role: roleOf(a.type), name: a.name, rut: a.rut, email: a.email, phone: a.phone, date: day(a.created_at), photo: a.photo, city: a.city, specialty: a.specialty, web: a.web, sport: a.sport });
   s.accounts = d.accounts.map(toAcc);
   const pubId = id => (s.accounts.find(a => a.uid === id) || {}).id;
+  s.teams.forEach(t => { t.coachId = t.coachUid ? pubId(t.coachUid) || null : null; });
+  s.clubs.forEach(c => { const sc = (d.clubs.find(x => x.id === c.id) || {}).sport_coaches || {}; c.sportCoaches = {}; Object.keys(sc).forEach(k => { c.sportCoaches[k] = { id: pubId(sc[k].id) || null, name: sc[k].name }; }); });
   s.linkRequests = d.links.map(l => ({ id: l.id, accountId: pubId(l.account_id), clubId: l.club_id, date: day(l.created_at), status: l.status, resolvedAt: day(l.resolved_at) }));
   const a = s.accounts.find(x => x.uid === uid_), accepted = s.linkRequests.filter(l => l.accountId === a.id && l.status === 'aceptada').map(l => l.clubId);
   s.guardianLinks = (d.guardian_links || []).map(l => ({ ...l, date: day(l.date) }));
@@ -3463,9 +3504,10 @@ real('guardianResolve', (id, ok) => realDo(() => SB.rpc('resolve_guardian', { p_
 real('guardianRemove', id => realDo(() => SB.rpc('remove_guardian', { p_id: id }), 'Vínculo eliminado'));
 real('req', (id, ok) => realDo(() => SB.rpc('resolve_join', { p_id: id, p_ok: ok }), ok ? 'Deportista aceptado: ahora está Hábil' : 'Solicitud rechazada'));
 real('lnk', (id, ok) => realDo(() => SB.rpc('resolve_link', { p_id: id, p_ok: ok }), ok ? 'Vinculación aceptada' : 'Vinculación rechazada'));
-real('doAddSport', () => { const s = pickSport(); if (!s) return; closeSheet(); return realDo(() => SB.rpc('add_sport', { p_sport: s }), s + ' agregado al club'); });
-real('addTeam', sp => { const n = val('dt-n'); if (!n) return toast('Escribe un nombre', 'warn'); const p = { sport: sp, name: n, category: val('dt-c'), sex: val('dt-x'), coach: val('dt-e') }, m = +val('dt-m') || 0; closeSheet(); return realDo(async () => { const id = await SB.rpc('add_team', { p }); if (m) await SB.rpc('update_team', { p: { id, name: n, matricula: m } }); }, 'Equipo creado'); });
-real('saveTeam', id => { const n = val('te-n'), m = val('te-m'); if (!n) { $('#te-err').textContent = 'Escribe un nombre.'; return; } if (m === '' || +m < 0) { $('#te-err').textContent = 'Indica un monto válido.'; return; } const p = { id, name: n, category: val('te-c'), sex: val('te-x'), coach: val('te-e') || 'Por asignar', matricula: +m }; closeSheet(); return realDo(() => SB.rpc('update_team', { p }), 'Categoría actualizada'); });
+real('doAddSport', () => { const s = pickSport(); if (!s) return; const k = coachPick('ds-c'); closeSheet(); return realDo(async () => { await SB.rpc('add_sport', { p_sport: s }); if (k && k.uid) await SB.rpc('set_sport_coach', { p_sport: s, p_coach: k.uid }); }, s + ' agregado al club'); });
+real('saveSportCoach', sp => { const k = coachPick('sc-c'); closeSheet(); if (!k) return; return realDo(() => SB.rpc('set_sport_coach', { p_sport: sp, p_coach: k.uid || null }), k.uid ? 'Entrenador a cargo asignado' : 'Deporte sin entrenador a cargo'); });
+real('addTeam', sp => { const n = val('dt-n'); if (!n) return toast('Escribe un nombre', 'warn'); const k = coachPick('dt-e'), p = { sport: sp, name: n, category: val('dt-c'), sex: val('dt-x'), coachId: (k && k.uid) || '' }, m = +val('dt-m') || 0; closeSheet(); return realDo(async () => { const id = await SB.rpc('add_team', { p }); if (m) await SB.rpc('update_team', { p: { id, name: n, matricula: m } }); }, 'Categoría creada'); });
+real('saveTeam', id => { const n = val('te-n'), m = val('te-m'); if (!n) { $('#te-err').textContent = 'Escribe un nombre.'; return; } if (m === '' || +m < 0) { $('#te-err').textContent = 'Indica un monto válido.'; return; } const k = coachPick('te-e'), p = { id, name: n, category: val('te-c'), sex: val('te-x'), matricula: +m, ...(k ? { coachId: k.uid || '' } : {}) }; closeSheet(); return realDo(() => SB.rpc('update_team', { p }), 'Categoría actualizada'); });
 real('delTeam', id => { closeSheet(); return realDo(() => SB.rpc('delete_team', { p_id: id }), 'Categoría eliminada'); });
 real('saveMat', sp => { const v = val('dm-a'); if (v === '' || +v < 0) { $('#dm-err').textContent = 'Indica un monto válido.'; return; } closeSheet(); return realDo(() => SB.rpc('set_sport_matricula', { p_sport: sp, p_amount: +v }), 'Matrícula aplicada a todas las categorías'); });
 real('manualPay', ids => { const m = val('mp-m'), am = manualValue(ids); closeSheet(); return realDo(async () => { const r = await SB.rpc('record_manual_payment', { p_ids: ids.split(','), p_method: m, p_amount: am }); if (r) location.hash = '#/comprobante/' + r; }, 'Pago registrado'); });
