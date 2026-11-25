@@ -2264,7 +2264,7 @@ route('/e/evento/:id', {
 route('/e/plantel', {
   title: 'Plantel', roles: ['entrenador'], render: () => {
     const t = curTeam(), l = teamMembers(t.id);
-    return teamBar() + (l.length ? list(l.map(m => { const p = player(m.playerId), evs = S.events.filter(e => e.stats[p.id]); return li({ av: avatar(p.name, 40, p.photo), title: `${m.number ? m.number + '. ' : ''}${esc(p.name)}`, sub: `${esc(p.position || '')} · ${ageOf(p.birth)} años · ${sum(evs, e => e.stats[p.id].goles)} goles`, right: memBadge(m) }); })) : empty('users', 'Plantel vacío', 'Usa la carga masiva para agregar deportistas.', goBtn('Carga masiva', '/e/carga')));
+    return teamBar() + `<div class="mb12">${btn('AGREGAR JUGADOR', "A.addPlayerSheet('coach')", '', 'userplus')}</div>` + (l.length ? list(l.map(m => { const p = player(m.playerId), evs = S.events.filter(e => e.stats[p.id]); return li({ av: avatar(p.name, 40, p.photo), title: `${m.number ? m.number + '. ' : ''}${esc(p.name)}`, sub: `${esc(p.position || '')} · ${ageOf(p.birth)} años · ${sum(evs, e => e.stats[p.id].goles)} goles`, right: memBadge(m) }); })) : empty('users', 'Plantel vacío', 'Usa la carga masiva para agregar deportistas.', goBtn('Carga masiva', '/e/carga')));
   }
 });
 // --- Partidos y torneos: entran al calendario y cobran solo al alcanzar el mínimo de confirmados ---
@@ -2819,10 +2819,134 @@ route('/d/prestamo/:id', {
 route('/d/jugadores', {
   title: 'Deportistas', roles: ['directivo'], render: () => {
     const f = S.ui.djF || 'todos', l = clubMembers(cid()).filter(m => f === 'todos' || memStatus(m) === f || (f === 'moroso' && debtOf(m.playerId, cid()) > 0));
-    return chips('djF', [['todos', 'Todos'], ['habil', 'Hábiles'], ['revision', 'En revisión'], ['suspendido', 'Suspendidos'], ['moroso', 'Con deuda']], f) + (l.length ? list(l.map(m => { const p = player(m.playerId), d = debtOf(p.id, cid()); return li({ av: avatar(p.name, 40, p.photo), title: esc(p.name), sub: `${SPORTS[m.sport]} ${m.teamId ? team(m.teamId).name : m.sport}${overdueMonths(m) ? ' · ' + mesesTxt(overdueMonths(m)) : ''}${d ? ' · debe ' + clp(d) : ''}`, right: memBadge(m) }); })) : empty('users', 'Sin deportistas', 'No hay deportistas con este filtro.'));
+    return chips('djF', [['todos', 'Todos'], ['habil', 'Hábiles'], ['revision', 'En revisión'], ['suspendido', 'Suspendidos'], ['moroso', 'Con deuda']], f) + `<div class="mb12">${btn('AGREGAR JUGADOR', "A.addPlayerSheet('club')", '', 'userplus')}<div class="mt8">${btn('CARGA MASIVA', 'A.cmSheet()', 's2', 'upload')}</div></div>` + (l.length ? list(l.map(m => { const p = player(m.playerId), d = debtOf(p.id, cid()); return li({ av: avatar(p.name, 40, p.photo), title: esc(p.name), sub: `${SPORTS[m.sport]} ${m.teamId ? team(m.teamId).name : m.sport}${overdueMonths(m) ? ' · ' + mesesTxt(overdueMonths(m)) : ''}${d ? ' · debe ' + clp(d) : ''}`, right: memBadge(m) }); })) : empty('users', 'Sin deportistas', 'No hay deportistas con este filtro.'));
   }
 });
 route('/d/masivo', { title: 'Mensaje masivo', roles: ['directivo'], render: () => massForm() });
+
+// --- Carga masiva del club: planilla Excel (.xlsx) con Nombre, RUT, fecha de nacimiento, email y teléfono ---
+// La planilla se arma y se lee en el navegador, sin librerías. También acepta CSV.
+const CM_COLS = ['Nombre', 'RUT', 'Fecha de nacimiento', 'Email', 'Teléfono'];
+let _cm = null; // { file, rows } de la última planilla subida
+const CRC_T = (() => { const t = new Uint32Array(256); for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
+const crc32 = b => { let c = 0xFFFFFFFF; for (let i = 0; i < b.length; i++) c = CRC_T[(c ^ b[i]) & 255] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; };
+function zipStore(files) { // ZIP sin compresión: [{ name, text }]
+  const enc = new TextEncoder(), parts = [], cen = []; let off = 0;
+  const u16 = n => [n & 255, (n >>> 8) & 255], u32 = n => [n & 255, (n >>> 8) & 255, (n >>> 16) & 255, (n >>> 24) & 255];
+  files.forEach(f => {
+    const nm = enc.encode(f.name), d = enc.encode(f.text), crc = crc32(d), common = [...u16(20), ...u16(0x0800), ...u16(0), ...u16(0), ...u16(0x21), ...u32(crc), ...u32(d.length), ...u32(d.length), ...u16(nm.length), ...u16(0)];
+    const head = new Uint8Array([...u32(0x04034b50), ...common]); parts.push(head, nm, d);
+    cen.push(new Uint8Array([...u32(0x02014b50), ...u16(20), ...common, ...u16(0), ...u16(0), ...u16(0), ...u32(0), ...u32(off)]), nm);
+    off += head.length + nm.length + d.length;
+  });
+  const cenLen = cen.reduce((s, x) => s + x.length, 0);
+  return new Blob([...parts, ...cen, new Uint8Array([...u32(0x06054b50), ...u16(0), ...u16(0), ...u16(files.length), ...u16(files.length), ...u32(cenLen), ...u32(off), ...u16(0)])], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+}
+function cmXlsx() {
+  const NS = 'http://schemas.openxmlformats.org/spreadsheetml/2006/main', W = [34, 16, 22, 30, 18], L = 'ABCDE';
+  const head = CM_COLS.map((c, i) => `<c r="${L[i]}1" t="inlineStr" s="1"><is><t>${esc(c)}</t></is></c>`).join('');
+  return zipStore([
+    { name: '[Content_Types].xml', text: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>' },
+    { name: '_rels/.rels', text: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>' },
+    { name: 'xl/workbook.xml', text: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="${NS}" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="Deportistas" sheetId="1" r:id="rId1"/></sheets></workbook>` },
+    { name: 'xl/_rels/workbook.xml.rels', text: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>' },
+    { name: 'xl/styles.xml', text: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="${NS}"><fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><color rgb="FFFFFFFF"/><name val="Calibri"/></font></fonts><fills count="3"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FF1F4E79"/><bgColor indexed="64"/></patternFill></fill></fills><borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="3"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="49" fontId="1" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1" applyNumberFormat="1"/><xf numFmtId="49" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/></cellXfs></styleSheet>` },
+    { name: 'xl/worksheets/sheet1.xml', text: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="${NS}"><sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews><cols>${W.map((w, i) => `<col min="${i + 1}" max="${i + 1}" width="${w}" style="2" customWidth="1"/>`).join('')}</cols><sheetData><row r="1">${head}</row></sheetData></worksheet>` }
+  ]);
+}
+function downloadBlob(name, blob) { const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 1000); }
+async function unzipRead(buf, want) { // lee las entradas pedidas de un .xlsx (ZIP); devuelve { nombre: texto }
+  const v = new DataView(buf), b = new Uint8Array(buf), dec = new TextDecoder(), out = {};
+  let e = b.length - 22; while (e >= 0 && v.getUint32(e, true) !== 0x06054b50) e--;
+  if (e < 0) throw new Error('El archivo no es una planilla Excel válida.');
+  let p = v.getUint32(e + 16, true); const n = v.getUint16(e + 10, true);
+  for (let i = 0; i < n; i++) {
+    const meth = v.getUint16(p + 10, true), size = v.getUint32(p + 20, true), nl = v.getUint16(p + 28, true), xl = v.getUint16(p + 30, true), cl = v.getUint16(p + 32, true), lo = v.getUint32(p + 42, true);
+    const name = dec.decode(b.subarray(p + 46, p + 46 + nl)); p += 46 + nl + xl + cl;
+    if (!want(name)) continue;
+    const start = lo + 30 + v.getUint16(lo + 26, true) + v.getUint16(lo + 28, true), raw = b.subarray(start, start + size);
+    if (meth === 0) out[name] = dec.decode(raw);
+    else if (meth === 8) out[name] = await new Response(new Blob([raw]).stream().pipeThrough(new DecompressionStream('deflate-raw'))).text();
+  }
+  return out;
+}
+async function xlsxRows(buf) {
+  const f = await unzipRead(buf, n => n === 'xl/sharedStrings.xml' || /^xl\/worksheets\/sheet\d+\.xml$/.test(n));
+  const sheet = Object.keys(f).filter(n => n.startsWith('xl/worksheets/')).sort((a, b) => parseInt(a.match(/\d+/)) - parseInt(b.match(/\d+/)))[0];
+  if (!sheet) throw new Error('La planilla no tiene hojas.');
+  const xml = s => new DOMParser().parseFromString(s, 'application/xml'), tags = (el, t) => [...el.getElementsByTagNameNS('*', t)];
+  const ss = f['xl/sharedStrings.xml'] ? tags(xml(f['xl/sharedStrings.xml']), 'si').map(si => tags(si, 't').map(t => t.textContent).join('')) : [];
+  return tags(xml(f[sheet]), 'row').map(r => { const row = []; tags(r, 'c').forEach((c, k) => {
+    const ref = c.getAttribute('r'), col = ref ? [...ref.replace(/\d+/g, '')].reduce((s, ch) => s * 26 + ch.charCodeAt(0) - 64, 0) - 1 : k, t = c.getAttribute('t'), vEl = tags(c, 'v')[0];
+    row[col] = t === 's' ? ss[+(vEl && vEl.textContent)] || '' : t === 'inlineStr' ? tags(c, 't').map(x => x.textContent).join('') : vEl ? vEl.textContent : '';
+  }); return Array.from(row, x => String(x ?? '').trim()); });
+}
+const csvRows = text => { const ls = text.replace(/^﻿/, '').split(/\r?\n/).filter(x => x.trim()), d = (ls[0] || '').split(';').length >= (ls[0] || '').split(',').length ? ';' : ','; return ls.map(l => l.split(d).map(x => x.trim().replace(/^"(.*)"$/, '$1'))); };
+function cmDate(s) { // dd-mm-aaaa, dd/mm/aaaa, aaaa-mm-dd o número de fecha de Excel → aaaa-mm-dd
+  s = String(s || '').trim(); let y, m, d, x;
+  if (/^\d{4,5}(\.\d+)?$/.test(s)) { const t = new Date(Date.UTC(1899, 11, 30) + Math.floor(+s) * 864e5); y = t.getUTCFullYear(); m = t.getUTCMonth() + 1; d = t.getUTCDate(); }
+  else if ((x = s.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{4})$/))) [, d, m, y] = x.map(Number);
+  else if ((x = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/))) [, y, m, d] = x.map(Number);
+  else return null;
+  const t = new Date(Date.UTC(y, m - 1, d)); if (t.getUTCMonth() !== m - 1 || t.getUTCDate() !== d) return null;
+  return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+}
+function cmParse(rows) {
+  const norm = s => normTxt(s).replace(/[^a-z]/g, ''), h = (rows[0] || []).map(norm), find = (keys, i) => { const k = h.findIndex(c => keys.some(x => c.includes(x))); return k >= 0 ? k : i; };
+  const hasHead = h.some(c => c === 'nombre' || c === 'rut'), ix = [find(['nombre'], 0), find(['rut'], 1), find(['nacimiento', 'fecha'], 2), find(['email', 'correo', 'mail'], 3), find(['telefono', 'celular', 'fono'], 4)];
+  const seen = new Set(), hoy = today();
+  return rows.slice(hasHead ? 1 : 0).map((r, i) => ({ r, line: i + (hasHead ? 2 : 1) })).filter(x => x.r.some(Boolean)).slice(0, 1000).map(({ r, line }) => {
+    const [name, rut, birthRaw, email, phoneRaw] = ix.map(k => (r[k] || '').trim()), birth = cmDate(birthRaw), phone = phoneRaw.replace(/[\s\-().]/g, ''), errs = [];
+    if (!name) errs.push('Falta el nombre');
+    if (!rut) errs.push('Falta el RUT'); else if (!validRut(rut)) errs.push('RUT inválido');
+    else { const c = cleanRut(rut); if (seen.has(c)) errs.push('RUT repetido en la planilla'); else if (S.players.some(p => cleanRut(p.rut) === c)) errs.push('Ya está registrado en My Club'); seen.add(c); }
+    if (!birthRaw) errs.push('Falta la fecha de nacimiento'); else if (!birth || birth > hoy || birth < '1920-01-01') errs.push('Fecha de nacimiento inválida (usa dd-mm-aaaa)');
+    if (email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) errs.push('Email inválido');
+    if (phone && !/^\+?\d{8,12}$/.test(phone)) errs.push('Teléfono inválido');
+    return { line, name, rut, birth, email: email.toLowerCase(), phone: /^9\d{8}$/.test(phone) ? '+56' + phone : phone, errs };
+  });
+}
+A.cmSheet = () => sheet('Carga masiva', `<p class="center muted small" style="margin:0 0 16px">Descarga la planilla, completa una fila por deportista con nombre, RUT, fecha de nacimiento (dd-mm-aaaa), email y teléfono, y súbela.</p>${btn('DESCARGAR PLANILLA', 'A.cmTpl()', 's2', 'download')}<label class="btn mt8" style="cursor:pointer">${icon('upload', 20)}SUBIR PLANILLA<input type="file" accept=".xlsx,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv" hidden onchange="A.cmFile(this)"></label>`);
+A.cmTpl = () => { downloadBlob('planilla_deportistas_myclub.xlsx', cmXlsx()); closeSheet(); toast('Planilla descargada'); };
+A.cmFile = async inp => {
+  const f = inp.files[0]; if (!f) return;
+  try {
+    const rows = /\.csv$/i.test(f.name) || f.type === 'text/csv' ? csvRows(await f.text()) : await xlsxRows(await f.arrayBuffer());
+    const parsed = cmParse(rows); if (!parsed.length) throw new Error('La planilla no tiene deportistas. Completa al menos una fila bajo los títulos.');
+    _cm = { file: f.name, rows: parsed }; closeSheet(); if (location.hash === '#/d/carga') rerender(); else go('/d/carga');
+  } catch (e) { closeSheet(); toast(e.message || 'No se pudo leer la planilla.', 'bad'); }
+};
+A.cmImport = () => {
+  if (!_cm) return; const sp = val('cm-sport'), ok = _cm.rows.filter(r => !r.errs.length); if (!sp) return toast('Elige el deporte', 'warn');
+  ok.forEach(r => { const id = uid('p'); S.players.push({ id, first: r.name.split(' ')[0], name: r.name, sex: '', birth: r.birth, rut: normRut(r.rut), email: r.email, phone: r.phone, position: '' }); S.memberships.push({ id: uid('m'), playerId: id, clubId: cid(), sport: sp, teamId: null, status: 'habil', since: today(), until: null, federated: false }); });
+  _cm = null; NAV.length = 0; replaceTo('/d/jugadores'); commit(`${ok.length} deportista${ok.length === 1 ? '' : 's'} agregado${ok.length === 1 ? '' : 's'} al club`);
+};
+// --- Agregar jugador de a uno (club o entrenador): mismos datos que la planilla ---
+A.addPlayerSheet = ctx => {
+  const sports = ctx === 'club' ? club(cid()).sports : [], t = ctx === 'coach' ? curTeam() : null;
+  sheet('Agregar jugador', `${t ? `<p class="center muted small" style="margin:-8px 0 12px">Se agrega a ${esc(t.name)}</p>` : ''}${inp('pl-name', 'Nombre', 'autocomplete="off" autocapitalize="words" placeholder="Nombre y apellidos"')}${inp('pl-rut', 'RUT', 'autocomplete="off" placeholder="12.345.678-9"')}${inp('pl-birth', 'Fecha de nacimiento', `type="date" max="${today()}"`)}${inp('pl-email', 'Email', 'type="email" inputmode="email" autocomplete="off" autocapitalize="off"')}${inp('pl-phone', 'Teléfono', 'type="tel" inputmode="tel" autocomplete="off" placeholder="+56 9 1234 5678"')}${ctx === 'club' ? select('pl-sport', 'Deporte', sports.length === 1 ? sports : [['', 'Elige el deporte'], ...sports.map(s => [s, s])], sports.length === 1 ? sports[0] : '') : ''}<div class="err" id="pl-err"></div>${btn('AGREGAR JUGADOR', `A.addPlayer('${ctx}')`, 'ok', 'check')}`);
+};
+A.addPlayer = ctx => {
+  const r = cmParse([CM_COLS, ['pl-name', 'pl-rut', 'pl-birth', 'pl-email', 'pl-phone'].map(val)])[0], err = m => { $('#pl-err').textContent = m; };
+  if (!r) return err('Completa nombre, RUT y fecha de nacimiento.');
+  if (r.errs.length) return err(r.errs.join('. ') + '.');
+  let clubId, sport, teamId = null;
+  if (ctx === 'coach') { const t = curTeam(); clubId = t.clubId; sport = t.sport; teamId = t.id; }
+  else { clubId = cid(); sport = val('pl-sport'); if (!sport) return err('Elige el deporte.'); }
+  const id = uid('p'); S.players.push({ id, first: r.name.split(' ')[0], name: r.name, sex: '', birth: r.birth, rut: normRut(r.rut), email: r.email, phone: r.phone, position: '' });
+  S.memberships.push({ id: uid('m'), playerId: id, clubId, sport, teamId, status: 'habil', since: today(), until: null, federated: false });
+  closeSheet(); commit(`${r.name} agregado`);
+};
+route('/d/carga', {
+  title: 'Carga masiva', roles: ['directivo'], render: () => {
+    if (!_cm) return empty('upload', 'Sube una planilla', 'Descarga la planilla, complétala y súbela para revisar los datos antes de agregarlos.', btn('CARGA MASIVA', 'A.cmSheet()', '', 'upload'));
+    const c = _cm.rows, ok = c.filter(r => !r.errs.length).length, sports = club(cid()).sports;
+    return `<p class="small muted" style="margin:0 0 10px">${esc(_cm.file)}</p><div class="kpis">${kpi('Válidos', ok, 'atext')}${kpi('Con errores', c.length - ok, c.length - ok ? 'dtext' : '')}</div>` +
+      list(c.map(r => li({ ic: r.errs.length ? 'alert' : 'check', color: r.errs.length ? 'red' : 'green', title: esc(r.name || `Fila ${r.line}`), sub: r.errs.length ? `Fila ${r.line}: ${esc(r.errs.join(', '))}` : [esc(r.rut), r.birth ? fDateY(r.birth) : '', esc(r.email), esc(r.phone)].filter(Boolean).join(' · '), chev: false }))) +
+      (ok ? `<div class="card mt12">${select('cm-sport', 'Deporte', sports.length === 1 ? sports : [['', 'Elige el deporte'], ...sports.map(s => [s, s])], sports.length === 1 ? sports[0] : '')}${btn(`AGREGAR ${ok} DEPORTISTA${ok === 1 ? '' : 'S'}`, 'A.cmImport()', 'ok', 'check')}</div>` : note('Ninguna fila es válida. Corrige la planilla y vuelve a subirla.', 'warn', 'alert')) +
+      `<div class="mt8">${btn('Subir otra planilla', 'A.cmSheet()', 's2', 'upload')}</div>`;
+  }
+});
 
 // --- Apoderados y entrenadores del club ---
 let _apod = null;
@@ -3601,9 +3725,9 @@ function realHome() {
 
 // Solo se ingresan datos con una sesión de una cuenta creada. Quien revisa la app con el usuario demo
 // solo consulta, y en una cuenta real una acción que aún no tiene base de datos avisa: nunca finge guardar.
-const SOLO_VER = new Set('svAdd svDel svDup svType svOpAdd svOpDel svAll back ui homeEdit homeMove homeFlag homeReset login bioOn bioSkip bioLogin logout completeReg recover newPass linkSearch linkPick linkCheck addCargo regType installHelp openNotif roleSheet setRole demoPick resetDemo doReset time rhClub pickKid addSport sportOther deleteAsk tfUpd certUpd bajaDebt loanType qtLine qtTotal showCom showReceipt playVideo comments claimView chatMenu toggleCh setMethod tpl csvSample delTeamSheet teamSheetEdit newChat newPost resign withdraw baja proposeT bcSport incomeName copyBank partToggle tsCargo tsPayCalc tsDoc'.split(' '));
+const SOLO_VER = new Set('svAdd svDel svDup svType svOpAdd svOpDel svAll back ui homeEdit homeMove homeFlag homeReset login bioOn bioSkip bioLogin cmTpl cmFile logout completeReg recover newPass linkSearch linkPick linkCheck addCargo regType installHelp openNotif roleSheet setRole demoPick resetDemo doReset time rhClub pickKid addSport sportOther deleteAsk tfUpd certUpd bajaDebt loanType qtLine qtTotal showCom showReceipt playVideo comments claimView chatMenu toggleCh setMethod tpl csvSample delTeamSheet teamSheetEdit newChat newPost resign withdraw baja proposeT bcSport incomeName copyBank partToggle tsCargo tsPayCalc tsDoc'.split(' '));
 // Funciones que solo existen para simular en el demo. La carga masiva crearía deportistas sin cuenta ni apoderado.
-const SOLO_DEMO = new Set('time simLink simReply simJoin simVotes asmSim csvSample csvImport resetDemo doReset scan'.split(' '));
+const SOLO_DEMO = new Set('time simLink simReply simJoin simVotes asmSim csvSample csvImport cmImport addPlayer resetDemo doReset scan'.split(' '));
 const MSG_CREA_CUENTA = 'Estás en el modo demo: crea una cuenta para ingresar datos.';
 const MSG_SOLO_DEMO = 'Esta función no está disponible en cuentas reales.';
 const soloConsulta = () => HAS_DB && S.session.loggedIn && !S.session.real;
