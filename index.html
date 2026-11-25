@@ -2919,7 +2919,7 @@ A.cmFile = async inp => {
 A.cmImport = () => {
   if (!_cm) return; const sp = val('cm-sport'), ok = _cm.rows.filter(r => !r.errs.length); if (!sp) return toast('Elige el deporte', 'warn');
   ok.forEach(r => { const id = uid('p'); S.players.push({ id, first: r.name.split(' ')[0], name: r.name, sex: '', birth: r.birth, rut: normRut(r.rut), email: r.email, phone: r.phone, position: '' }); S.memberships.push({ id: uid('m'), playerId: id, clubId: cid(), sport: sp, teamId: null, status: 'habil', since: today(), until: null, federated: false }); });
-  _cm = null; NAV.length = 0; replaceTo('/d/jugadores'); commit(`${ok.length} deportista${ok.length === 1 ? '' : 's'} agregado${ok.length === 1 ? '' : 's'} al club`);
+  _cm = null; NAV.length = 0; replaceTo('/d/jugadores'); commit(`${ok.length} deportista${ok.length === 1 ? '' : 's'} agregado${ok.length === 1 ? '' : 's'} al club${DEMO_LOCAL()}`);
 };
 // --- Agregar jugador de a uno (club o entrenador): mismos datos que la planilla ---
 A.addPlayerSheet = ctx => {
@@ -2935,7 +2935,7 @@ A.addPlayer = ctx => {
   else { clubId = cid(); sport = val('pl-sport'); if (!sport) return err('Elige el deporte.'); }
   const id = uid('p'); S.players.push({ id, first: r.name.split(' ')[0], name: r.name, sex: '', birth: r.birth, rut: normRut(r.rut), email: r.email, phone: r.phone, position: '' });
   S.memberships.push({ id: uid('m'), playerId: id, clubId, sport, teamId, status: 'habil', since: today(), until: null, federated: false });
-  closeSheet(); commit(`${r.name} agregado`);
+  closeSheet(); commit(`${r.name} agregado${DEMO_LOCAL()}`);
 };
 route('/d/carga', {
   title: 'Carga masiva', roles: ['directivo'], render: () => {
@@ -3725,12 +3725,14 @@ function realHome() {
 
 // Solo se ingresan datos con una sesión de una cuenta creada. Quien revisa la app con el usuario demo
 // solo consulta, y en una cuenta real una acción que aún no tiene base de datos avisa: nunca finge guardar.
-const SOLO_VER = new Set('svAdd svDel svDup svType svOpAdd svOpDel svAll back ui homeEdit homeMove homeFlag homeReset login bioOn bioSkip bioLogin cmTpl cmFile logout completeReg recover newPass linkSearch linkPick linkCheck addCargo regType installHelp openNotif roleSheet setRole demoPick resetDemo doReset time rhClub pickKid addSport sportOther deleteAsk tfUpd certUpd bajaDebt loanType qtLine qtTotal showCom showReceipt playVideo comments claimView chatMenu toggleCh setMethod tpl csvSample delTeamSheet teamSheetEdit newChat newPost resign withdraw baja proposeT bcSport incomeName copyBank partToggle tsCargo tsPayCalc tsDoc'.split(' '));
+const SOLO_VER = new Set('svAdd svDel svDup svType svOpAdd svOpDel svAll back ui homeEdit homeMove homeFlag homeReset login bioOn bioSkip bioLogin cmTpl cmFile cmImport addPlayer logout completeReg recover newPass linkSearch linkPick linkCheck addCargo regType installHelp openNotif roleSheet setRole demoPick resetDemo doReset time rhClub pickKid addSport sportOther deleteAsk tfUpd certUpd bajaDebt loanType qtLine qtTotal showCom showReceipt playVideo comments claimView chatMenu toggleCh setMethod tpl csvSample delTeamSheet teamSheetEdit newChat newPost resign withdraw baja proposeT bcSport incomeName copyBank partToggle tsCargo tsPayCalc tsDoc'.split(' '));
 // Funciones que solo existen para simular en el demo. La carga masiva crearía deportistas sin cuenta ni apoderado.
 const SOLO_DEMO = new Set('time simLink simReply simJoin simVotes asmSim csvSample csvImport cmImport addPlayer resetDemo doReset scan'.split(' '));
 const MSG_CREA_CUENTA = 'Estás en el modo demo: crea una cuenta para ingresar datos.';
 const MSG_SOLO_DEMO = 'Esta función no está disponible en cuentas reales.';
 const soloConsulta = () => HAS_DB && S.session.loggedIn && !S.session.real;
+// El usuario demo sí puede agregar jugadores de prueba (de a uno o por planilla): quedan solo en su equipo.
+const DEMO_LOCAL = () => soloConsulta() ? ' · Modo demo: queda solo en este equipo' : '';
 // Mientras una acción espera respuesta del servidor, tocar de nuevo no la repite.
 const _enCurso = new Set();
 Object.keys(A).forEach(k => {
