@@ -2265,7 +2265,7 @@ route('/e/evento/:id', {
 route('/e/plantel', {
   title: 'Plantel', roles: ['entrenador'], render: () => {
     const t = curTeam(), l = teamMembers(t.id);
-    return teamBar() + `<div class="mb12">${btn('AGREGAR SOCIO', "A.addSocioSheet('coach')", '', 'userplus')}</div>` + (l.length ? list(l.map(m => { const p = player(m.playerId), evs = S.events.filter(e => e.stats[p.id]); return li({ av: avatar(p.name, 40, p.photo), title: `${m.number ? m.number + '. ' : ''}${esc(p.name)}`, sub: `${esc(p.position || '')} · ${ageOf(p.birth)} años · ${sum(evs, e => e.stats[p.id].goles)} goles`, right: memBadge(m) }); })) : empty('users', 'Plantel vacío', 'Usa la carga masiva para agregar deportistas.', goBtn('Carga masiva', '/e/carga')));
+    return teamBar() + `<div class="mb12">${btn('AGREGAR', "A.addSocioSheet('coach')", '', 'userplus')}</div>` + (l.length ? list(l.map(m => { const p = player(m.playerId), evs = S.events.filter(e => e.stats[p.id]); return li({ av: avatar(p.name, 40, p.photo), title: `${m.number ? m.number + '. ' : ''}${esc(p.name)}`, sub: `${esc(p.position || '')} · ${ageOf(p.birth)} años · ${sum(evs, e => e.stats[p.id].goles)} goles`, right: memBadge(m) }); })) : empty('users', 'Plantel vacío', 'Usa la carga masiva para agregar deportistas.', goBtn('Carga masiva', '/e/carga')));
   }
 });
 // --- Partidos y torneos: entran al calendario y cobran solo al alcanzar el mínimo de confirmados ---
@@ -2820,7 +2820,7 @@ route('/d/prestamo/:id', {
 route('/d/jugadores', {
   title: 'Deportistas', roles: ['directivo'], render: () => {
     const f = S.ui.djF || 'todos', l = clubMembers(cid()).filter(m => f === 'todos' || memStatus(m) === f || (f === 'moroso' && debtOf(m.playerId, cid()) > 0));
-    return chips('djF', [['todos', 'Todos'], ['habil', 'Hábiles'], ['revision', 'En revisión'], ['suspendido', 'Suspendidos'], ['moroso', 'Con deuda']], f) + `<div class="mb12">${btn('AGREGAR SOCIO', "A.addSocioSheet('club')", '', 'userplus')}<div class="mt8">${btn('CARGA MASIVA', 'A.cmSheet()', 's2', 'upload')}</div></div>` + (l.length ? list(l.map(m => { const p = player(m.playerId), d = debtOf(p.id, cid()), iv = ivFor('jugador', p.id, cid()); return li({ av: avatar(p.name, 40, p.photo), title: esc(p.name), sub: `${SPORTS[m.sport]} ${m.teamId ? team(m.teamId).name : m.sport}${overdueMonths(m) ? ' · ' + mesesTxt(overdueMonths(m)) : ''}${d ? ' · debe ' + clp(d) : ''}${iv ? ' · ' + IV_TXT[iv.status] : ''}`, right: memBadge(m), on: iv ? `A.inviteSheet('${iv.id}')` : '', chev: !!iv }); })) : empty('users', 'Sin deportistas', 'No hay deportistas con este filtro.'));
+    return chips('djF', [['todos', 'Todos'], ['habil', 'Hábiles'], ['revision', 'En revisión'], ['suspendido', 'Suspendidos'], ['moroso', 'Con deuda']], f) + socioBtns('jugador') + (l.length ? list(l.map(m => { const p = player(m.playerId), d = debtOf(p.id, cid()), iv = ivFor('jugador', p.id, cid()); return li({ av: avatar(p.name, 40, p.photo), title: esc(p.name), sub: `${SPORTS[m.sport]} ${m.teamId ? team(m.teamId).name : m.sport}${overdueMonths(m) ? ' · ' + mesesTxt(overdueMonths(m)) : ''}${d ? ' · debe ' + clp(d) : ''}${iv ? ' · ' + IV_TXT[iv.status] : ''}`, right: memBadge(m), on: iv ? `A.inviteSheet('${iv.id}')` : '', chev: !!iv }); })) : empty('users', 'Sin deportistas', 'No hay deportistas con este filtro.'));
   }
 });
 route('/d/masivo', { title: 'Mensaje masivo', roles: ['directivo'], render: () => massForm() });
@@ -2830,7 +2830,10 @@ route('/d/masivo', { title: 'Mensaje masivo', roles: ['directivo'], render: () =
 // de su ficha lo completa el propio apoderado al entrar. La planilla se arma y se lee en el navegador, sin librerías.
 const CM_COLS = ['Nombre', 'RUT', 'Fecha de nacimiento', 'Email', 'Teléfono'];
 const CM_COLS_AP = ['Nombre', 'Email', 'Teléfono'];
-const CM = { jugador: { cols: CM_COLS, w: [34, 16, 22, 30, 18], hoja: 'Deportistas', file: 'planilla_deportistas_myclub.xlsx', one: 'deportista', many: 'deportistas' }, apoderado: { cols: CM_COLS_AP, w: [34, 30, 18], hoja: 'Apoderados', file: 'planilla_apoderados_myclub.xlsx', one: 'apoderado', many: 'apoderados' } };
+const CM = { jugador: { cols: CM_COLS, w: [34, 16, 22, 30, 18], hoja: 'Deportistas', file: 'planilla_deportistas_myclub.xlsx', one: 'deportista', many: 'deportistas' }, apoderado: { cols: CM_COLS_AP, w: [34, 30, 18], hoja: 'Apoderados', file: 'planilla_apoderados_myclub.xlsx', one: 'apoderado', many: 'apoderados' }, entrenador: { cols: CM_COLS_AP, w: [34, 30, 18], hoja: 'Entrenadores', file: 'planilla_entrenadores_myclub.xlsx', one: 'entrenador', many: 'entrenadores' } };
+// Pantalla del club donde vive cada tipo, y botones AGREGAR y CARGA MASIVA de esa pantalla.
+const CM_BACK = { jugador: '/d/jugadores', apoderado: '/d/apoderados', entrenador: '/d/entrenadores' };
+const socioBtns = kind => `<div class="mb12">${btn('AGREGAR', `A.addSheet('${kind}')`, '', 'userplus')}<div class="mt8">${btn('CARGA MASIVA', `A.cmKindSheet('${kind}')`, 's2', 'upload')}</div></div>`;
 let _cm = null, _cmKind = 'jugador'; // { file, rows, kind } de la última planilla subida
 const CRC_T = (() => { const t = new Uint32Array(256); for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
 const crc32 = b => { let c = 0xFFFFFFFF; for (let i = 0; i < b.length; i++) c = CRC_T[(c ^ b[i]) & 255] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; };
@@ -2899,9 +2902,9 @@ function cmDate(s) { // dd-mm-aaaa, dd/mm/aaaa, aaaa-mm-dd o número de fecha de
 const emailTaken = e => S.accounts.some(a => a.email === e) || S.invites.some(i => i.status === 'enviada' && i.email === e);
 function cmParse(rows, kind = 'jugador') {
   const norm = s => normTxt(s).replace(/[^a-z]/g, ''), h = (rows[0] || []).map(norm), find = (keys, i) => { const k = h.findIndex(c => keys.some(x => c.includes(x))); return k >= 0 ? k : i; };
-  const hasHead = h.some(c => c === 'nombre' || c === 'rut' || c === 'email'), ap = kind === 'apoderado';
-  if (hasHead && !ap && !h.includes('rut')) throw new Error('Esta planilla no tiene la columna RUT. Si es la de apoderados, elige Apoderados en CARGA MASIVA.');
-  if (hasHead && ap && h.includes('rut')) throw new Error('Esta es la planilla de deportistas. Para ellos, elige Deportistas en CARGA MASIVA.');
+  const hasHead = h.some(c => c === 'nombre' || c === 'rut' || c === 'email'), ap = kind !== 'jugador';
+  if (hasHead && !ap && !h.includes('rut')) throw new Error('Esta planilla no tiene la columna RUT. Para deportistas usa la planilla que se descarga en Deportistas.');
+  if (hasHead && ap && h.includes('rut')) throw new Error(`Esta es la planilla de deportistas. Para ${CM[kind].many}, descarga la planilla de ${CM[kind].many}.`);
   const ix = ap ? [find(['nombre'], 0), -1, -1, find(['email', 'correo', 'mail'], 1), find(['telefono', 'celular', 'fono'], 2)] : [find(['nombre'], 0), find(['rut'], 1), find(['nacimiento', 'fecha'], 2), find(['email', 'correo', 'mail'], 3), find(['telefono', 'celular', 'fono'], 4)];
   const seen = new Set(), seenE = new Set(), hoy = today();
   return rows.slice(hasHead ? 1 : 0).map((r, i) => ({ r, line: i + (hasHead ? 2 : 1) })).filter(x => x.r.some(Boolean)).slice(0, 1000).map(({ r, line }) => {
@@ -2922,8 +2925,8 @@ function cmParse(rows, kind = 'jugador') {
     return { line, name, rut, birth, email, phone: /^9\d{8}$/.test(phone) ? '+56' + phone : phone, errs };
   });
 }
-A.cmSheet = () => sheet('Carga masiva', `<p class="center muted small" style="margin:-8px 0 12px">¿A quiénes vas a cargar?</p>` + list([li({ ic: 'user', color: 'green', title: 'Deportistas', sub: 'Nombre, RUT, fecha de nacimiento, email y teléfono', on: "A.cmKindSheet('jugador')" }), li({ ic: 'users', color: 'orange', title: 'Apoderados', sub: 'Solo nombre, email y teléfono', on: "A.cmKindSheet('apoderado')" })]));
-A.cmKindSheet = kind => { _cmKind = kind; const ap = kind === 'apoderado'; sheet(`Carga masiva de ${CM[kind].many}`, `<p class="center muted small" style="margin:0 0 16px">Descarga la planilla, completa una fila por ${CM[kind].one} con ${ap ? 'nombre, email y teléfono' : 'nombre, RUT, fecha de nacimiento (dd-mm-aaaa), email y teléfono'}, y súbela. Cada uno recibirá un correo para crear su clave y confirmar su vinculación con el club.${ap ? ' El resto de su ficha la completa el apoderado al entrar.' : ''}</p>${btn('DESCARGAR PLANILLA', `A.cmTpl('${kind}')`, 's2', 'download')}<label class="btn mt8" style="cursor:pointer">${icon('upload', 20)}SUBIR PLANILLA<input type="file" accept=".xlsx,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv" hidden onchange="A.cmFile(this)"></label>`); };
+A.cmSheet = () => sheet('Carga masiva', `<p class="center muted small" style="margin:-8px 0 12px">¿A quiénes vas a cargar?</p>` + list([li({ ic: 'user', color: 'green', title: 'Deportistas', sub: 'Nombre, RUT, fecha de nacimiento, email y teléfono', on: "A.cmKindSheet('jugador')" }), li({ ic: 'users', color: 'orange', title: 'Apoderados', sub: 'Solo nombre, email y teléfono', on: "A.cmKindSheet('apoderado')" }), li({ ic: 'clipboard', color: 'purple', title: 'Entrenadores', sub: 'Solo nombre, email y teléfono', on: "A.cmKindSheet('entrenador')" })]));
+A.cmKindSheet = kind => { _cmKind = kind; const ap = kind !== 'jugador'; sheet(`Carga masiva de ${CM[kind].many}`, `<p class="center muted small" style="margin:0 0 16px">Descarga la planilla, completa una fila por ${CM[kind].one} con ${ap ? 'nombre, email y teléfono' : 'nombre, RUT, fecha de nacimiento (dd-mm-aaaa), email y teléfono'}, y súbela. Cada uno recibirá un correo para crear su clave y confirmar su vinculación con el club.${ap ? ` El resto de su ficha la completa cada ${CM[kind].one} al entrar.` : ''}</p>${btn('DESCARGAR PLANILLA', `A.cmTpl('${kind}')`, 's2', 'download')}<label class="btn mt8" style="cursor:pointer">${icon('upload', 20)}SUBIR PLANILLA<input type="file" accept=".xlsx,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv" hidden onchange="A.cmFile(this)"></label>`); };
 A.cmTpl = (kind = 'jugador') => { downloadBlob(CM[kind].file, cmXlsx(kind)); closeSheet(); toast('Planilla descargada'); };
 A.cmFile = async inp => {
   const f = inp.files[0], kind = _cmKind; if (!f) return;
@@ -2941,15 +2944,16 @@ A.cmImport = () => {
   let sent = 0;
   ok.forEach(r => {
     if (kind === 'jugador') { const id = newPlayer(r); S.memberships.push({ id: uid('m'), playerId: id, clubId: cid(), sport: sp, teamId: null, status: 'habil', since: today(), until: null, federated: false }); if (sendInvite('jugador', id, cid(), sp, r)) sent++; }
-    else if (sendInvite('apoderado', newGuardian(r, cid()), cid(), null, r)) sent++;
+    else if (sendInvite(kind, kind === 'apoderado' ? newGuardian(r, cid()) : 'iv_' + uid('e'), cid(), null, r)) sent++;
   });
-  _cm = null; NAV.length = 0; replaceTo(kind === 'jugador' ? '/d/jugadores' : '/d/apoderados');
+  _cm = null; NAV.length = 0; replaceTo(CM_BACK[kind]);
   commit(`${plural(ok.length, CM[kind].one + ' agregado', CM[kind].many + ' agregados')} · ${plural(sent, 'invitación enviada', 'invitaciones enviadas')}${DEMO_LOCAL()}`);
 };
 
 // --- Agregar socio de a uno (club o entrenador): Deportista o Apoderado ---
 const socioTarget = ctx => ctx === 'coach' ? curTeam().clubId : cid();
-A.addSocioSheet = ctx => sheet('Agregar socio', `<p class="center muted small" style="margin:-8px 0 12px">¿Qué tipo de socio quieres agregar?</p>` + list([li({ ic: 'user', color: 'green', title: 'Deportista', sub: 'Nombre, RUT, fecha de nacimiento, email y teléfono', on: `A.addPlayerSheet('${ctx}')` }), li({ ic: 'users', color: 'orange', title: 'Apoderado', sub: 'Nombre, email y teléfono. El resto lo completa el apoderado', on: `A.addGuardianSheet('${ctx}')` })]));
+A.addSheet = kind => kind === 'jugador' ? A.addPlayerSheet('club') : A.addContactSheet(kind, 'club');
+A.addSocioSheet = ctx => sheet('Agregar socio', `<p class="center muted small" style="margin:-8px 0 12px">¿Qué tipo de socio quieres agregar?</p>` + list([li({ ic: 'user', color: 'green', title: 'Deportista', sub: 'Nombre, RUT, fecha de nacimiento, email y teléfono', on: `A.addPlayerSheet('${ctx}')` }), li({ ic: 'users', color: 'orange', title: 'Apoderado', sub: 'Nombre, email y teléfono. El resto lo completa el apoderado', on: `A.addContactSheet('apoderado','${ctx}')` })]));
 A.addPlayerSheet = ctx => {
   const sports = ctx === 'club' ? club(cid()).sports : [], t = ctx === 'coach' ? curTeam() : null;
   sheet('Agregar deportista', `<p class="center muted small" style="margin:-8px 0 12px">${t ? `Se agrega a ${esc(t.name)}. ` : ''}Si tiene email, le llegará un correo para crear su clave y confirmar su vinculación con el club.</p>${inp('pl-name', 'Nombre', 'autocomplete="off" autocapitalize="words" placeholder="Nombre y apellidos"')}${inp('pl-rut', 'RUT', 'autocomplete="off" placeholder="12.345.678-9"')}${inp('pl-birth', 'Fecha de nacimiento', `type="date" max="${today()}"`)}${inp('pl-email', 'Email', 'type="email" inputmode="email" autocomplete="off" autocapitalize="off"')}${inp('pl-phone', 'Teléfono', 'type="tel" inputmode="tel" autocomplete="off" placeholder="+56 9 1234 5678"')}${ctx === 'club' ? select('pl-sport', 'Deporte', sports.length === 1 ? sports : [['', 'Elige el deporte'], ...sports.map(s => [s, s])], sports.length === 1 ? sports[0] : '') : ''}<div class="err" id="pl-err"></div>${btn('AGREGAR DEPORTISTA', `A.addPlayer('${ctx}')`, 'ok', 'check')}`);
@@ -2965,18 +2969,20 @@ A.addPlayer = ctx => {
   const iv = sendInvite('jugador', id, clubId, sport, r);
   closeSheet(); commit(`${r.name} agregado${iv ? ' · invitación enviada' : ''}${DEMO_LOCAL()}`); if (iv) setTimeout(() => inviteSent(iv), 350);
 };
-A.addGuardianSheet = ctx => sheet('Agregar apoderado', `<p class="center muted small" style="margin:-8px 0 12px">Le llegará un correo para crear su clave y confirmar su vinculación con el club. El resto de su ficha la completa al entrar, y desde su cuenta vincula a sus hijos.</p>${inp('ap-name', 'Nombre', 'autocomplete="off" autocapitalize="words" placeholder="Nombre y apellidos"')}${inp('ap-email', 'Email', 'type="email" inputmode="email" autocomplete="off" autocapitalize="off"')}${inp('ap-phone', 'Teléfono', 'type="tel" inputmode="tel" autocomplete="off" placeholder="+56 9 1234 5678"')}<div class="err" id="ap-err"></div>${btn('AGREGAR APODERADO', `A.addGuardian('${ctx}')`, 'ok', 'check')}`);
-A.addGuardian = ctx => {
-  const r = cmParse([CM_COLS_AP, ['ap-name', 'ap-email', 'ap-phone'].map(val)], 'apoderado')[0], err = m => { $('#ap-err').textContent = m; };
+// Apoderado o entrenador: solo nombre, email y teléfono; el resto de la ficha lo completa al activar su cuenta.
+const CONTACT_TXT = { apoderado: 'El resto de su ficha la completa al entrar, y desde su cuenta vincula a sus hijos.', entrenador: 'El resto de su ficha la completa al entrar. Luego lo asignas a un deporte o categoría.' };
+A.addContactSheet = (kind, ctx) => sheet(`Agregar ${CM[kind].one}`, `<p class="center muted small" style="margin:-8px 0 12px">Le llegará un correo para crear su clave y confirmar su vinculación con el club. ${CONTACT_TXT[kind]}</p>${inp('ap-name', 'Nombre', 'autocomplete="off" autocapitalize="words" placeholder="Nombre y apellidos"')}${inp('ap-email', 'Email', 'type="email" inputmode="email" autocomplete="off" autocapitalize="off"')}${inp('ap-phone', 'Teléfono', 'type="tel" inputmode="tel" autocomplete="off" placeholder="+56 9 1234 5678"')}<div class="err" id="ap-err"></div>${btn(`AGREGAR ${CM[kind].one.toUpperCase()}`, `A.addContact('${kind}','${ctx}')`, 'ok', 'check')}`);
+A.addContact = (kind, ctx) => {
+  const r = cmParse([CM_COLS_AP, ['ap-name', 'ap-email', 'ap-phone'].map(val)], kind)[0], err = m => { $('#ap-err').textContent = m; };
   if (!r) return err('Completa nombre, email y teléfono.');
   if (r.errs.length) return err(r.errs.join('. ') + '.');
-  const clubId = socioTarget(ctx), iv = sendInvite('apoderado', newGuardian(r, clubId), clubId, null, r);
-  closeSheet(); commit(`${r.name} agregado como apoderado · invitación enviada${DEMO_LOCAL()}`); setTimeout(() => inviteSent(iv), 350);
+  const clubId = socioTarget(ctx), iv = sendInvite(kind, kind === 'apoderado' ? newGuardian(r, clubId) : 'iv_' + uid('e'), clubId, null, r);
+  closeSheet(); commit(`${r.name} agregado como ${CM[kind].one} · invitación enviada${DEMO_LOCAL()}`); setTimeout(() => inviteSent(iv), 350);
 };
 route('/d/carga', {
   title: 'Carga masiva', roles: ['directivo'], render: () => {
     if (!_cm) return empty('upload', 'Sube una planilla', 'Descarga la planilla, complétala y súbela para revisar los datos antes de agregarlos.', btn('CARGA MASIVA', 'A.cmSheet()', '', 'upload'));
-    const k = _cm.kind || 'jugador', ap = k === 'apoderado', c = _cm.rows, okR = c.filter(r => !r.errs.length), ok = okR.length, mail = okR.filter(r => r.email).length, sports = club(cid()).sports;
+    const k = _cm.kind || 'jugador', ap = k !== 'jugador', c = _cm.rows, okR = c.filter(r => !r.errs.length), ok = okR.length, mail = okR.filter(r => r.email).length, sports = club(cid()).sports;
     return `<p class="small muted" style="margin:0 0 10px">${esc(_cm.file)} · ${CM[k].hoja}</p><div class="kpis">${kpi('Válidos', ok, 'atext')}${kpi('Con errores', c.length - ok, c.length - ok ? 'dtext' : '')}</div>` +
       list(c.map(r => li({ ic: r.errs.length ? 'alert' : 'check', color: r.errs.length ? 'red' : 'green', title: esc(r.name || `Fila ${r.line}`), sub: r.errs.length ? `Fila ${r.line}: ${esc(r.errs.join(', '))}` : (ap ? [esc(r.email), esc(r.phone)] : [esc(r.rut), r.birth ? fDateY(r.birth) : '', esc(r.email) || 'sin email: no recibe invitación', esc(r.phone)]).filter(Boolean).join(' · '), chev: false }))) +
       (ok ? `<div class="card mt12">${note(`${mail === ok ? (ok === 1 ? 'Recibirá' : `Los ${ok} recibirán`) : `${mail} de ${ok} tienen email y recibirán`} un correo para crear su clave y confirmar su vinculación con el club.`, '', 'mail')}${ap ? '' : select('cm-sport', 'Deporte', sports.length === 1 ? sports : [['', 'Elige el deporte'], ...sports.map(s => [s, s])], sports.length === 1 ? sports[0] : '')}${btn(`AGREGAR ${ok} ${CM[k].one.toUpperCase()}${ok === 1 ? '' : 'S'}`, 'A.cmImport()', 'ok', 'check')}</div>` : note('Ninguna fila es válida. Corrige la planilla y vuelve a subirla.', 'warn', 'alert')) +
@@ -2995,9 +3001,10 @@ const ivToken = () => [...crypto.getRandomValues(new Uint8Array(12))].map(b => b
 function sendInvite(kind, refId, clubId, sport, r) {
   if (!r.email) return null;
   const iv = { id: uid('iv'), token: ivToken(), kind, refId, clubId, sport, email: r.email, name: r.name, status: 'enviada', date: today(), sent: 1 };
+  if (r.phone) iv.phone = r.phone;
   S.invites.unshift(iv); return iv;
 }
-const ivWho = iv => iv.kind === 'jugador' ? `deportista${iv.sport ? ' de ' + esc(iv.sport) : ''}` : 'apoderado';
+const ivWho = iv => iv.kind === 'jugador' ? `deportista${iv.sport ? ' de ' + esc(iv.sport) : ''}` : iv.kind;
 const inviteSent = iv => sheet(iv.status === 'error' ? 'Invitación no enviada' : 'Invitación enviada', iv.status === 'error' ? `<p class="center" style="margin:0 0 16px">${esc(iv.name)} quedó inscrito, pero no pudimos enviar el correo a <b>${esc(iv.email)}</b>: ${esc(iv.error || '')}</p>${btn('Entendido', 'closeSheet()', 'ok')}` :
   `<p class="center" style="margin:0 0 ${S.session.real ? 16 : 6}px">Le enviamos un correo a <b>${esc(iv.email)}</b> para que cree su clave y confirme su vinculación con ${esc(club(iv.clubId).short)}.</p>${S.session.real ? '' : `<p class="center small muted" style="margin:0 0 16px">Prototipo: el correo es simulado. Puedes verlo tal como llegaría.</p>${btn('VER EL CORREO', `A.mailSheet('${iv.id}')`, 's2', 'mail')}<div class="mt8"></div>`}${btn('Listo', 'closeSheet()', 'ok')}`);
 A.inviteSheet = id => {
@@ -3020,13 +3027,13 @@ const actPage = (d, ok, no, extra = '') => {
   const c = d.club, rows = [['Nombre', esc(d.name)], d.rut && ['RUT', esc(d.rut)], d.birth && ['Fecha de nacimiento', fDateY(d.birth)], ['Email', esc(d.email)]].filter(Boolean);
   return `<div class="card center"><div style="display:flex;justify-content:center">${clubLogo(c, 56)}</div><h3 class="mt8">${esc(c.name)}</h3><p class="small muted" style="margin:4px 0 0">te inscribió como <b>${ivWho(d)}</b></p></div>` +
     `<div class="card">${rows.map(([k, v]) => `<div class="row" style="justify-content:space-between;padding:4px 0"><span class="small muted">${k}</span><span class="small b">${v}</span></div>`).join('')}</div>` + extra +
-    `<div class="card">${d.kind === 'apoderado' ? inp('iv-rut', 'Tu RUT', 'autocomplete="off" placeholder="12.345.678-9"', 'Completa tu ficha: el club solo nos dio tu nombre, email y teléfono.') : ''}${inp('iv-pw', 'Crea tu clave', 'type="password" autocomplete="new-password"', d.local ? 'Prototipo: usa una clave de prueba, nunca una real.' : 'Mínimo 8 caracteres.')}${inp('iv-pw2', 'Repite tu clave', 'type="password" autocomplete="new-password"')}<label class="check"><input type="checkbox" id="iv-ok"><span class="small">Confirmo que soy ${ivWho(d)} de ${esc(c.short)} y acepto vincularme al club</span></label><label class="check"><input type="checkbox" id="iv-legal"><span class="small">Acepto los <a href="#/legal/terminos">Términos de uso</a> y la <a href="#/legal/privacidad">Política de privacidad</a></span></label><div class="err" id="iv-err"></div></div>` +
+    `<div class="card">${d.kind !== 'jugador' ? inp('iv-rut', 'Tu RUT', 'autocomplete="off" placeholder="12.345.678-9"', 'Completa tu ficha: el club solo nos dio tu nombre, email y teléfono.') : ''}${inp('iv-pw', 'Crea tu clave', 'type="password" autocomplete="new-password"', d.local ? 'Prototipo: usa una clave de prueba, nunca una real.' : 'Mínimo 8 caracteres.')}${inp('iv-pw2', 'Repite tu clave', 'type="password" autocomplete="new-password"')}<label class="check"><input type="checkbox" id="iv-ok"><span class="small">Confirmo que soy ${ivWho(d)} de ${esc(c.short)} y acepto vincularme al club</span></label><label class="check"><input type="checkbox" id="iv-legal"><span class="small">Acepto los <a href="#/legal/terminos">Términos de uso</a> y la <a href="#/legal/privacidad">Política de privacidad</a></span></label><div class="err" id="iv-err"></div></div>` +
     btn('ACTIVAR MI CUENTA', ok, 'naranjo', 'check') + `<div class="mt8">${btn('No pertenezco a este club', no, 'ghost')}</div>`;
 };
 // Valida el formulario de activación. Devuelve { pw, rut } o null (con el error a la vista).
 const actForm = (d, minPw) => {
-  const err = m => { $('#iv-err').textContent = m; return null; }, pw = $('#iv-pw').value, rut = d.kind === 'apoderado' ? val('iv-rut') : '';
-  if (d.kind === 'apoderado' && !validRut(rut)) return err('El RUT no es válido.');
+  const err = m => { $('#iv-err').textContent = m; return null; }, pw = $('#iv-pw').value, rut = d.kind !== 'jugador' ? val('iv-rut') : '';
+  if (d.kind !== 'jugador' && !validRut(rut)) return err('El RUT no es válido.');
   if (pw.length < minPw) return err(`La clave debe tener al menos ${minPw} caracteres.`);
   if (pw !== $('#iv-pw2').value) return err('Las claves no coinciden.');
   if (!$('#iv-ok').checked) return err(`Confirma tu vinculación con ${d.club.short}.`);
@@ -3047,16 +3054,20 @@ A.inviteAccept = token => {
   const iv = S.invites.find(x => x.token === token); if (!iv || iv.status !== 'enviada') return rerender();
   const f = actForm(ivData(iv), 4); if (!f) return;
   if (S.accounts.some(a => a.email === iv.email)) { $('#iv-err').textContent = 'Ese email ya tiene una cuenta en My Club. Ingresa con ella.'; return; }
-  if (iv.kind === 'apoderado' && S.accounts.some(a => a.type === 'apoderado' && cleanRut(a.rut || '') === cleanRut(f.rut))) { $('#iv-err').textContent = 'Ya existe una cuenta de apoderado con ese RUT.'; return; }
+  if (iv.kind !== 'jugador' && S.accounts.some(a => a.type === iv.kind && cleanRut(a.rut || '') === cleanRut(f.rut))) { $('#iv-err').textContent = `Ya existe una cuenta de ${iv.kind} con ese RUT.`; return; }
   const base = { email: iv.email, pass: hash(f.pw), date: today(), invited: true };
   let acc;
   if (iv.kind === 'jugador') { const p = player(iv.refId); acc = { ...base, type: 'jugador', role: 'jugador', name: p.name, rut: p.rut, phone: p.phone || '', refId: p.id, id: nextId('D') }; p.accountId = acc.id; p.email = iv.email; }
+  else if (iv.kind === 'entrenador') {
+    acc = { ...base, type: 'entrenador', role: 'entrenador', name: iv.name, rut: f.rut, phone: iv.phone || '', clubId: iv.clubId, profile: { name: iv.name, by: iv.name, clubId: iv.clubId, sport: null, teams: [] }, id: nextId('E') };
+    S.linkRequests.unshift({ id: uid('lk'), accountId: acc.id, clubId: iv.clubId, date: today(), status: 'aceptada', resolvedAt: today() });
+  }
   else {
     const g = guardian(iv.refId); g.rut = f.rut; acc = { ...base, type: 'apoderado', role: 'apoderado', name: g.name, rut: f.rut, phone: g.phone || '', refId: g.id, clubId: iv.clubId, id: nextId('A') };
     g.clubs = [...new Set([...(g.clubs || []), iv.clubId])]; S.linkRequests.unshift({ id: uid('lk'), accountId: acc.id, clubId: iv.clubId, date: today(), status: 'aceptada', resolvedAt: today() });
   }
   S.accounts.push(acc); iv.status = 'aceptada'; iv.done = today();
-  notify('directivo', `${acc.name} activó su cuenta y confirmó su vinculación como ${iv.kind === 'jugador' ? 'deportista' : 'apoderado'}.`, iv.kind === 'jugador' ? '/d/jugadores' : '/d/apoderados', iv.clubId);
+  notify('directivo', `${acc.name} activó su cuenta y confirmó su vinculación como ${CM[iv.kind].one}.`, CM_BACK[iv.kind], iv.clubId);
   enterLocal(acc, false, acc.email); toast('Cuenta activada. Te damos la bienvenida a My Club');
 };
 A.inviteRejectSheet = token => { const iv = S.invites.find(x => x.token === token); if (!iv) return; confirmSheet('No pertenezco a este club', `Avisaremos a ${esc(club(iv.clubId).short)} y se quitará esta inscripción.`, 'Sí, no pertenezco', `A.inviteReject('${token}')`, 'danger'); };
@@ -3064,7 +3075,7 @@ A.inviteReject = token => {
   const iv = S.invites.find(x => x.token === token); if (!iv || iv.status !== 'enviada') return;
   iv.status = 'rechazada'; iv.done = today();
   if (iv.kind === 'jugador') S.memberships = S.memberships.filter(m => !(m.playerId === iv.refId && m.clubId === iv.clubId));
-  notify('directivo', `${iv.name} indicó que no pertenece al club. Se quitó su inscripción.`, iv.kind === 'jugador' ? '/d/jugadores' : '/d/apoderados', iv.clubId);
+  notify('directivo', `${iv.name} indicó que no pertenece al club. Se quitó su inscripción.`, CM_BACK[iv.kind], iv.clubId);
   save(); replaceTo(S.session.loggedIn ? '/inicio' : '/login'); toast('Avisamos al club. Gracias');
 };
 
@@ -3115,14 +3126,14 @@ const apodDemo = () => { const c = cid(), ids = clubMembers(c).map(m => m.player
 const apodReal = () => [...(_apod || []), ...S.invites.filter(i => i.kind === 'apoderado' && i.clubId === cid() && IV_OPEN.includes(i.status)).map(i => ({ name: i.name, email: i.email, phone: i.phone, kids: [], iv: i }))];
 route('/d/apoderados', {
   title: 'Apoderados', roles: ['directivo'],
-  render: () => `<div id="ap-box">${S.session.real ? (_apod ? apodRows(apodReal()) : '<p class="center muted small">Cargando…</p>') : apodRows(apodDemo())}</div>`,
+  render: () => socioBtns('apoderado') + `<div id="ap-box">${S.session.real ? (_apod ? apodRows(apodReal()) : '<p class="center muted small">Cargando…</p>') : apodRows(apodDemo())}</div>`,
   after: async () => { if (!S.session.real) return; try { _apod = await SB.rpc('club_guardians'); const b = $('#ap-box'); if (b) b.innerHTML = apodRows(apodReal()); } catch (e) { toast(e.message, 'bad'); } }
 });
 const clubCoaches = () => { const ids = S.linkRequests.filter(l => l.clubId === cid() && l.status === 'aceptada').map(l => l.accountId); return S.accounts.filter(a => a.role === 'entrenador' && (ids.includes(a.id) || a.clubId === cid())); };
 route('/d/entrenadores', {
   title: 'Entrenadores', roles: ['directivo'], render: () => {
-    const l = clubCoaches(), ts = S.teams.filter(t => t.clubId === cid());
-    return (l.length ? list(l.map(a => li({ av: avatar(a.name, 40, a.photo), title: esc(a.name), sub: [esc(a.email), esc(a.phone)].filter(Boolean).join(' · '), chev: false }))) : empty('clipboard', 'Sin entrenadores', 'Aparecerán aquí cuando el club acepte su vinculación.')) + (club(cid()).sports.length ? sec('Por deporte') + list(club(cid()).sports.map(sp => li({ av: `<span class="sp-logo" style="width:40px;height:40px;font-size:22px;margin:0">${SPORTS[sp]}</span>`, title: esc(sp), sub: sportCoach(sp) ? esc(sportCoach(sp).name) : 'Sin entrenador a cargo', href: sportUrl(sp) }))) : '') + (ts.length ? sec('Por categoría') + list(ts.map(t => li({ ic: 'clipboard', color: 'purple', title: esc(t.name), sub: `${t.sport} · ${esc(t.coach)}`, href: sportUrl(t.sport) }))) : '');
+    const l = clubCoaches(), ts = S.teams.filter(t => t.clubId === cid()), ivs = S.invites.filter(i => i.kind === 'entrenador' && i.clubId === cid() && IV_OPEN.includes(i.status));
+    return socioBtns('entrenador') + (l.length || ivs.length ? list([...l.map(a => li({ av: avatar(a.name, 40, a.photo), title: esc(a.name), sub: [esc(a.email), esc(a.phone)].filter(Boolean).join(' · '), chev: false })), ...ivs.map(i => li({ av: avatar(i.name, 40), title: esc(i.name), sub: [IV_TXT[i.status], esc(i.email), esc(i.phone)].filter(Boolean).join(' · '), on: `A.inviteSheet('${i.id}')` }))]) : empty('clipboard', 'Sin entrenadores', 'Aparecerán aquí cuando el club acepte su vinculación.')) + (club(cid()).sports.length ? sec('Por deporte') + list(club(cid()).sports.map(sp => li({ av: `<span class="sp-logo" style="width:40px;height:40px;font-size:22px;margin:0">${SPORTS[sp]}</span>`, title: esc(sp), sub: sportCoach(sp) ? esc(sportCoach(sp).name) : 'Sin entrenador a cargo', href: sportUrl(sp) }))) : '') + (ts.length ? sec('Por categoría') + list(ts.map(t => li({ ic: 'clipboard', color: 'purple', title: esc(t.name), sub: `${t.sport} · ${esc(t.coach)}`, href: sportUrl(t.sport) }))) : '');
   }
 });
 
@@ -3899,16 +3910,16 @@ real('addPlayer', async ctx => {
   try { const x = await realAdd('jugador', t ? t.clubId : cid(), sport, t && t.id, [r]); closeSheet(); toast(`${r.name} agregado`); if (x.ivs[0]) setTimeout(() => inviteSent(x.ivs[0]), 350); }
   catch (e) { err(e.message.replace(/^Fila 1: /, '')); }
 });
-real('addGuardian', async ctx => {
-  const r = cmParse([CM_COLS_AP, ['ap-name', 'ap-email', 'ap-phone'].map(val)], 'apoderado')[0], err = m => { $('#ap-err').textContent = m; };
+real('addContact', async (kind, ctx) => {
+  const r = cmParse([CM_COLS_AP, ['ap-name', 'ap-email', 'ap-phone'].map(val)], kind)[0], err = m => { $('#ap-err').textContent = m; };
   if (!r) return err('Completa nombre, email y teléfono.');
   if (r.errs.length) return err(r.errs.join('. ') + '.');
-  try { const x = await realAdd('apoderado', socioTarget(ctx), null, null, [r]); closeSheet(); toast(`${r.name} agregado como apoderado`); if (x.ivs[0]) setTimeout(() => inviteSent(x.ivs[0]), 350); }
+  try { const x = await realAdd(kind, socioTarget(ctx), null, null, [r]); closeSheet(); toast(`${r.name} agregado como ${CM[kind].one}`); if (x.ivs[0]) setTimeout(() => inviteSent(x.ivs[0]), 350); }
   catch (e) { err(e.message.replace(/^Fila 1: /, '')); }
 });
 real('cmImport', async () => {
   if (!_cm) return; const kind = _cm.kind || 'jugador', sp = val('cm-sport'), ok = _cm.rows.filter(r => !r.errs.length); if (kind === 'jugador' && !sp) return toast('Elige el deporte', 'warn');
-  try { const x = await realAdd(kind, cid(), kind === 'jugador' ? sp : null, null, ok); _cm = null; NAV.length = 0; replaceTo(kind === 'jugador' ? '/d/jugadores' : '/d/apoderados'); toast(realAddMsg(x, CM[kind].one, CM[kind].many), x.failed ? 'warn' : ''); }
+  try { const x = await realAdd(kind, cid(), kind === 'jugador' ? sp : null, null, ok); _cm = null; NAV.length = 0; replaceTo(CM_BACK[kind]); toast(realAddMsg(x, CM[kind].one, CM[kind].many), x.failed ? 'warn' : ''); }
   catch (e) { toast(e.message, 'bad'); }
 });
 real('inviteResend', async id => {
@@ -3919,7 +3930,7 @@ real('inviteResend', async id => {
 
 // Solo se ingresan datos con una sesión de una cuenta creada. Quien revisa la app con el usuario demo
 // solo consulta, y en una cuenta real una acción que aún no tiene base de datos avisa: nunca finge guardar.
-const SOLO_VER = new Set('svAdd svDel svDup svType svOpAdd svOpDel svAll back ui homeEdit homeMove homeFlag homeReset login bioOn bioSkip bioLogin cmTpl cmFile cmImport addPlayer addGuardian inviteOpen inviteResend inviteAccept inviteReject activar activarNo activarSalir guardianSend guardianResolve guardianRemove logout completeReg recover newPass linkSearch linkPick linkCheck addCargo regType installHelp openNotif roleSheet setRole demoPick resetDemo doReset time rhClub pickKid addSport sportOther deleteAsk tfUpd certUpd bajaDebt loanType qtLine qtTotal showCom showReceipt playVideo comments claimView chatMenu toggleCh setMethod tpl csvSample delTeamSheet teamSheetEdit newChat newPost resign withdraw baja proposeT bcSport incomeName copyBank partToggle tsCargo tsPayCalc tsDoc'.split(' '));
+const SOLO_VER = new Set('svAdd svDel svDup svType svOpAdd svOpDel svAll back ui homeEdit homeMove homeFlag homeReset login bioOn bioSkip bioLogin cmTpl cmFile cmImport addPlayer addContact inviteOpen inviteResend inviteAccept inviteReject activar activarNo activarSalir guardianSend guardianResolve guardianRemove logout completeReg recover newPass linkSearch linkPick linkCheck addCargo regType installHelp openNotif roleSheet setRole demoPick resetDemo doReset time rhClub pickKid addSport sportOther deleteAsk tfUpd certUpd bajaDebt loanType qtLine qtTotal showCom showReceipt playVideo comments claimView chatMenu toggleCh setMethod tpl csvSample delTeamSheet teamSheetEdit newChat newPost resign withdraw baja proposeT bcSport incomeName copyBank partToggle tsCargo tsPayCalc tsDoc'.split(' '));
 // Funciones que solo existen para simular en el demo. La carga masiva crearía deportistas sin cuenta ni apoderado.
 const SOLO_DEMO = new Set('time simLink simReply simJoin simVotes asmSim csvSample csvImport inviteAccept inviteReject resetDemo doReset scan'.split(' '));
 const MSG_CREA_CUENTA = 'Estás en el modo demo: crea una cuenta para ingresar datos.';

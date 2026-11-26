@@ -141,6 +141,17 @@ def correr(t):
     t.check('apoderado vinculado al club', any(l['club_id'] == cid and l['status'] == 'aceptada' for l in st['links']))
     t.check('el club lista al apoderado', any(g['name'] == 'Paula Vera' for g in t.rpc(club, 'club_guardians')))
 
+    # --- Entrenador inscrito por el club ---
+    t.rechaza_rpc('un entrenador no inscribe entrenadores', ent, 'club_add_members', (cid, 'entrenador', None, None, J([{'name': 'Otro Ent', 'email': 'otro.ent@prueba.cl', 'phone': '+56911115555'}])), 'Solo el club')
+    rc = add(club, 'entrenador', None, None, [{'name': 'Carla Coach', 'email': 'carla@prueba.cl', 'phone': '+56911116666'}])
+    c_uid = [u for e, u in enviar(t, club, rc['invites']).items()][0]
+    t.check('entrenador ve su invitación', t.rpc(c_uid, 'invite_info')['kind'] == 'entrenador')
+    t.check('ID de entrenador', t.rpc(c_uid, 'accept_invite', J({'confirm': True, 'consent': True, 'rut': rut(17171717)}))['publicId'].startswith('E'))
+    st = t.rpc(c_uid, 'my_state')
+    t.check('cuenta de entrenador', st['account']['type'] == 'entrenador')
+    t.check('entrenador vinculado al club', any(l['club_id'] == cid and l['status'] == 'aceptada' for l in st['links']))
+    t.check('aviso al club lleva a Entrenadores', any(n['href'] == '/d/entrenadores' for n in t.rpc(club, 'my_state')['notifications']))
+
     # --- "No pertenezco a este club" ---
     t_uid = [u for e, u in enviar(t, ent, re_['invites']).items()][0]
     t.rpc(t_uid, 'reject_invite')

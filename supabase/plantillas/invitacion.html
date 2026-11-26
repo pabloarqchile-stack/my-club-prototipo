@@ -1,10 +1,10 @@
 <!-- Supabase → Authentication → Email Templates → Invite user.
      Asunto sugerido: {{ .Data.club }} te inscribió en My Club
-     .Data trae lo que envía la función invitar-socios: name, club y kind (jugador o apoderado). -->
+     .Data trae lo que envía la función invitar-socios: name, club y kind (jugador, apoderado o entrenador). -->
 <div style="font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;max-width:480px;margin:0 auto;padding:24px;color:#1b2430">
   <h2 style="color:#1F4E79;margin:0 0 16px">My Club</h2>
   <p>Hola {{ .Data.name }}:</p>
-  <p><b>{{ .Data.club }}</b> te inscribió como {{ if eq .Data.kind "apoderado" }}apoderado{{ else }}deportista{{ end }} en My Club.
+  <p><b>{{ .Data.club }}</b> te inscribió como {{ if eq .Data.kind "jugador" }}deportista{{ else }}{{ .Data.kind }}{{ end }} en My Club.
      Para entrar, crea tu clave y confirma que perteneces al club.</p>
   <p style="margin:28px 0">
     <a href="{{ .ConfirmationURL }}" style="background:#E8833A;color:#fff;text-decoration:none;font-weight:700;padding:14px 22px;border-radius:12px;display:inline-block">CREAR MI CLAVE</a>

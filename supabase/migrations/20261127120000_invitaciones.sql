@@ -1,5 +1,6 @@
 -- My Club · Invitaciones del club por correo
--- El club (o un entrenador con vínculo aceptado) inscribe deportistas y apoderados, de a uno o con planilla.
+-- El club inscribe deportistas, apoderados y entrenadores, de a uno o con planilla. Un entrenador con vínculo
+-- aceptado también puede inscribir deportistas y apoderados.
 -- Cada persona con email recibe una invitación de Supabase Auth (la envía la función invitar-socios):
 -- al abrirla crea su clave, confirma su vinculación con el club y acepta términos (accept_invite),
 -- o indica que no pertenece al club (reject_invite).
@@ -22,7 +23,7 @@ alter table public.players add constraint players_owner_check
 create table public.club_invites (
   id uuid primary key default gen_random_uuid(),
   club_id uuid not null references public.clubs (id) on delete cascade,
-  kind text not null check (kind in ('jugador', 'apoderado')),
+  kind text not null check (kind in ('jugador', 'apoderado', 'entrenador')),
   player_id uuid references public.players (id) on delete set null,
   name text not null check (length(name) between 2 and 160),
   email text not null check (email = lower(email)),
@@ -53,7 +54,7 @@ create policy invite_read on public.club_invites for select to authenticated
   using (public._can_invite(club_id) or user_id = auth.uid());
 
 -- ---------------------------------------------------------------------------
--- Inscribir socios. p_rows: [{name, rut, birth, email, phone}] (apoderado: name, email, phone).
+-- Inscribir socios. p_rows: [{name, rut, birth, email, phone}] (apoderado y entrenador: name, email, phone).
 -- Devuelve las invitaciones creadas que hay que enviar.
 -- ---------------------------------------------------------------------------
 create function public.club_add_members(p_club uuid, p_kind text, p_sport text, p_team uuid, p_rows jsonb) returns jsonb
@@ -65,7 +66,8 @@ begin
   if auth.uid() is null then raise exception 'Debes iniciar sesión.'; end if;
   select * into c from clubs where id = p_club;
   if not found or not public._can_invite(p_club) then raise exception 'No tienes permiso para inscribir socios en este club.'; end if;
-  if p_kind not in ('jugador', 'apoderado') then raise exception 'Tipo de socio no válido.'; end if;
+  if p_kind not in ('jugador', 'apoderado', 'entrenador') then raise exception 'Tipo de socio no válido.'; end if;
+  if p_kind = 'entrenador' and not public._club_can(p_club, 'deportistas') then raise exception 'Solo el club puede inscribir entrenadores.'; end if;
   if jsonb_typeof(p_rows) <> 'array' or jsonb_array_length(p_rows) = 0 then raise exception 'No hay socios para agregar.'; end if;
   if jsonb_array_length(p_rows) > 1000 then raise exception 'Máximo 1.000 socios por planilla.'; end if;
   if p_kind = 'jugador' then
@@ -90,10 +92,10 @@ begin
       mails := mails || mail;
     end if;
     if ph is not null and regexp_replace(ph, '[[:space:]().-]', '', 'g') !~ '^[+]?[0-9]{8,12}$' then raise exception 'Fila %: el teléfono no es válido.', i; end if;
-    if p_kind = 'apoderado' then
+    if p_kind <> 'jugador' then
       if mail = '' then raise exception 'Fila %: falta el email.', i; end if;
       if ph is null then raise exception 'Fila %: falta el teléfono.', i; end if;
-      insert into club_invites (club_id, kind, name, email, phone, created_by) values (p_club, 'apoderado', nm, mail, ph, auth.uid()) returning id into inv;
+      insert into club_invites (club_id, kind, name, email, phone, created_by) values (p_club, p_kind, nm, mail, ph, auth.uid()) returning id into inv;
       ids := ids || inv;
     else
       if v_rut is null or not public.rut_valido(v_rut) then raise exception 'Fila %: el RUT no es válido.', i; end if;
@@ -183,15 +185,15 @@ begin
     update players set account_id = uid, email = mail where id = pl.id;
   else
     if v_rut is null or not public.rut_valido(v_rut) then raise exception 'El RUT no es válido.'; end if;
-    if exists (select 1 from accounts where type = 'apoderado' and rut_clean = public.clean_rut(v_rut)) then raise exception 'Ya existe una cuenta de apoderado con ese RUT.'; end if;
-    pid := public._next_public_id('A');
+    if exists (select 1 from accounts where type = x.kind and rut_clean = public.clean_rut(v_rut)) then raise exception 'Ya existe una cuenta de % con ese RUT.', x.kind; end if;
+    pid := public._next_public_id(case x.kind when 'entrenador' then 'E' else 'A' end);
     insert into accounts (user_id, public_id, type, name, rut, email, phone, consent_at)
-    values (uid, pid, 'apoderado', x.name, v_rut, mail, coalesce(x.phone, ''), now());
+    values (uid, pid, x.kind, x.name, v_rut, mail, coalesce(x.phone, ''), now());
     insert into links (account_id, club_id, status, resolved_at) values (uid, x.club_id, 'aceptada', now());
   end if;
   update club_invites set status = 'aceptada', resolved_at = now() where id = x.id;
-  perform public._notify(c.owner_id, c.id, x.name || ' activó su cuenta y confirmó su vinculación como ' || case x.kind when 'jugador' then 'deportista' else 'apoderado' end || '.',
-    case x.kind when 'jugador' then '/d/jugadores' else '/d/apoderados' end);
+  perform public._notify(c.owner_id, c.id, x.name || ' activó su cuenta y confirmó su vinculación como ' || case x.kind when 'jugador' then 'deportista' else x.kind end || '.',
+    case x.kind when 'jugador' then '/d/jugadores' when 'entrenador' then '/d/entrenadores' else '/d/apoderados' end);
   perform public._audit('invite.accept', x.id);
   return jsonb_build_object('publicId', pid);
 end $$;
@@ -212,7 +214,7 @@ begin
   end if;
   select * into c from clubs where id = x.club_id;
   perform public._notify(c.owner_id, c.id, x.name || ' indicó que no pertenece al club. Se quitó su inscripción.',
-    case x.kind when 'jugador' then '/d/jugadores' else '/d/apoderados' end);
+    case x.kind when 'jugador' then '/d/jugadores' when 'entrenador' then '/d/entrenadores' else '/d/apoderados' end);
   perform public._audit('invite.reject', x.id);
   delete from auth.users where id = uid;
 end $$;
