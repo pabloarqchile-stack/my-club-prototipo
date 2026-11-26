@@ -514,7 +514,7 @@ function seed() {
   s.clubs.forEach((c, i) => c.code = 'C' + String(i + 1).padStart(8, '0'));
   s.idSeq = { C: 7, D: 1, A: 1, E: 3, F: 1, P: 1 };
   s.clubs[0].sportCoaches = { 'Fútbol': { id: 'E00000001', name: s.users.entrenador.name }, 'Básquetbol': { id: 'E00000002', name: 'Claudia Espinoza' } };
-  s.guardianLinks = [];
+  s.guardianLinks = []; s.invites = [];
   Object.assign(s.clubs[0], { constituted: '1987-04-12', regNumber: '1987-4521', email: 'contacto@loshalcones.cl', phone: '+56 2 2555 0101', address: 'Av. Irarrázaval 3450', web: 'www.loshalcones.cl', ig: '@loshalcones', desc: 'Club de barrio con ramas de fútbol, básquetbol y vóleibol.', board: [{ cargo: 'Presidenta', name: 'Patricia Lagos Moreno' }, { cargo: 'Vicepresidente', name: 'Germán Ibarra Soto' }, { cargo: 'Tesorero', name: 'Sergio Molina Paz' }, { cargo: 'Secretaria', name: 'Rosa Fuentes Díaz' }] });
   Object.assign(s.clubs[1], { constituted: '1962-08-20', regNumber: '1962-0187', address: 'Av. Collao 1202', web: 'www.atleticobiobio.cl', desc: 'Atletismo y rugby en Concepción.', board: [{ cargo: 'Presidente', name: 'Andrés Vidal Soto' }, { cargo: 'Tesorera', name: 'Paula Riquelme Lara' }, { cargo: 'Secretario', name: 'Tomás Jara Mena' }] });
   Object.assign(s.clubs[2], { constituted: '1924-03-05', regNumber: '1924-0043', address: 'Muelle Barón s/n', web: 'www.nauticovalparaiso.cl', desc: 'Remo y natación frente a la bahía de Valparaíso.', board: [{ cargo: 'Presidente', name: 'Gonzalo Pérez Vial' }, { cargo: 'Tesorera', name: 'Daniela Fuentes Roa' }, { cargo: 'Secretaria', name: 'Inés Carrasco Mora' }] });
@@ -845,7 +845,7 @@ const STORE_KEY = 'myclub-demo-v1', SESSION_KEY = 'myclub-sesion-v1', REAL_UI_KE
 const CFG = window.MYCLUB_CONFIG || {}, HAS_DB = !!(CFG.url && CFG.key);
 let S;
 function load() {
-  try { const raw = localStorage.getItem(STORE_KEY); if (raw) { const o = JSON.parse(raw); if (o && o.v === 3) { o.guardianLinks = o.guardianLinks || []; o.incomeCats = o.incomeCats || []; o.directors = o.directors || []; ['techStaff', 'staffPays', 'feeRules', 'facilities', 'bookings', 'surveys'].forEach(k => { o[k] = o[k] || []; }); o.clubPay = o.clubPay || []; return o; } } } catch (e) { console.warn('Estado no disponible', e); }
+  try { const raw = localStorage.getItem(STORE_KEY); if (raw) { const o = JSON.parse(raw); if (o && o.v === 3) { o.guardianLinks = o.guardianLinks || []; o.invites = o.invites || []; o.incomeCats = o.incomeCats || []; o.directors = o.directors || []; ['techStaff', 'staffPays', 'feeRules', 'facilities', 'bookings', 'surveys'].forEach(k => { o[k] = o[k] || []; }); o.clubPay = o.clubPay || []; return o; } } } catch (e) { console.warn('Estado no disponible', e); }
   return seed();
 }
 function save() { if (S.session.real) { try { localStorage.setItem(REAL_UI_KEY, JSON.stringify({ home: S.home })); } catch (e) { } syncSoon(); return true; } try { localStorage.setItem(STORE_KEY, JSON.stringify(S)); return true; } catch (e) { console.warn('No se pudo guardar', e); return false; } }
@@ -915,6 +915,7 @@ const nextSeq = () => ++S.seq;
 
 // --- Cuentas, ID correlativo y vinculación a clubes ---
 const MSG_MENOR_14 = 'Los menores de 14 años necesitan un apoderado vinculado antes de unirse a un club.';
+const MSG_MENOR_14_HOME = 'Por ser menor de 14 años debes pedir a tu apoderado que se cree una cuenta y te vincule como hijo.';
 const MSG_MENOR_14_REG = 'Crea tu cuenta sin ID de club: como tienes menos de 14 años, primero debe vincularse tu apoderado.';
 const REG_TYPES = [
   ['club', 'Club', 'C', 'building', 'blue', 'Crea tu club y su directorio'], ['jugador', 'Deportista', 'D', 'user', 'green', 'Practica un deporte en un club'],
@@ -1179,7 +1180,7 @@ const ICONS = {
   pushpin: '<path d="M9 4h6l-1 6 3 3H7l3-3ZM12 13v8"/>',
   clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
   heart: '<path d="M12 20s-7.5-4.6-9.2-9.3A4.9 4.9 0 0 1 12 6a4.9 4.9 0 0 1 9.2 4.7C19.5 15.4 12 20 12 20Z"/>',
-  send: '<path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/>', play: '<path d="M7 4v16l13-8Z"/>',
+  send: '<path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/>', mail: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/>', play: '<path d="M7 4v16l13-8Z"/>',
   filter: '<path d="M3 5h18l-7 8.5V19l-4 2v-7.5Z"/>', search: '<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>',
   edit: '<path d="M4 20h4L19 9l-4-4L4 16Z"/><path d="m13.5 6.5 4 4"/>',
   eye: '<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/>',
@@ -1574,7 +1575,7 @@ route('/registro', {
 });
 
 // --- Cuentas sin club o sin pupilos: pantalla para completar lo que falta ---
-const GATE_OK = ['/perfil', '/perfil/editar', '/notificaciones', '/vincular', '/a/registrar-hijo', '/a/vincular-pupilo', '/nueva-clave'];
+const GATE_OK = ['/completar-ficha', '/perfil', '/perfil/editar', '/notificaciones', '/vincular', '/a/registrar-hijo', '/a/vincular-pupilo', '/nueva-clave'];
 A.linkSend = () => { if (!_link) return toast('Primero elige un club', 'warn'); const r = requestLink(acct(), _link.clubId); if (r.error) return toast(r.error, 'warn'); _link = null; commit('Solicitud enviada al club'); };
 A.simLink = id => { resolveLink(id, true); commit('Club vinculado (simulación)'); };
 function linkPanel() {
@@ -1583,7 +1584,7 @@ function linkPanel() {
 }
 function gateScreen() {
   if (role() === 'directivo') return empty('lock', 'Sin acceso al club', 'Tu club desactivó o quitó tu acceso de directivo. Consulta con la cuenta del club.');
-  if (needsKid()) return empty('users', 'Aún no tienes pupilos', 'Registra a tu hijo o hija para ver sus cuotas, actividades y mensajes.', goBtn('Registrar a un hijo', '/a/registrar-hijo', 'ok', 'userplus') + '<div class="mt8"></div>' + goBtn('Vincular a un hijo con su ID', '/a/vincular-pupilo', 's2', 'id')) + linkPanel();
+  if (needsKid()) return fichaNote() + empty('users', 'Aún no tienes pupilos', 'Registra a tu hijo o hija para ver sus cuotas, actividades y mensajes.', goBtn('Registrar a un hijo', '/a/registrar-hijo', 'ok', 'userplus') + '<div class="mt8"></div>' + goBtn('Vincular a un hijo con su ID', '/a/vincular-pupilo', 's2', 'id')) + linkPanel();
   if (coach && role() === 'entrenador' && coach().clubId) return empty('users', 'Tu club aún no tiene equipos', 'Cuando el directorio cree un equipo podrás usar esta sección.');
   return note('Vincúlate a un club para usar esta sección. El club debe aprobar tu solicitud.') + linkPanel();
 }
@@ -2114,7 +2115,7 @@ route('/cotizacion/:id', {
 HOME_SUMMARY.jugador = () => {
   const p = player(S.users.jugador), ms = activeMems(p.id), next = subjEvents(p.id).find(e => e.date >= today()), pend = pendingCharges(p.id), a = S.assemblies.find(x => x.status === 'en_curso' && myClubs().includes(x.clubId));
   return `<div class="card hero"><div class="row">${avatar(p.name, 48, p.photo)}<div class="sp"><div class="b">${esc(p.name)}</div><div class="small muted">${ms.length ? ms.map(m => `${SPORTS[m.sport]} ${club(m.clubId).short}`).join(' · ') : 'Sin club'}</div></div></div><div class="row wrap gap8 mt8">${ms.length ? ms.map(m => memBadge(m)).join('') : ''}</div></div>` +
-    (linkedClubs().length ? list(linkedClubs().map(c => clubRow(c))) : '') + (ms.some(m => m.status === 'pendiente') ? note(MSG_INCORPORACION, 'warn', 'clock') + btn('Simular aceptación del club', 'A.simJoin()', 's2 sm') + '<div class="mt12"></div>' : '') +
+    minorBlock() + (linkedClubs().length ? list(linkedClubs().map(c => clubRow(c))) : '') + (ms.some(m => m.status === 'pendiente') ? note(MSG_INCORPORACION, 'warn', 'clock') + btn('Simular aceptación del club', 'A.simJoin()', 's2 sm') + '<div class="mt12"></div>' : '') +
     (!ms.length ? note('Aún no estás vinculado a un club.') + goBtn('Vincular al club', '/unirme', 's2', 'building') + '<div class="mt12"></div>' : '') +
     (ms.some(m => m.status === 'suspendido') ? note('Estás <b>Suspendido</b> durante un plazo de trámite. Revísalo en Mis trámites.', 'bad', 'alert') : '') + feeNotes(p.id) +
     (a ? `<button class="note ok" style="border:0;width:100%;text-align:left" onclick="go('/escanear')">${icon('scan', 18)}<div><b>Asamblea en curso:</b> ${esc(a.title)}. Toca para escanear el QR.</div></button>` : '') +
@@ -2170,7 +2171,7 @@ route('/j/credencial', {
    ====================================================================== */
 HOME_SUMMARY.apoderado = () => {
   const ks = myKids(), a = S.assemblies.find(x => x.status === 'en_curso' && myClubs().includes(x.clubId));
-  return `<div class="card hero"><div class="small muted">Pupilos</div><div class="b" style="font-size:18px">${ks.map(k => esc(k.player.first)).join(' y ')}</div></div>` + list(ks.map(k => { const d = debtOf(k.playerId), m = activeMems(k.playerId)[0]; return li({ av: avatar(k.player.name, 42, k.player.photo), title: esc(k.player.name), sub: m ? `${SPORTS[m.sport]} ${club(m.clubId).short}` : 'Sin club', right: m && memStatus(m) !== 'habil' ? memBadge(m) : d ? badge('Deuda ' + clp(d), 'bad') : (m ? memBadge(m) : ''), on: `A.pickKid('${k.playerId}','/a/pupilos')` }); })) + (linkedClubs().length ? sec('Clubes') + list(linkedClubs().map(c => clubRow(c))) : '') +
+  return fichaNote() + `<div class="card hero"><div class="small muted">Pupilos</div><div class="b" style="font-size:18px">${ks.map(k => esc(k.player.first)).join(' y ')}</div></div>` + list(ks.map(k => { const d = debtOf(k.playerId), m = activeMems(k.playerId)[0]; return li({ av: avatar(k.player.name, 42, k.player.photo), title: esc(k.player.name), sub: m ? `${SPORTS[m.sport]} ${club(m.clubId).short}` : 'Sin club', right: m && memStatus(m) !== 'habil' ? memBadge(m) : d ? badge('Deuda ' + clp(d), 'bad') : (m ? memBadge(m) : ''), on: `A.pickKid('${k.playerId}','/a/pupilos')` }); })) + (linkedClubs().length ? sec('Clubes') + list(linkedClubs().map(c => clubRow(c))) : '') +
     (a ? `<button class="note ok" style="border:0;width:100%;text-align:left" onclick="go('/escanear')">${icon('scan', 18)}<div><b>Asamblea en curso:</b> ${esc(a.title)}. Toca para escanear el QR.</div></button>` : '');
 };
 A.pickKid = (id, href) => { S.ui.kid = id; save(); go(href); };
@@ -2264,7 +2265,7 @@ route('/e/evento/:id', {
 route('/e/plantel', {
   title: 'Plantel', roles: ['entrenador'], render: () => {
     const t = curTeam(), l = teamMembers(t.id);
-    return teamBar() + `<div class="mb12">${btn('AGREGAR JUGADOR', "A.addPlayerSheet('coach')", '', 'userplus')}</div>` + (l.length ? list(l.map(m => { const p = player(m.playerId), evs = S.events.filter(e => e.stats[p.id]); return li({ av: avatar(p.name, 40, p.photo), title: `${m.number ? m.number + '. ' : ''}${esc(p.name)}`, sub: `${esc(p.position || '')} · ${ageOf(p.birth)} años · ${sum(evs, e => e.stats[p.id].goles)} goles`, right: memBadge(m) }); })) : empty('users', 'Plantel vacío', 'Usa la carga masiva para agregar deportistas.', goBtn('Carga masiva', '/e/carga')));
+    return teamBar() + `<div class="mb12">${btn('AGREGAR SOCIO', "A.addSocioSheet('coach')", '', 'userplus')}</div>` + (l.length ? list(l.map(m => { const p = player(m.playerId), evs = S.events.filter(e => e.stats[p.id]); return li({ av: avatar(p.name, 40, p.photo), title: `${m.number ? m.number + '. ' : ''}${esc(p.name)}`, sub: `${esc(p.position || '')} · ${ageOf(p.birth)} años · ${sum(evs, e => e.stats[p.id].goles)} goles`, right: memBadge(m) }); })) : empty('users', 'Plantel vacío', 'Usa la carga masiva para agregar deportistas.', goBtn('Carga masiva', '/e/carga')));
   }
 });
 // --- Partidos y torneos: entran al calendario y cobran solo al alcanzar el mínimo de confirmados ---
@@ -2819,15 +2820,18 @@ route('/d/prestamo/:id', {
 route('/d/jugadores', {
   title: 'Deportistas', roles: ['directivo'], render: () => {
     const f = S.ui.djF || 'todos', l = clubMembers(cid()).filter(m => f === 'todos' || memStatus(m) === f || (f === 'moroso' && debtOf(m.playerId, cid()) > 0));
-    return chips('djF', [['todos', 'Todos'], ['habil', 'Hábiles'], ['revision', 'En revisión'], ['suspendido', 'Suspendidos'], ['moroso', 'Con deuda']], f) + `<div class="mb12">${btn('AGREGAR JUGADOR', "A.addPlayerSheet('club')", '', 'userplus')}<div class="mt8">${btn('CARGA MASIVA', 'A.cmSheet()', 's2', 'upload')}</div></div>` + (l.length ? list(l.map(m => { const p = player(m.playerId), d = debtOf(p.id, cid()); return li({ av: avatar(p.name, 40, p.photo), title: esc(p.name), sub: `${SPORTS[m.sport]} ${m.teamId ? team(m.teamId).name : m.sport}${overdueMonths(m) ? ' · ' + mesesTxt(overdueMonths(m)) : ''}${d ? ' · debe ' + clp(d) : ''}`, right: memBadge(m) }); })) : empty('users', 'Sin deportistas', 'No hay deportistas con este filtro.'));
+    return chips('djF', [['todos', 'Todos'], ['habil', 'Hábiles'], ['revision', 'En revisión'], ['suspendido', 'Suspendidos'], ['moroso', 'Con deuda']], f) + `<div class="mb12">${btn('AGREGAR SOCIO', "A.addSocioSheet('club')", '', 'userplus')}<div class="mt8">${btn('CARGA MASIVA', 'A.cmSheet()', 's2', 'upload')}</div></div>` + (l.length ? list(l.map(m => { const p = player(m.playerId), d = debtOf(p.id, cid()), iv = ivFor('jugador', p.id, cid()); return li({ av: avatar(p.name, 40, p.photo), title: esc(p.name), sub: `${SPORTS[m.sport]} ${m.teamId ? team(m.teamId).name : m.sport}${overdueMonths(m) ? ' · ' + mesesTxt(overdueMonths(m)) : ''}${d ? ' · debe ' + clp(d) : ''}${iv ? ' · ' + IV_TXT[iv.status] : ''}`, right: memBadge(m), on: iv ? `A.inviteSheet('${iv.id}')` : '', chev: !!iv }); })) : empty('users', 'Sin deportistas', 'No hay deportistas con este filtro.'));
   }
 });
 route('/d/masivo', { title: 'Mensaje masivo', roles: ['directivo'], render: () => massForm() });
 
-// --- Carga masiva del club: planilla Excel (.xlsx) con Nombre, RUT, fecha de nacimiento, email y teléfono ---
-// La planilla se arma y se lee en el navegador, sin librerías. También acepta CSV.
+// --- Carga masiva del club: planilla Excel (.xlsx) de deportistas o de apoderados ---
+// Deportistas: nombre, RUT, fecha de nacimiento, email y teléfono. Apoderados: nombre, email y teléfono; el resto
+// de su ficha lo completa el propio apoderado al entrar. La planilla se arma y se lee en el navegador, sin librerías.
 const CM_COLS = ['Nombre', 'RUT', 'Fecha de nacimiento', 'Email', 'Teléfono'];
-let _cm = null; // { file, rows } de la última planilla subida
+const CM_COLS_AP = ['Nombre', 'Email', 'Teléfono'];
+const CM = { jugador: { cols: CM_COLS, w: [34, 16, 22, 30, 18], hoja: 'Deportistas', file: 'planilla_deportistas_myclub.xlsx', one: 'deportista', many: 'deportistas' }, apoderado: { cols: CM_COLS_AP, w: [34, 30, 18], hoja: 'Apoderados', file: 'planilla_apoderados_myclub.xlsx', one: 'apoderado', many: 'apoderados' } };
+let _cm = null, _cmKind = 'jugador'; // { file, rows, kind } de la última planilla subida
 const CRC_T = (() => { const t = new Uint32Array(256); for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
 const crc32 = b => { let c = 0xFFFFFFFF; for (let i = 0; i < b.length; i++) c = CRC_T[(c ^ b[i]) & 255] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; };
 function zipStore(files) { // ZIP sin compresión: [{ name, text }]
@@ -2842,16 +2846,16 @@ function zipStore(files) { // ZIP sin compresión: [{ name, text }]
   const cenLen = cen.reduce((s, x) => s + x.length, 0);
   return new Blob([...parts, ...cen, new Uint8Array([...u32(0x06054b50), ...u16(0), ...u16(0), ...u16(files.length), ...u16(files.length), ...u32(cenLen), ...u32(off), ...u16(0)])], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
 }
-function cmXlsx() {
-  const NS = 'http://schemas.openxmlformats.org/spreadsheetml/2006/main', W = [34, 16, 22, 30, 18], L = 'ABCDE';
-  const head = CM_COLS.map((c, i) => `<c r="${L[i]}1" t="inlineStr" s="1"><is><t>${esc(c)}</t></is></c>`).join('');
+function cmXlsx(kind = 'jugador') {
+  const NS = 'http://schemas.openxmlformats.org/spreadsheetml/2006/main', k = CM[kind], L = 'ABCDE';
+  const head = k.cols.map((c, i) => `<c r="${L[i]}1" t="inlineStr" s="1"><is><t>${esc(c)}</t></is></c>`).join('');
   return zipStore([
     { name: '[Content_Types].xml', text: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>' },
     { name: '_rels/.rels', text: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>' },
-    { name: 'xl/workbook.xml', text: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="${NS}" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="Deportistas" sheetId="1" r:id="rId1"/></sheets></workbook>` },
+    { name: 'xl/workbook.xml', text: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="${NS}" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="${k.hoja}" sheetId="1" r:id="rId1"/></sheets></workbook>` },
     { name: 'xl/_rels/workbook.xml.rels', text: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>' },
     { name: 'xl/styles.xml', text: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="${NS}"><fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><color rgb="FFFFFFFF"/><name val="Calibri"/></font></fonts><fills count="3"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FF1F4E79"/><bgColor indexed="64"/></patternFill></fill></fills><borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="3"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="49" fontId="1" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1" applyNumberFormat="1"/><xf numFmtId="49" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/></cellXfs></styleSheet>` },
-    { name: 'xl/worksheets/sheet1.xml', text: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="${NS}"><sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews><cols>${W.map((w, i) => `<col min="${i + 1}" max="${i + 1}" width="${w}" style="2" customWidth="1"/>`).join('')}</cols><sheetData><row r="1">${head}</row></sheetData></worksheet>` }
+    { name: 'xl/worksheets/sheet1.xml', text: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="${NS}"><sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews><cols>${k.w.map((w, i) => `<col min="${i + 1}" max="${i + 1}" width="${w}" style="2" customWidth="1"/>`).join('')}</cols><sheetData><row r="1">${head}</row></sheetData></worksheet>` }
   ]);
 }
 function downloadBlob(name, blob) { const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 1000); }
@@ -2891,40 +2895,64 @@ function cmDate(s) { // dd-mm-aaaa, dd/mm/aaaa, aaaa-mm-dd o número de fecha de
   const t = new Date(Date.UTC(y, m - 1, d)); if (t.getUTCMonth() !== m - 1 || t.getUTCDate() !== d) return null;
   return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
 }
-function cmParse(rows) {
+// Email ya usado por una cuenta o por una invitación pendiente: cada cuenta necesita su propio email.
+const emailTaken = e => S.accounts.some(a => a.email === e) || S.invites.some(i => i.status === 'enviada' && i.email === e);
+function cmParse(rows, kind = 'jugador') {
   const norm = s => normTxt(s).replace(/[^a-z]/g, ''), h = (rows[0] || []).map(norm), find = (keys, i) => { const k = h.findIndex(c => keys.some(x => c.includes(x))); return k >= 0 ? k : i; };
-  const hasHead = h.some(c => c === 'nombre' || c === 'rut'), ix = [find(['nombre'], 0), find(['rut'], 1), find(['nacimiento', 'fecha'], 2), find(['email', 'correo', 'mail'], 3), find(['telefono', 'celular', 'fono'], 4)];
-  const seen = new Set(), hoy = today();
+  const hasHead = h.some(c => c === 'nombre' || c === 'rut' || c === 'email'), ap = kind === 'apoderado';
+  if (hasHead && !ap && !h.includes('rut')) throw new Error('Esta planilla no tiene la columna RUT. Si es la de apoderados, elige Apoderados en CARGA MASIVA.');
+  if (hasHead && ap && h.includes('rut')) throw new Error('Esta es la planilla de deportistas. Para ellos, elige Deportistas en CARGA MASIVA.');
+  const ix = ap ? [find(['nombre'], 0), -1, -1, find(['email', 'correo', 'mail'], 1), find(['telefono', 'celular', 'fono'], 2)] : [find(['nombre'], 0), find(['rut'], 1), find(['nacimiento', 'fecha'], 2), find(['email', 'correo', 'mail'], 3), find(['telefono', 'celular', 'fono'], 4)];
+  const seen = new Set(), seenE = new Set(), hoy = today();
   return rows.slice(hasHead ? 1 : 0).map((r, i) => ({ r, line: i + (hasHead ? 2 : 1) })).filter(x => x.r.some(Boolean)).slice(0, 1000).map(({ r, line }) => {
-    const [name, rut, birthRaw, email, phoneRaw] = ix.map(k => (r[k] || '').trim()), birth = cmDate(birthRaw), phone = phoneRaw.replace(/[\s\-().]/g, ''), errs = [];
+    const [name, rut, birthRaw, emailRaw, phoneRaw] = ix.map(k => (k < 0 ? '' : r[k] || '').trim()), birth = cmDate(birthRaw), phone = phoneRaw.replace(/[\s\-().]/g, ''), email = emailRaw.toLowerCase(), errs = [];
     if (!name) errs.push('Falta el nombre');
-    if (!rut) errs.push('Falta el RUT'); else if (!validRut(rut)) errs.push('RUT inválido');
-    else { const c = cleanRut(rut); if (seen.has(c)) errs.push('RUT repetido en la planilla'); else if (S.players.some(p => cleanRut(p.rut) === c)) errs.push('Ya está registrado en My Club'); seen.add(c); }
-    if (!birthRaw) errs.push('Falta la fecha de nacimiento'); else if (!birth || birth > hoy || birth < '1920-01-01') errs.push('Fecha de nacimiento inválida (usa dd-mm-aaaa)');
-    if (email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) errs.push('Email inválido');
-    if (phone && !/^\+?\d{8,12}$/.test(phone)) errs.push('Teléfono inválido');
-    return { line, name, rut, birth, email: email.toLowerCase(), phone: /^9\d{8}$/.test(phone) ? '+56' + phone : phone, errs };
+    if (!ap) {
+      if (!rut) errs.push('Falta el RUT'); else if (!validRut(rut)) errs.push('RUT inválido');
+      else { const c = cleanRut(rut); if (seen.has(c)) errs.push('RUT repetido en la planilla'); else if (S.players.some(p => cleanRut(p.rut) === c)) errs.push('Ya está registrado en My Club'); seen.add(c); }
+      if (!birthRaw) errs.push('Falta la fecha de nacimiento'); else if (!birth || birth > hoy || birth < '1920-01-01') errs.push('Fecha de nacimiento inválida (usa dd-mm-aaaa)');
+    }
+    if (!email) { if (ap) errs.push('Falta el email'); }
+    else if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) errs.push('Email inválido');
+    else if (seenE.has(email)) errs.push('Email repetido en la planilla');
+    else if (emailTaken(email)) errs.push('Ese email ya tiene cuenta o invitación en My Club');
+    if (email) seenE.add(email);
+    if (!phone) { if (ap) errs.push('Falta el teléfono'); }
+    else if (!/^\+?\d{8,12}$/.test(phone)) errs.push('Teléfono inválido');
+    return { line, name, rut, birth, email, phone: /^9\d{8}$/.test(phone) ? '+56' + phone : phone, errs };
   });
 }
-A.cmSheet = () => sheet('Carga masiva', `<p class="center muted small" style="margin:0 0 16px">Descarga la planilla, completa una fila por deportista con nombre, RUT, fecha de nacimiento (dd-mm-aaaa), email y teléfono, y súbela.</p>${btn('DESCARGAR PLANILLA', 'A.cmTpl()', 's2', 'download')}<label class="btn mt8" style="cursor:pointer">${icon('upload', 20)}SUBIR PLANILLA<input type="file" accept=".xlsx,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv" hidden onchange="A.cmFile(this)"></label>`);
-A.cmTpl = () => { downloadBlob('planilla_deportistas_myclub.xlsx', cmXlsx()); closeSheet(); toast('Planilla descargada'); };
+A.cmSheet = () => sheet('Carga masiva', `<p class="center muted small" style="margin:-8px 0 12px">¿A quiénes vas a cargar?</p>` + list([li({ ic: 'user', color: 'green', title: 'Deportistas', sub: 'Nombre, RUT, fecha de nacimiento, email y teléfono', on: "A.cmKindSheet('jugador')" }), li({ ic: 'users', color: 'orange', title: 'Apoderados', sub: 'Solo nombre, email y teléfono', on: "A.cmKindSheet('apoderado')" })]));
+A.cmKindSheet = kind => { _cmKind = kind; const ap = kind === 'apoderado'; sheet(`Carga masiva de ${CM[kind].many}`, `<p class="center muted small" style="margin:0 0 16px">Descarga la planilla, completa una fila por ${CM[kind].one} con ${ap ? 'nombre, email y teléfono' : 'nombre, RUT, fecha de nacimiento (dd-mm-aaaa), email y teléfono'}, y súbela. Cada uno recibirá un correo para crear su clave y confirmar su vinculación con el club.${ap ? ' El resto de su ficha la completa el apoderado al entrar.' : ''}</p>${btn('DESCARGAR PLANILLA', `A.cmTpl('${kind}')`, 's2', 'download')}<label class="btn mt8" style="cursor:pointer">${icon('upload', 20)}SUBIR PLANILLA<input type="file" accept=".xlsx,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv" hidden onchange="A.cmFile(this)"></label>`); };
+A.cmTpl = (kind = 'jugador') => { downloadBlob(CM[kind].file, cmXlsx(kind)); closeSheet(); toast('Planilla descargada'); };
 A.cmFile = async inp => {
-  const f = inp.files[0]; if (!f) return;
+  const f = inp.files[0], kind = _cmKind; if (!f) return;
   try {
     const rows = /\.csv$/i.test(f.name) || f.type === 'text/csv' ? csvRows(await f.text()) : await xlsxRows(await f.arrayBuffer());
-    const parsed = cmParse(rows); if (!parsed.length) throw new Error('La planilla no tiene deportistas. Completa al menos una fila bajo los títulos.');
-    _cm = { file: f.name, rows: parsed }; closeSheet(); if (location.hash === '#/d/carga') rerender(); else go('/d/carga');
+    const parsed = cmParse(rows, kind); if (!parsed.length) throw new Error(`La planilla no tiene ${CM[kind].many}. Completa al menos una fila bajo los títulos.`);
+    _cm = { file: f.name, rows: parsed, kind }; closeSheet(); if (location.hash === '#/d/carga') rerender(); else go('/d/carga');
   } catch (e) { closeSheet(); toast(e.message || 'No se pudo leer la planilla.', 'bad'); }
 };
+const newPlayer = r => { const id = uid('p'); S.players.push({ id, first: r.name.split(' ')[0], name: r.name, sex: '', birth: r.birth, rut: normRut(r.rut), email: r.email, phone: r.phone, position: '' }); return id; };
+const newGuardian = (r, clubId) => { const id = uid('g'); S.guardians.push({ id, name: r.name, rut: '', email: r.email, phone: r.phone, kids: [], clubs: [], invitedBy: clubId }); return id; };
+const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
 A.cmImport = () => {
-  if (!_cm) return; const sp = val('cm-sport'), ok = _cm.rows.filter(r => !r.errs.length); if (!sp) return toast('Elige el deporte', 'warn');
-  ok.forEach(r => { const id = uid('p'); S.players.push({ id, first: r.name.split(' ')[0], name: r.name, sex: '', birth: r.birth, rut: normRut(r.rut), email: r.email, phone: r.phone, position: '' }); S.memberships.push({ id: uid('m'), playerId: id, clubId: cid(), sport: sp, teamId: null, status: 'habil', since: today(), until: null, federated: false }); });
-  _cm = null; NAV.length = 0; replaceTo('/d/jugadores'); commit(`${ok.length} deportista${ok.length === 1 ? '' : 's'} agregado${ok.length === 1 ? '' : 's'} al club${DEMO_LOCAL()}`);
+  if (!_cm) return; const kind = _cm.kind || 'jugador', sp = val('cm-sport'), ok = _cm.rows.filter(r => !r.errs.length); if (kind === 'jugador' && !sp) return toast('Elige el deporte', 'warn');
+  let sent = 0;
+  ok.forEach(r => {
+    if (kind === 'jugador') { const id = newPlayer(r); S.memberships.push({ id: uid('m'), playerId: id, clubId: cid(), sport: sp, teamId: null, status: 'habil', since: today(), until: null, federated: false }); if (sendInvite('jugador', id, cid(), sp, r)) sent++; }
+    else if (sendInvite('apoderado', newGuardian(r, cid()), cid(), null, r)) sent++;
+  });
+  _cm = null; NAV.length = 0; replaceTo(kind === 'jugador' ? '/d/jugadores' : '/d/apoderados');
+  commit(`${plural(ok.length, CM[kind].one + ' agregado', CM[kind].many + ' agregados')} · ${plural(sent, 'invitación enviada', 'invitaciones enviadas')}${DEMO_LOCAL()}`);
 };
-// --- Agregar jugador de a uno (club o entrenador): mismos datos que la planilla ---
+
+// --- Agregar socio de a uno (club o entrenador): Deportista o Apoderado ---
+const socioTarget = ctx => ctx === 'coach' ? curTeam().clubId : cid();
+A.addSocioSheet = ctx => sheet('Agregar socio', `<p class="center muted small" style="margin:-8px 0 12px">¿Qué tipo de socio quieres agregar?</p>` + list([li({ ic: 'user', color: 'green', title: 'Deportista', sub: 'Nombre, RUT, fecha de nacimiento, email y teléfono', on: `A.addPlayerSheet('${ctx}')` }), li({ ic: 'users', color: 'orange', title: 'Apoderado', sub: 'Nombre, email y teléfono. El resto lo completa el apoderado', on: `A.addGuardianSheet('${ctx}')` })]));
 A.addPlayerSheet = ctx => {
   const sports = ctx === 'club' ? club(cid()).sports : [], t = ctx === 'coach' ? curTeam() : null;
-  sheet('Agregar jugador', `${t ? `<p class="center muted small" style="margin:-8px 0 12px">Se agrega a ${esc(t.name)}</p>` : ''}${inp('pl-name', 'Nombre', 'autocomplete="off" autocapitalize="words" placeholder="Nombre y apellidos"')}${inp('pl-rut', 'RUT', 'autocomplete="off" placeholder="12.345.678-9"')}${inp('pl-birth', 'Fecha de nacimiento', `type="date" max="${today()}"`)}${inp('pl-email', 'Email', 'type="email" inputmode="email" autocomplete="off" autocapitalize="off"')}${inp('pl-phone', 'Teléfono', 'type="tel" inputmode="tel" autocomplete="off" placeholder="+56 9 1234 5678"')}${ctx === 'club' ? select('pl-sport', 'Deporte', sports.length === 1 ? sports : [['', 'Elige el deporte'], ...sports.map(s => [s, s])], sports.length === 1 ? sports[0] : '') : ''}<div class="err" id="pl-err"></div>${btn('AGREGAR JUGADOR', `A.addPlayer('${ctx}')`, 'ok', 'check')}`);
+  sheet('Agregar deportista', `<p class="center muted small" style="margin:-8px 0 12px">${t ? `Se agrega a ${esc(t.name)}. ` : ''}Si tiene email, le llegará un correo para crear su clave y confirmar su vinculación con el club.</p>${inp('pl-name', 'Nombre', 'autocomplete="off" autocapitalize="words" placeholder="Nombre y apellidos"')}${inp('pl-rut', 'RUT', 'autocomplete="off" placeholder="12.345.678-9"')}${inp('pl-birth', 'Fecha de nacimiento', `type="date" max="${today()}"`)}${inp('pl-email', 'Email', 'type="email" inputmode="email" autocomplete="off" autocapitalize="off"')}${inp('pl-phone', 'Teléfono', 'type="tel" inputmode="tel" autocomplete="off" placeholder="+56 9 1234 5678"')}${ctx === 'club' ? select('pl-sport', 'Deporte', sports.length === 1 ? sports : [['', 'Elige el deporte'], ...sports.map(s => [s, s])], sports.length === 1 ? sports[0] : '') : ''}<div class="err" id="pl-err"></div>${btn('AGREGAR DEPORTISTA', `A.addPlayer('${ctx}')`, 'ok', 'check')}`);
 };
 A.addPlayer = ctx => {
   const r = cmParse([CM_COLS, ['pl-name', 'pl-rut', 'pl-birth', 'pl-email', 'pl-phone'].map(val)])[0], err = m => { $('#pl-err').textContent = m; };
@@ -2933,25 +2961,119 @@ A.addPlayer = ctx => {
   let clubId, sport, teamId = null;
   if (ctx === 'coach') { const t = curTeam(); clubId = t.clubId; sport = t.sport; teamId = t.id; }
   else { clubId = cid(); sport = val('pl-sport'); if (!sport) return err('Elige el deporte.'); }
-  const id = uid('p'); S.players.push({ id, first: r.name.split(' ')[0], name: r.name, sex: '', birth: r.birth, rut: normRut(r.rut), email: r.email, phone: r.phone, position: '' });
-  S.memberships.push({ id: uid('m'), playerId: id, clubId, sport, teamId, status: 'habil', since: today(), until: null, federated: false });
-  closeSheet(); commit(`${r.name} agregado${DEMO_LOCAL()}`);
+  const id = newPlayer(r); S.memberships.push({ id: uid('m'), playerId: id, clubId, sport, teamId, status: 'habil', since: today(), until: null, federated: false });
+  const iv = sendInvite('jugador', id, clubId, sport, r);
+  closeSheet(); commit(`${r.name} agregado${iv ? ' · invitación enviada' : ''}${DEMO_LOCAL()}`); if (iv) setTimeout(() => inviteSent(iv), 350);
+};
+A.addGuardianSheet = ctx => sheet('Agregar apoderado', `<p class="center muted small" style="margin:-8px 0 12px">Le llegará un correo para crear su clave y confirmar su vinculación con el club. El resto de su ficha la completa al entrar, y desde su cuenta vincula a sus hijos.</p>${inp('ap-name', 'Nombre', 'autocomplete="off" autocapitalize="words" placeholder="Nombre y apellidos"')}${inp('ap-email', 'Email', 'type="email" inputmode="email" autocomplete="off" autocapitalize="off"')}${inp('ap-phone', 'Teléfono', 'type="tel" inputmode="tel" autocomplete="off" placeholder="+56 9 1234 5678"')}<div class="err" id="ap-err"></div>${btn('AGREGAR APODERADO', `A.addGuardian('${ctx}')`, 'ok', 'check')}`);
+A.addGuardian = ctx => {
+  const r = cmParse([CM_COLS_AP, ['ap-name', 'ap-email', 'ap-phone'].map(val)], 'apoderado')[0], err = m => { $('#ap-err').textContent = m; };
+  if (!r) return err('Completa nombre, email y teléfono.');
+  if (r.errs.length) return err(r.errs.join('. ') + '.');
+  const clubId = socioTarget(ctx), iv = sendInvite('apoderado', newGuardian(r, clubId), clubId, null, r);
+  closeSheet(); commit(`${r.name} agregado como apoderado · invitación enviada${DEMO_LOCAL()}`); setTimeout(() => inviteSent(iv), 350);
 };
 route('/d/carga', {
   title: 'Carga masiva', roles: ['directivo'], render: () => {
     if (!_cm) return empty('upload', 'Sube una planilla', 'Descarga la planilla, complétala y súbela para revisar los datos antes de agregarlos.', btn('CARGA MASIVA', 'A.cmSheet()', '', 'upload'));
-    const c = _cm.rows, ok = c.filter(r => !r.errs.length).length, sports = club(cid()).sports;
-    return `<p class="small muted" style="margin:0 0 10px">${esc(_cm.file)}</p><div class="kpis">${kpi('Válidos', ok, 'atext')}${kpi('Con errores', c.length - ok, c.length - ok ? 'dtext' : '')}</div>` +
-      list(c.map(r => li({ ic: r.errs.length ? 'alert' : 'check', color: r.errs.length ? 'red' : 'green', title: esc(r.name || `Fila ${r.line}`), sub: r.errs.length ? `Fila ${r.line}: ${esc(r.errs.join(', '))}` : [esc(r.rut), r.birth ? fDateY(r.birth) : '', esc(r.email), esc(r.phone)].filter(Boolean).join(' · '), chev: false }))) +
-      (ok ? `<div class="card mt12">${select('cm-sport', 'Deporte', sports.length === 1 ? sports : [['', 'Elige el deporte'], ...sports.map(s => [s, s])], sports.length === 1 ? sports[0] : '')}${btn(`AGREGAR ${ok} DEPORTISTA${ok === 1 ? '' : 'S'}`, 'A.cmImport()', 'ok', 'check')}</div>` : note('Ninguna fila es válida. Corrige la planilla y vuelve a subirla.', 'warn', 'alert')) +
-      `<div class="mt8">${btn('Subir otra planilla', 'A.cmSheet()', 's2', 'upload')}</div>`;
+    const k = _cm.kind || 'jugador', ap = k === 'apoderado', c = _cm.rows, okR = c.filter(r => !r.errs.length), ok = okR.length, mail = okR.filter(r => r.email).length, sports = club(cid()).sports;
+    return `<p class="small muted" style="margin:0 0 10px">${esc(_cm.file)} · ${CM[k].hoja}</p><div class="kpis">${kpi('Válidos', ok, 'atext')}${kpi('Con errores', c.length - ok, c.length - ok ? 'dtext' : '')}</div>` +
+      list(c.map(r => li({ ic: r.errs.length ? 'alert' : 'check', color: r.errs.length ? 'red' : 'green', title: esc(r.name || `Fila ${r.line}`), sub: r.errs.length ? `Fila ${r.line}: ${esc(r.errs.join(', '))}` : (ap ? [esc(r.email), esc(r.phone)] : [esc(r.rut), r.birth ? fDateY(r.birth) : '', esc(r.email) || 'sin email: no recibe invitación', esc(r.phone)]).filter(Boolean).join(' · '), chev: false }))) +
+      (ok ? `<div class="card mt12">${note(`${mail === ok ? (ok === 1 ? 'Recibirá' : `Los ${ok} recibirán`) : `${mail} de ${ok} tienen email y recibirán`} un correo para crear su clave y confirmar su vinculación con el club.`, '', 'mail')}${ap ? '' : select('cm-sport', 'Deporte', sports.length === 1 ? sports : [['', 'Elige el deporte'], ...sports.map(s => [s, s])], sports.length === 1 ? sports[0] : '')}${btn(`AGREGAR ${ok} ${CM[k].one.toUpperCase()}${ok === 1 ? '' : 'S'}`, 'A.cmImport()', 'ok', 'check')}</div>` : note('Ninguna fila es válida. Corrige la planilla y vuelve a subirla.', 'warn', 'alert')) +
+      `<div class="mt8">${btn('Subir otra planilla', `A.cmKindSheet('${k}')`, 's2', 'upload')}</div>`;
   }
 });
 
+// --- Invitación por correo: crear clave y confirmar la vinculación con el club ---
+// En este prototipo el correo es simulado: se puede ver tal como llegaría y abrir su enlace.
+const IV_TXT = { enviada: 'Invitación enviada', aceptada: 'Cuenta activa', rechazada: 'Rechazó la invitación' };
+const ivFor = (kind, refId, clubId) => S.invites.find(i => i.kind === kind && i.refId === refId && i.clubId === clubId);
+const ivToken = () => [...crypto.getRandomValues(new Uint8Array(12))].map(b => b.toString(16).padStart(2, '0')).join('');
+function sendInvite(kind, refId, clubId, sport, r) {
+  if (!r.email) return null;
+  const iv = { id: uid('iv'), token: ivToken(), kind, refId, clubId, sport, email: r.email, name: r.name, status: 'enviada', date: today(), sent: 1 };
+  S.invites.unshift(iv); return iv;
+}
+const ivWho = iv => iv.kind === 'jugador' ? `deportista${iv.sport ? ' de ' + esc(iv.sport) : ''}` : 'apoderado';
+const inviteSent = iv => sheet('Invitación enviada', `<p class="center" style="margin:0 0 6px">Le enviamos un correo a <b>${esc(iv.email)}</b> para que cree su clave y confirme su vinculación con ${esc(club(iv.clubId).short)}.</p><p class="center small muted" style="margin:0 0 16px">Prototipo: el correo es simulado. Puedes verlo tal como llegaría.</p>${btn('VER EL CORREO', `A.mailSheet('${iv.id}')`, 's2', 'mail')}<div class="mt8">${btn('Listo', 'closeSheet()', 'ok')}</div>`);
+A.inviteSheet = id => {
+  const iv = S.invites.find(x => x.id === id); if (!iv) return;
+  const txt = iv.status === 'enviada' ? `Enviada el ${fDate(iv.date)} a <b>${esc(iv.email)}</b>${iv.sent > 1 ? ` (${iv.sent} envíos)` : ''}. Aún no crea su clave.` : iv.status === 'aceptada' ? `${esc(iv.name)} creó su clave y confirmó su vinculación${iv.done ? ' el ' + fDate(iv.done) : ''}.` : `${esc(iv.name)} indicó que no pertenece al club.`;
+  sheet(esc(iv.name), `<p class="center" style="margin:0 0 16px">${txt}</p>${iv.status === 'enviada' ? btn('VER EL CORREO', `A.mailSheet('${iv.id}')`, 's2', 'mail') + `<div class="mt8">${btn('Reenviar invitación', `A.inviteResend('${iv.id}')`, '', 'send')}</div>` : btn('Cerrar', 'closeSheet()', 's2')}`);
+};
+A.mailSheet = id => {
+  const iv = S.invites.find(x => x.id === id); if (!iv) return; const c = club(iv.clubId);
+  sheet('Correo de invitación', `<div class="note warn">${icon('mail', 18)}<div>Prototipo: así llegaría el correo. No se envió un correo real.</div></div><div class="card" style="padding:14px"><div class="small muted" style="line-height:1.5">De: My Club &lt;no-responder@app-myclub.cl&gt;<br>Para: ${esc(iv.email)}<br>Asunto: <b style="color:var(--text)">${esc(c.short)} te inscribió en My Club</b></div><hr style="border:0;border-top:1px solid var(--line);margin:12px 0"><div class="row mb12">${clubLogo(c, 40)}<div class="b">${esc(c.name)}</div></div><p style="margin:0 0 8px">Hola ${esc(iv.name.split(' ')[0])}:</p><p style="margin:0 0 14px">${esc(c.name)} te inscribió como <b>${ivWho(iv)}</b> en My Club. Para entrar, crea tu clave y confirma que perteneces al club.</p>${btn('CREAR MI CLAVE', `A.inviteOpen('${iv.token}')`, 'naranjo', 'lock')}<p class="small muted" style="margin:12px 0 0">Si no conoces a este club, abre el enlace y toca "No pertenezco a este club".</p></div>`);
+};
+A.inviteOpen = token => { closeSheet(); go('/invitacion/' + token); };
+A.inviteResend = id => { const iv = S.invites.find(x => x.id === id); if (!iv || iv.status !== 'enviada') return; iv.sent = (iv.sent || 1) + 1; iv.date = today(); closeSheet(); commit(`Invitación reenviada a ${iv.email}`); };
+route('/invitacion/:token', {
+  public: true, noTabs: true, title: 'Activar mi cuenta', render: p => {
+    const iv = S.invites.find(x => x.token === p.token);
+    if (!iv) return empty('mail', 'Invitación no válida', 'El enlace no existe o ya no está disponible.', goBtn('Ir al ingreso', '/login', 's2'));
+    if (iv.status === 'aceptada') return empty('check', 'Tu cuenta ya está activa', 'Ingresa con tu email y tu clave.', goBtn('INGRESAR', '/login', 'naranjo'));
+    if (iv.status === 'rechazada') return empty('x', 'Invitación rechazada', 'Avisamos al club que no perteneces a él.', goBtn('Ir al ingreso', '/login', 's2'));
+    const c = club(iv.clubId), pl = iv.kind === 'jugador' ? player(iv.refId) : null, rows = [['Nombre', esc(iv.name)], pl && ['RUT', esc(pl.rut)], pl && ['Fecha de nacimiento', fDateY(pl.birth)], ['Email', esc(iv.email)]].filter(Boolean);
+    return `<div class="card center"><div style="display:flex;justify-content:center">${clubLogo(c, 56)}</div><h3 class="mt8">${esc(c.name)}</h3><p class="small muted" style="margin:4px 0 0">te inscribió como <b>${ivWho(iv)}</b></p></div>` +
+      `<div class="card">${rows.map(([k, v]) => `<div class="row" style="justify-content:space-between;padding:4px 0"><span class="small muted">${k}</span><span class="small b">${v}</span></div>`).join('')}</div>` +
+      (S.session.loggedIn ? note('Al activar tu cuenta se cerrará la sesión que está abierta en este equipo.', 'warn', 'alert') : '') +
+      `<div class="card">${inp('iv-pw', 'Crea tu clave', 'type="password" autocomplete="new-password"', 'Prototipo: usa una clave de prueba, nunca una real.')}${inp('iv-pw2', 'Repite tu clave', 'type="password" autocomplete="new-password"')}<label class="check"><input type="checkbox" id="iv-ok"><span class="small">Confirmo que soy ${ivWho(iv)} de ${esc(c.short)} y acepto vincularme al club</span></label><label class="check"><input type="checkbox" id="iv-legal"><span class="small">Acepto los <a href="#/legal/terminos">Términos de uso</a> y la <a href="#/legal/privacidad">Política de privacidad</a></span></label><div class="err" id="iv-err"></div></div>` +
+      btn('ACTIVAR MI CUENTA', `A.inviteAccept('${iv.token}')`, 'naranjo', 'check') + `<div class="center mt12"><button class="lnk small" onclick="A.inviteRejectSheet('${iv.token}')">No pertenezco a este club</button></div>`;
+  }
+});
+A.inviteAccept = token => {
+  const iv = S.invites.find(x => x.token === token), err = m => { $('#iv-err').textContent = m; };
+  if (!iv || iv.status !== 'enviada') return rerender();
+  const pw = $('#iv-pw').value;
+  if (pw.length < 4) return err('La clave debe tener al menos 4 caracteres.');
+  if (pw !== $('#iv-pw2').value) return err('Las claves no coinciden.');
+  if (!$('#iv-ok').checked) return err(`Confirma tu vinculación con ${club(iv.clubId).short}.`);
+  if (!$('#iv-legal').checked) return err('Debes aceptar los Términos de uso y la Política de privacidad.');
+  if (S.accounts.some(a => a.email === iv.email)) return err('Ese email ya tiene una cuenta en My Club. Ingresa con ella.');
+  const base = { email: iv.email, pass: hash(pw), date: today(), invited: true };
+  let acc;
+  if (iv.kind === 'jugador') { const p = player(iv.refId); acc = { ...base, type: 'jugador', role: 'jugador', name: p.name, rut: p.rut, phone: p.phone || '', refId: p.id, id: nextId('D') }; p.accountId = acc.id; p.email = iv.email; }
+  else {
+    const g = guardian(iv.refId); acc = { ...base, type: 'apoderado', role: 'apoderado', name: g.name, rut: '', phone: g.phone || '', refId: g.id, clubId: iv.clubId, id: nextId('A') };
+    g.clubs = [...new Set([...(g.clubs || []), iv.clubId])]; S.linkRequests.unshift({ id: uid('lk'), accountId: acc.id, clubId: iv.clubId, date: today(), status: 'aceptada', resolvedAt: today() });
+  }
+  S.accounts.push(acc); iv.status = 'aceptada'; iv.done = today();
+  notify('directivo', `${acc.name} activó su cuenta y confirmó su vinculación como ${iv.kind === 'jugador' ? 'deportista' : 'apoderado'}.`, iv.kind === 'jugador' ? '/d/jugadores' : '/d/apoderados', iv.clubId);
+  enterLocal(acc, false, acc.email); toast('Cuenta activada. Te damos la bienvenida a My Club');
+};
+A.inviteRejectSheet = token => { const iv = S.invites.find(x => x.token === token); if (!iv) return; confirmSheet('No pertenezco a este club', `Avisaremos a ${esc(club(iv.clubId).short)} y se quitará esta inscripción.`, 'Sí, no pertenezco', `A.inviteReject('${token}')`, 'danger'); };
+A.inviteReject = token => {
+  const iv = S.invites.find(x => x.token === token); if (!iv || iv.status !== 'enviada') return;
+  iv.status = 'rechazada'; iv.done = today();
+  if (iv.kind === 'jugador') S.memberships = S.memberships.filter(m => !(m.playerId === iv.refId && m.clubId === iv.clubId));
+  notify('directivo', `${iv.name} indicó que no pertenece al club. Se quitó su inscripción.`, iv.kind === 'jugador' ? '/d/jugadores' : '/d/apoderados', iv.clubId);
+  save(); replaceTo(S.session.loggedIn ? '/inicio' : '/login'); toast('Avisamos al club. Gracias');
+};
+
+// --- Menores de 14 sin apoderado y ficha pendiente del apoderado inscrito por el club ---
+const minorBlock = () => {
+  const a = acct(); if (!a || a.type !== 'jugador') return '';
+  if (myGuardianLinks().some(l => l.status === 'pendiente')) return goBtn('Revisar solicitud de apoderado', '/apoderados', 'naranjo', 'users') + '<div class="mt12"></div>';
+  return needsGuardian() ? note(`<b>${MSG_MENOR_14_HOME}</b><br>Tu apoderado necesitará tu ID de deportista: <b>${a.id}</b>.`, 'warn', 'alert') + goBtn('Ver mis apoderados', '/apoderados', 's2', 'users') + '<div class="mt12"></div>' : '';
+};
+const fichaNote = () => { const a = acct(); return a && a.type === 'apoderado' && !a.rut ? note('Completa tu ficha de apoderado: falta tu RUT.', 'warn', 'id') + goBtn('COMPLETAR MI FICHA', '/completar-ficha', 'naranjo', 'edit') + '<div class="mt12"></div>' : ''; };
+route('/completar-ficha', {
+  title: 'Mi ficha', roles: ['apoderado'], render: () => { const a = acct(); return note('El club te inscribió con tu nombre, email y teléfono. Completa el resto de tu ficha.') + `<div class="card"><div class="small muted">Nombre</div><div class="b mb12">${esc(a.name)}</div><div class="small muted">Email</div><div class="b mb12">${esc(a.email)}</div>${inp('fc-rut', 'RUT', `autocomplete="off" placeholder="12.345.678-9" value="${esc(a.rut || '')}"`)}${inp('fc-phone', 'Teléfono', `type="tel" inputmode="tel" autocomplete="off" value="${esc(a.phone || '')}"`)}<div class="err" id="fc-err"></div></div>${btn('GUARDAR MI FICHA', 'A.fichaSave()', 'ok', 'check')}`; }
+});
+A.fichaSave = () => {
+  const a = acct(), g = guardian(a.refId), rut = val('fc-rut'), phone = val('fc-phone').replace(/[\s\-().]/g, ''), err = m => { $('#fc-err').textContent = m; };
+  if (!rut) return err('Ingresa tu RUT.');
+  if (!validRut(rut)) return err('El RUT no es válido.');
+  if (S.accounts.some(x => x.type === 'apoderado' && x.id !== a.id && cleanRut(x.rut || '') === cleanRut(rut))) return err('Ya existe una cuenta de apoderado con ese RUT.');
+  if (!/^\+?\d{8,12}$/.test(phone)) return err('El teléfono no es válido.');
+  a.rut = g.rut = normRut(rut); a.phone = g.phone = /^9\d{8}$/.test(phone) ? '+56' + phone : phone;
+  save(); NAV.length = 0; replaceTo('/inicio'); toast('Ficha guardada. Ahora vincula a tus hijos');
+};
+
 // --- Apoderados y entrenadores del club ---
 let _apod = null;
-const apodRows = l => l.length ? list(l.map(g => li({ ic: 'users', color: 'orange', title: esc(g.name), sub: [g.kids.length ? 'Apoderado de ' + g.kids.map(esc).join(', ') : 'Vinculado al club', esc(g.email || ''), esc(g.phone || '')].filter(Boolean).join(' · '), chev: false }))) : empty('users', 'Sin apoderados', 'Aparecerán aquí cuando los deportistas del club tengan apoderado.');
-const apodDemo = () => { const ids = clubMembers(cid()).map(m => m.playerId); return S.guardians.map(g => ({ name: g.name, email: g.email, phone: g.phone, kids: g.kids.filter(k => ids.includes(k.playerId)).map(k => player(k.playerId).name) })).filter(g => g.kids.length); };
+const apodRows = l => l.length ? list(l.map(g => li({ ic: 'users', color: 'orange', title: esc(g.name), sub: [g.kids.length ? 'Apoderado de ' + g.kids.map(esc).join(', ') : g.iv ? IV_TXT[g.iv.status] + (g.iv.status === 'aceptada' ? ' · aún sin pupilos' : '') : 'Vinculado al club', esc(g.email || ''), esc(g.phone || '')].filter(Boolean).join(' · '), on: g.iv ? `A.inviteSheet('${g.iv.id}')` : '', chev: !!g.iv }))) : empty('users', 'Sin apoderados', 'Aparecerán aquí cuando los deportistas del club tengan apoderado.');
+const apodDemo = () => { const c = cid(), ids = clubMembers(c).map(m => m.playerId); return S.guardians.map(g => ({ name: g.name, email: g.email, phone: g.phone, iv: ivFor('apoderado', g.id, c), mine: (g.clubs || []).includes(c), kids: g.kids.filter(k => ids.includes(k.playerId)).map(k => player(k.playerId).name) })).filter(g => g.kids.length || g.mine || (g.iv && g.iv.status !== 'rechazada')); };
 route('/d/apoderados', {
   title: 'Apoderados', roles: ['directivo'],
   render: () => `<div id="ap-box">${S.session.real ? (_apod ? apodRows(_apod) : '<p class="center muted small">Cargando…</p>') : apodRows(apodDemo())}</div>`,
@@ -3570,7 +3692,7 @@ const openReg = () => HAS_DB && (!S.session.loggedIn || S.session.real);
 real('login', async () => {
   const e = $('#lg-err'); e.textContent = '';
   try { await SB.signIn(val('lg-em').toLowerCase(), $('#lg-pw').value); afterEnter(await enterReal()); } catch (x) { e.textContent = x.message; }
-}, () => { const e = val('lg-em').toLowerCase(); return HAS_DB && e !== DEMO_USER && !S.accounts.some(a => a.demo && a.email === e); });
+}, () => { const e = val('lg-em').toLowerCase(); return HAS_DB && e !== DEMO_USER && !S.accounts.some(a => (a.demo || a.invited) && a.email === e); });
 real('logout', async () => { await SB.signOut(); S = load(); NAV.length = 0; replaceTo('/login'); });
 real('completeReg', async () => {
   const t = S.ui.regType, err = m => { const e = $('#rg-err'); e.textContent = m; e.scrollIntoView({ block: 'center' }); };
@@ -3716,7 +3838,7 @@ function realHome() {
   const a = acct(), r = role(), cl = (a.clubId && club(a.clubId)) || club(linkedClubs()[0] && linkedClubs()[0].id);
   const hero = `<div class="card hero"><div class="row">${r === 'directivo' ? clubLogo(club(a.clubId), 48) : avatar(a.name, 48, myPhoto(a))}<div class="sp"><div class="b" style="font-size:18px">${esc(a.name)}</div><div class="small muted">${a.type === 'dirigente' ? `${esc(S.users.directivo.cargo)} · ${esc(club(a.clubId).short)}` : typeLabel(a.type)} · ID ${a.id}</div></div></div></div>`;
   if (r === 'directivo') return hero + `<div class="kpis">${kpi('Deportistas', clubMembers(a.clubId).length)}${kpi('Por resolver', HOME_BADGE.solicitudes())}</div>` + (club(a.clubId).sports.length ? '' : note('Agrega tus deportes y equipos para que los deportistas puedan vincularse.'));
-  if (r === 'jugador') { const ms = activeMems(a.refId); return hero + (ms.length ? list(ms.map(m => li({ av: clubLogo(club(m.clubId), 42), title: esc(club(m.clubId).short), sub: m.sport, right: memBadge(m), href: '/club/' + m.clubId }))) : '') + (myGuardianLinks().some(l => l.status === 'pendiente') ? goBtn('Revisar solicitud de apoderado', '/apoderados', 'naranjo', 'users') + '<div class="mt8"></div>' : isMinorAcc() && !myGuardianLinks().length ? note(`Eres menor de edad: dale tu ID <b>${a.id}</b> a tu apoderado para que se vincule.${needsGuardian() ? ' Lo necesitas para unirte a un club.' : ''}`) : '') + (needsGuardian() ? '' : goBtn('Unirme a un club', '/unirme', 'ok', 'building') + '<div class="mt8"></div>'); }
+  if (r === 'jugador') { const ms = activeMems(a.refId); return hero + (ms.length ? list(ms.map(m => li({ av: clubLogo(club(m.clubId), 42), title: esc(club(m.clubId).short), sub: m.sport, right: memBadge(m), href: '/club/' + m.clubId }))) : '') + minorBlock() + (needsGuardian() ? '' : goBtn('Unirme a un club', '/unirme', 'ok', 'building') + '<div class="mt8"></div>'); }
   if (r === 'apoderado' && needsKid()) return hero + note('Registra a tu hijo o hija, o vincúlate con su ID, para ver sus cuotas, actividades y mensajes.') + goBtn('Registrar a un hijo', '/a/registrar-hijo', 'ok', 'userplus') + '<div class="mt8"></div>' + goBtn('Vincular a un hijo con su ID', '/a/vincular-pupilo', 's2', 'id') + '<div class="mt8"></div>';
   if (r === 'entrenador' && needsClub()) return hero + note(a.clubId ? 'Tu club aún no tiene equipos. Cuando el club cree uno podrás usar todas estas secciones.' : 'Vincúlate a un club para usar todas estas secciones. El club debe aprobar tu solicitud.') + (a.clubId ? '' : goBtn('Vincular al club', '/vincular', 'ok', 'building') + '<div class="mt8"></div>');
   if (r === 'apoderado' || r === 'entrenador') return hero + (cl ? list([clubRow(cl)]) : '');
@@ -3725,9 +3847,9 @@ function realHome() {
 
 // Solo se ingresan datos con una sesión de una cuenta creada. Quien revisa la app con el usuario demo
 // solo consulta, y en una cuenta real una acción que aún no tiene base de datos avisa: nunca finge guardar.
-const SOLO_VER = new Set('svAdd svDel svDup svType svOpAdd svOpDel svAll back ui homeEdit homeMove homeFlag homeReset login bioOn bioSkip bioLogin cmTpl cmFile cmImport addPlayer logout completeReg recover newPass linkSearch linkPick linkCheck addCargo regType installHelp openNotif roleSheet setRole demoPick resetDemo doReset time rhClub pickKid addSport sportOther deleteAsk tfUpd certUpd bajaDebt loanType qtLine qtTotal showCom showReceipt playVideo comments claimView chatMenu toggleCh setMethod tpl csvSample delTeamSheet teamSheetEdit newChat newPost resign withdraw baja proposeT bcSport incomeName copyBank partToggle tsCargo tsPayCalc tsDoc'.split(' '));
+const SOLO_VER = new Set('svAdd svDel svDup svType svOpAdd svOpDel svAll back ui homeEdit homeMove homeFlag homeReset login bioOn bioSkip bioLogin cmTpl cmFile cmImport addPlayer addGuardian inviteOpen inviteResend inviteAccept inviteReject fichaSave guardianSend guardianResolve guardianRemove logout completeReg recover newPass linkSearch linkPick linkCheck addCargo regType installHelp openNotif roleSheet setRole demoPick resetDemo doReset time rhClub pickKid addSport sportOther deleteAsk tfUpd certUpd bajaDebt loanType qtLine qtTotal showCom showReceipt playVideo comments claimView chatMenu toggleCh setMethod tpl csvSample delTeamSheet teamSheetEdit newChat newPost resign withdraw baja proposeT bcSport incomeName copyBank partToggle tsCargo tsPayCalc tsDoc'.split(' '));
 // Funciones que solo existen para simular en el demo. La carga masiva crearía deportistas sin cuenta ni apoderado.
-const SOLO_DEMO = new Set('time simLink simReply simJoin simVotes asmSim csvSample csvImport cmImport addPlayer resetDemo doReset scan'.split(' '));
+const SOLO_DEMO = new Set('time simLink simReply simJoin simVotes asmSim csvSample csvImport cmImport addPlayer addGuardian inviteResend inviteAccept inviteReject fichaSave resetDemo doReset scan'.split(' '));
 const MSG_CREA_CUENTA = 'Estás en el modo demo: crea una cuenta para ingresar datos.';
 const MSG_SOLO_DEMO = 'Esta función no está disponible en cuentas reales.';
 const soloConsulta = () => HAS_DB && S.session.loggedIn && !S.session.real;
