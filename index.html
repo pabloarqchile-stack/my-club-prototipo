@@ -1575,7 +1575,7 @@ route('/registro', {
 });
 
 // --- Cuentas sin club o sin pupilos: pantalla para completar lo que falta ---
-const GATE_OK = ['/completar-ficha', '/perfil', '/perfil/editar', '/notificaciones', '/vincular', '/a/registrar-hijo', '/a/vincular-pupilo', '/nueva-clave'];
+const GATE_OK = ['/perfil', '/perfil/editar', '/notificaciones', '/vincular', '/a/registrar-hijo', '/a/vincular-pupilo', '/nueva-clave'];
 A.linkSend = () => { if (!_link) return toast('Primero elige un club', 'warn'); const r = requestLink(acct(), _link.clubId); if (r.error) return toast(r.error, 'warn'); _link = null; commit('Solicitud enviada al club'); };
 A.simLink = id => { resolveLink(id, true); commit('Club vinculado (simulación)'); };
 function linkPanel() {
@@ -1584,7 +1584,7 @@ function linkPanel() {
 }
 function gateScreen() {
   if (role() === 'directivo') return empty('lock', 'Sin acceso al club', 'Tu club desactivó o quitó tu acceso de directivo. Consulta con la cuenta del club.');
-  if (needsKid()) return fichaNote() + empty('users', 'Aún no tienes pupilos', 'Registra a tu hijo o hija para ver sus cuotas, actividades y mensajes.', goBtn('Registrar a un hijo', '/a/registrar-hijo', 'ok', 'userplus') + '<div class="mt8"></div>' + goBtn('Vincular a un hijo con su ID', '/a/vincular-pupilo', 's2', 'id')) + linkPanel();
+  if (needsKid()) return empty('users', 'Aún no tienes pupilos', 'Registra a tu hijo o hija para ver sus cuotas, actividades y mensajes.', goBtn('Registrar a un hijo', '/a/registrar-hijo', 'ok', 'userplus') + '<div class="mt8"></div>' + goBtn('Vincular a un hijo con su ID', '/a/vincular-pupilo', 's2', 'id')) + linkPanel();
   if (coach && role() === 'entrenador' && coach().clubId) return empty('users', 'Tu club aún no tiene equipos', 'Cuando el directorio cree un equipo podrás usar esta sección.');
   return note('Vincúlate a un club para usar esta sección. El club debe aprobar tu solicitud.') + linkPanel();
 }
@@ -2171,7 +2171,7 @@ route('/j/credencial', {
    ====================================================================== */
 HOME_SUMMARY.apoderado = () => {
   const ks = myKids(), a = S.assemblies.find(x => x.status === 'en_curso' && myClubs().includes(x.clubId));
-  return fichaNote() + `<div class="card hero"><div class="small muted">Pupilos</div><div class="b" style="font-size:18px">${ks.map(k => esc(k.player.first)).join(' y ')}</div></div>` + list(ks.map(k => { const d = debtOf(k.playerId), m = activeMems(k.playerId)[0]; return li({ av: avatar(k.player.name, 42, k.player.photo), title: esc(k.player.name), sub: m ? `${SPORTS[m.sport]} ${club(m.clubId).short}` : 'Sin club', right: m && memStatus(m) !== 'habil' ? memBadge(m) : d ? badge('Deuda ' + clp(d), 'bad') : (m ? memBadge(m) : ''), on: `A.pickKid('${k.playerId}','/a/pupilos')` }); })) + (linkedClubs().length ? sec('Clubes') + list(linkedClubs().map(c => clubRow(c))) : '') +
+  return `<div class="card hero"><div class="small muted">Pupilos</div><div class="b" style="font-size:18px">${ks.map(k => esc(k.player.first)).join(' y ')}</div></div>` + list(ks.map(k => { const d = debtOf(k.playerId), m = activeMems(k.playerId)[0]; return li({ av: avatar(k.player.name, 42, k.player.photo), title: esc(k.player.name), sub: m ? `${SPORTS[m.sport]} ${club(m.clubId).short}` : 'Sin club', right: m && memStatus(m) !== 'habil' ? memBadge(m) : d ? badge('Deuda ' + clp(d), 'bad') : (m ? memBadge(m) : ''), on: `A.pickKid('${k.playerId}','/a/pupilos')` }); })) + (linkedClubs().length ? sec('Clubes') + list(linkedClubs().map(c => clubRow(c))) : '') +
     (a ? `<button class="note ok" style="border:0;width:100%;text-align:left" onclick="go('/escanear')">${icon('scan', 18)}<div><b>Asamblea en curso:</b> ${esc(a.title)}. Toca para escanear el QR.</div></button>` : '');
 };
 A.pickKid = (id, href) => { S.ui.kid = id; save(); go(href); };
@@ -2985,8 +2985,11 @@ route('/d/carga', {
 });
 
 // --- Invitación por correo: crear clave y confirmar la vinculación con el club ---
-// En este prototipo el correo es simulado: se puede ver tal como llegaría y abrir su enlace.
-const IV_TXT = { enviada: 'Invitación enviada', aceptada: 'Cuenta activa', rechazada: 'Rechazó la invitación' };
+// Demo: el correo es simulado (se ve tal como llegaría) y su enlace abre #/invitacion/:token con datos locales.
+// Modo real: club_add_members inscribe y la función invitar-socios envía el correo con Supabase Auth;
+// el enlace trae una sesión que abre #/activar (invite_info, accept_invite y reject_invite en la base).
+const IV_TXT = { pendiente: 'Invitación por enviar', enviada: 'Invitación enviada', error: 'No se pudo enviar la invitación', aceptada: 'Cuenta activa', rechazada: 'Rechazó la invitación' };
+const IV_OPEN = ['pendiente', 'enviada', 'error'];
 const ivFor = (kind, refId, clubId) => S.invites.find(i => i.kind === kind && i.refId === refId && i.clubId === clubId);
 const ivToken = () => [...crypto.getRandomValues(new Uint8Array(12))].map(b => b.toString(16).padStart(2, '0')).join('');
 function sendInvite(kind, refId, clubId, sport, r) {
@@ -2995,11 +2998,15 @@ function sendInvite(kind, refId, clubId, sport, r) {
   S.invites.unshift(iv); return iv;
 }
 const ivWho = iv => iv.kind === 'jugador' ? `deportista${iv.sport ? ' de ' + esc(iv.sport) : ''}` : 'apoderado';
-const inviteSent = iv => sheet('Invitación enviada', `<p class="center" style="margin:0 0 6px">Le enviamos un correo a <b>${esc(iv.email)}</b> para que cree su clave y confirme su vinculación con ${esc(club(iv.clubId).short)}.</p><p class="center small muted" style="margin:0 0 16px">Prototipo: el correo es simulado. Puedes verlo tal como llegaría.</p>${btn('VER EL CORREO', `A.mailSheet('${iv.id}')`, 's2', 'mail')}<div class="mt8">${btn('Listo', 'closeSheet()', 'ok')}</div>`);
+const inviteSent = iv => sheet(iv.status === 'error' ? 'Invitación no enviada' : 'Invitación enviada', iv.status === 'error' ? `<p class="center" style="margin:0 0 16px">${esc(iv.name)} quedó inscrito, pero no pudimos enviar el correo a <b>${esc(iv.email)}</b>: ${esc(iv.error || '')}</p>${btn('Entendido', 'closeSheet()', 'ok')}` :
+  `<p class="center" style="margin:0 0 ${S.session.real ? 16 : 6}px">Le enviamos un correo a <b>${esc(iv.email)}</b> para que cree su clave y confirme su vinculación con ${esc(club(iv.clubId).short)}.</p>${S.session.real ? '' : `<p class="center small muted" style="margin:0 0 16px">Prototipo: el correo es simulado. Puedes verlo tal como llegaría.</p>${btn('VER EL CORREO', `A.mailSheet('${iv.id}')`, 's2', 'mail')}<div class="mt8"></div>`}${btn('Listo', 'closeSheet()', 'ok')}`);
 A.inviteSheet = id => {
   const iv = S.invites.find(x => x.id === id); if (!iv) return;
-  const txt = iv.status === 'enviada' ? `Enviada el ${fDate(iv.date)} a <b>${esc(iv.email)}</b>${iv.sent > 1 ? ` (${iv.sent} envíos)` : ''}. Aún no crea su clave.` : iv.status === 'aceptada' ? `${esc(iv.name)} creó su clave y confirmó su vinculación${iv.done ? ' el ' + fDate(iv.done) : ''}.` : `${esc(iv.name)} indicó que no pertenece al club.`;
-  sheet(esc(iv.name), `<p class="center" style="margin:0 0 16px">${txt}</p>${iv.status === 'enviada' ? btn('VER EL CORREO', `A.mailSheet('${iv.id}')`, 's2', 'mail') + `<div class="mt8">${btn('Reenviar invitación', `A.inviteResend('${iv.id}')`, '', 'send')}</div>` : btn('Cerrar', 'closeSheet()', 's2')}`);
+  const txt = iv.status === 'enviada' ? `Enviada el ${fDate(iv.date)} a <b>${esc(iv.email)}</b>${iv.sent > 1 ? ` (${iv.sent} envíos)` : ''}. Aún no crea su clave.`
+    : iv.status === 'pendiente' ? `Aún no se envía el correo a <b>${esc(iv.email)}</b>.`
+    : iv.status === 'error' ? `No pudimos enviar el correo a <b>${esc(iv.email)}</b>${iv.error ? ': ' + esc(iv.error) : '.'}`
+    : iv.status === 'aceptada' ? `${esc(iv.name)} creó su clave y confirmó su vinculación${iv.done ? ' el ' + fDate(iv.done) : ''}.` : `${esc(iv.name)} indicó que no pertenece al club.`;
+  sheet(esc(iv.name), `<p class="center" style="margin:0 0 16px">${txt}</p>${IV_OPEN.includes(iv.status) ? (S.session.real ? '' : btn('VER EL CORREO', `A.mailSheet('${iv.id}')`, 's2', 'mail') + '<div class="mt8"></div>') + btn(iv.status === 'enviada' ? 'Reenviar invitación' : 'Enviar invitación', `A.inviteResend('${iv.id}')`, '', 'send') : btn('Cerrar', 'closeSheet()', 's2')}`);
 };
 A.mailSheet = id => {
   const iv = S.invites.find(x => x.id === id); if (!iv) return; const c = club(iv.clubId);
@@ -3007,34 +3014,45 @@ A.mailSheet = id => {
 };
 A.inviteOpen = token => { closeSheet(); go('/invitacion/' + token); };
 A.inviteResend = id => { const iv = S.invites.find(x => x.id === id); if (!iv || iv.status !== 'enviada') return; iv.sent = (iv.sent || 1) + 1; iv.date = today(); closeSheet(); commit(`Invitación reenviada a ${iv.email}`); };
+
+// Pantalla de activación, la misma en el demo y en modo real. d: { club, kind, sport, name, email, rut, birth }
+const actPage = (d, ok, no, extra = '') => {
+  const c = d.club, rows = [['Nombre', esc(d.name)], d.rut && ['RUT', esc(d.rut)], d.birth && ['Fecha de nacimiento', fDateY(d.birth)], ['Email', esc(d.email)]].filter(Boolean);
+  return `<div class="card center"><div style="display:flex;justify-content:center">${clubLogo(c, 56)}</div><h3 class="mt8">${esc(c.name)}</h3><p class="small muted" style="margin:4px 0 0">te inscribió como <b>${ivWho(d)}</b></p></div>` +
+    `<div class="card">${rows.map(([k, v]) => `<div class="row" style="justify-content:space-between;padding:4px 0"><span class="small muted">${k}</span><span class="small b">${v}</span></div>`).join('')}</div>` + extra +
+    `<div class="card">${d.kind === 'apoderado' ? inp('iv-rut', 'Tu RUT', 'autocomplete="off" placeholder="12.345.678-9"', 'Completa tu ficha: el club solo nos dio tu nombre, email y teléfono.') : ''}${inp('iv-pw', 'Crea tu clave', 'type="password" autocomplete="new-password"', d.local ? 'Prototipo: usa una clave de prueba, nunca una real.' : 'Mínimo 8 caracteres.')}${inp('iv-pw2', 'Repite tu clave', 'type="password" autocomplete="new-password"')}<label class="check"><input type="checkbox" id="iv-ok"><span class="small">Confirmo que soy ${ivWho(d)} de ${esc(c.short)} y acepto vincularme al club</span></label><label class="check"><input type="checkbox" id="iv-legal"><span class="small">Acepto los <a href="#/legal/terminos">Términos de uso</a> y la <a href="#/legal/privacidad">Política de privacidad</a></span></label><div class="err" id="iv-err"></div></div>` +
+    btn('ACTIVAR MI CUENTA', ok, 'naranjo', 'check') + `<div class="mt8">${btn('No pertenezco a este club', no, 'ghost')}</div>`;
+};
+// Valida el formulario de activación. Devuelve { pw, rut } o null (con el error a la vista).
+const actForm = (d, minPw) => {
+  const err = m => { $('#iv-err').textContent = m; return null; }, pw = $('#iv-pw').value, rut = d.kind === 'apoderado' ? val('iv-rut') : '';
+  if (d.kind === 'apoderado' && !validRut(rut)) return err('El RUT no es válido.');
+  if (pw.length < minPw) return err(`La clave debe tener al menos ${minPw} caracteres.`);
+  if (pw !== $('#iv-pw2').value) return err('Las claves no coinciden.');
+  if (!$('#iv-ok').checked) return err(`Confirma tu vinculación con ${d.club.short}.`);
+  if (!$('#iv-legal').checked) return err('Debes aceptar los Términos de uso y la Política de privacidad.');
+  return { pw, rut: rut ? normRut(rut) : '' };
+};
+const ivData = iv => { const pl = iv.kind === 'jugador' ? player(iv.refId) : null; return { club: club(iv.clubId), kind: iv.kind, sport: iv.sport, name: iv.name, email: iv.email, rut: pl && pl.rut, birth: pl && pl.birth, local: true }; };
 route('/invitacion/:token', {
   public: true, noTabs: true, title: 'Activar mi cuenta', render: p => {
     const iv = S.invites.find(x => x.token === p.token);
     if (!iv) return empty('mail', 'Invitación no válida', 'El enlace no existe o ya no está disponible.', goBtn('Ir al ingreso', '/login', 's2'));
     if (iv.status === 'aceptada') return empty('check', 'Tu cuenta ya está activa', 'Ingresa con tu email y tu clave.', goBtn('INGRESAR', '/login', 'naranjo'));
     if (iv.status === 'rechazada') return empty('x', 'Invitación rechazada', 'Avisamos al club que no perteneces a él.', goBtn('Ir al ingreso', '/login', 's2'));
-    const c = club(iv.clubId), pl = iv.kind === 'jugador' ? player(iv.refId) : null, rows = [['Nombre', esc(iv.name)], pl && ['RUT', esc(pl.rut)], pl && ['Fecha de nacimiento', fDateY(pl.birth)], ['Email', esc(iv.email)]].filter(Boolean);
-    return `<div class="card center"><div style="display:flex;justify-content:center">${clubLogo(c, 56)}</div><h3 class="mt8">${esc(c.name)}</h3><p class="small muted" style="margin:4px 0 0">te inscribió como <b>${ivWho(iv)}</b></p></div>` +
-      `<div class="card">${rows.map(([k, v]) => `<div class="row" style="justify-content:space-between;padding:4px 0"><span class="small muted">${k}</span><span class="small b">${v}</span></div>`).join('')}</div>` +
-      (S.session.loggedIn ? note('Al activar tu cuenta se cerrará la sesión que está abierta en este equipo.', 'warn', 'alert') : '') +
-      `<div class="card">${inp('iv-pw', 'Crea tu clave', 'type="password" autocomplete="new-password"', 'Prototipo: usa una clave de prueba, nunca una real.')}${inp('iv-pw2', 'Repite tu clave', 'type="password" autocomplete="new-password"')}<label class="check"><input type="checkbox" id="iv-ok"><span class="small">Confirmo que soy ${ivWho(iv)} de ${esc(c.short)} y acepto vincularme al club</span></label><label class="check"><input type="checkbox" id="iv-legal"><span class="small">Acepto los <a href="#/legal/terminos">Términos de uso</a> y la <a href="#/legal/privacidad">Política de privacidad</a></span></label><div class="err" id="iv-err"></div></div>` +
-      btn('ACTIVAR MI CUENTA', `A.inviteAccept('${iv.token}')`, 'naranjo', 'check') + `<div class="center mt12"><button class="lnk small" onclick="A.inviteRejectSheet('${iv.token}')">No pertenezco a este club</button></div>`;
+    return actPage(ivData(iv), `A.inviteAccept('${iv.token}')`, `A.inviteRejectSheet('${iv.token}')`, S.session.loggedIn ? note('Al activar tu cuenta se cerrará la sesión que está abierta en este equipo.', 'warn', 'alert') : '');
   }
 });
 A.inviteAccept = token => {
-  const iv = S.invites.find(x => x.token === token), err = m => { $('#iv-err').textContent = m; };
-  if (!iv || iv.status !== 'enviada') return rerender();
-  const pw = $('#iv-pw').value;
-  if (pw.length < 4) return err('La clave debe tener al menos 4 caracteres.');
-  if (pw !== $('#iv-pw2').value) return err('Las claves no coinciden.');
-  if (!$('#iv-ok').checked) return err(`Confirma tu vinculación con ${club(iv.clubId).short}.`);
-  if (!$('#iv-legal').checked) return err('Debes aceptar los Términos de uso y la Política de privacidad.');
-  if (S.accounts.some(a => a.email === iv.email)) return err('Ese email ya tiene una cuenta en My Club. Ingresa con ella.');
-  const base = { email: iv.email, pass: hash(pw), date: today(), invited: true };
+  const iv = S.invites.find(x => x.token === token); if (!iv || iv.status !== 'enviada') return rerender();
+  const f = actForm(ivData(iv), 4); if (!f) return;
+  if (S.accounts.some(a => a.email === iv.email)) { $('#iv-err').textContent = 'Ese email ya tiene una cuenta en My Club. Ingresa con ella.'; return; }
+  if (iv.kind === 'apoderado' && S.accounts.some(a => a.type === 'apoderado' && cleanRut(a.rut || '') === cleanRut(f.rut))) { $('#iv-err').textContent = 'Ya existe una cuenta de apoderado con ese RUT.'; return; }
+  const base = { email: iv.email, pass: hash(f.pw), date: today(), invited: true };
   let acc;
   if (iv.kind === 'jugador') { const p = player(iv.refId); acc = { ...base, type: 'jugador', role: 'jugador', name: p.name, rut: p.rut, phone: p.phone || '', refId: p.id, id: nextId('D') }; p.accountId = acc.id; p.email = iv.email; }
   else {
-    const g = guardian(iv.refId); acc = { ...base, type: 'apoderado', role: 'apoderado', name: g.name, rut: '', phone: g.phone || '', refId: g.id, clubId: iv.clubId, id: nextId('A') };
+    const g = guardian(iv.refId); g.rut = f.rut; acc = { ...base, type: 'apoderado', role: 'apoderado', name: g.name, rut: f.rut, phone: g.phone || '', refId: g.id, clubId: iv.clubId, id: nextId('A') };
     g.clubs = [...new Set([...(g.clubs || []), iv.clubId])]; S.linkRequests.unshift({ id: uid('lk'), accountId: acc.id, clubId: iv.clubId, date: today(), status: 'aceptada', resolvedAt: today() });
   }
   S.accounts.push(acc); iv.status = 'aceptada'; iv.done = today();
@@ -3050,34 +3068,55 @@ A.inviteReject = token => {
   save(); replaceTo(S.session.loggedIn ? '/inicio' : '/login'); toast('Avisamos al club. Gracias');
 };
 
-// --- Menores de 14 sin apoderado y ficha pendiente del apoderado inscrito por el club ---
+// --- Modo real: el enlace del correo trae una sesión sin cuenta; aquí se activa ---
+let _act = null; // invite_info() de la sesión que abrió el enlace
+route('/activar', {
+  public: true, noTabs: true, title: 'Activar mi cuenta', render: () => _act
+    ? actPage({ ..._act, club: { ..._act.club, sports: [] } }, 'A.activar()', 'A.activarNoSheet()') + `<div class="mt8">${btn('Salir', 'A.activarSalir()', 'ghost')}</div>`
+    : empty('mail', 'Abre el enlace de tu correo', 'Para activar tu cuenta, toca el botón del correo de invitación que te envió tu club.', goBtn('Ir al ingreso', '/login', 's2'))
+});
+A.activar = async () => {
+  if (!_act) return; const f = actForm(_act, 8); if (!f) return;
+  try {
+    await SB.updateUser({ password: f.pw });
+    await SB.rpc('accept_invite', { p: { confirm: true, consent: true, rut: f.rut || null } });
+    _act = null; afterEnter(await enterReal()); toast('Cuenta activada. Te damos la bienvenida a My Club');
+  } catch (e) { const x = $('#iv-err'); if (x) x.textContent = e.message; }
+};
+A.activarNoSheet = () => { if (_act) confirmSheet('No pertenezco a este club', `Avisaremos a ${esc(_act.club.short)}, se quitará esta inscripción y se borrarán tus datos de acceso.`, 'Sí, no pertenezco', 'A.activarNo()', 'danger'); };
+A.activarNo = async () => {
+  try { await SB.rpc('reject_invite'); } catch (e) { return toast(e.message, 'bad'); }
+  SB.keep(null); _act = null; NAV.length = 0; replaceTo('/login'); toast('Avisamos al club. Gracias');
+};
+A.activarSalir = () => { SB.keep(null); _act = null; NAV.length = 0; replaceTo('/login'); };
+
+// Inscribe en la base y envía las invitaciones. Devuelve las invitaciones creadas (ya con su estado).
+async function realAdd(kind, clubId, sport, teamId, rows) {
+  await _syncing;
+  const r = await SB.rpc('club_add_members', { p_club: clubId, p_kind: kind, p_sport: sport || null, p_team: teamId || null, p_rows: rows.map(x => ({ name: x.name, rut: x.rut ? normRut(x.rut) : null, birth: x.birth || null, email: x.email || null, phone: x.phone || null })) })
+    .catch(e => { throw e.code === 'PGRST202' || e.status === 404 ? new Error('La inscripción de socios aún no está activada en el servidor.') : e; });
+  let failed = 0;
+  if (r.invites.length) { try { failed = (await SB.fn('invitar-socios', { ids: r.invites })).failed.length; } catch (e) { failed = r.invites.length; toast(e.message, 'bad'); } }
+  await refreshReal();
+  return { added: r.added, ivs: r.invites.map(id => S.invites.find(i => i.id === id)).filter(Boolean), failed };
+}
+const realAddMsg = (r, one, many) => `${plural(r.added, one + ' agregado', many + ' agregados')} · ${plural(r.ivs.length - r.failed, 'invitación enviada', 'invitaciones enviadas')}${r.failed ? ` · ${r.failed} sin enviar` : ''}`;
+// --- Menores de 14 sin apoderado ---
 const minorBlock = () => {
   const a = acct(); if (!a || a.type !== 'jugador') return '';
   if (myGuardianLinks().some(l => l.status === 'pendiente')) return goBtn('Revisar solicitud de apoderado', '/apoderados', 'naranjo', 'users') + '<div class="mt12"></div>';
   return needsGuardian() ? note(`<b>${MSG_MENOR_14_HOME}</b><br>Tu apoderado necesitará tu ID de deportista: <b>${a.id}</b>.`, 'warn', 'alert') + goBtn('Ver mis apoderados', '/apoderados', 's2', 'users') + '<div class="mt12"></div>' : '';
-};
-const fichaNote = () => { const a = acct(); return a && a.type === 'apoderado' && !a.rut ? note('Completa tu ficha de apoderado: falta tu RUT.', 'warn', 'id') + goBtn('COMPLETAR MI FICHA', '/completar-ficha', 'naranjo', 'edit') + '<div class="mt12"></div>' : ''; };
-route('/completar-ficha', {
-  title: 'Mi ficha', roles: ['apoderado'], render: () => { const a = acct(); return note('El club te inscribió con tu nombre, email y teléfono. Completa el resto de tu ficha.') + `<div class="card"><div class="small muted">Nombre</div><div class="b mb12">${esc(a.name)}</div><div class="small muted">Email</div><div class="b mb12">${esc(a.email)}</div>${inp('fc-rut', 'RUT', `autocomplete="off" placeholder="12.345.678-9" value="${esc(a.rut || '')}"`)}${inp('fc-phone', 'Teléfono', `type="tel" inputmode="tel" autocomplete="off" value="${esc(a.phone || '')}"`)}<div class="err" id="fc-err"></div></div>${btn('GUARDAR MI FICHA', 'A.fichaSave()', 'ok', 'check')}`; }
-});
-A.fichaSave = () => {
-  const a = acct(), g = guardian(a.refId), rut = val('fc-rut'), phone = val('fc-phone').replace(/[\s\-().]/g, ''), err = m => { $('#fc-err').textContent = m; };
-  if (!rut) return err('Ingresa tu RUT.');
-  if (!validRut(rut)) return err('El RUT no es válido.');
-  if (S.accounts.some(x => x.type === 'apoderado' && x.id !== a.id && cleanRut(x.rut || '') === cleanRut(rut))) return err('Ya existe una cuenta de apoderado con ese RUT.');
-  if (!/^\+?\d{8,12}$/.test(phone)) return err('El teléfono no es válido.');
-  a.rut = g.rut = normRut(rut); a.phone = g.phone = /^9\d{8}$/.test(phone) ? '+56' + phone : phone;
-  save(); NAV.length = 0; replaceTo('/inicio'); toast('Ficha guardada. Ahora vincula a tus hijos');
 };
 
 // --- Apoderados y entrenadores del club ---
 let _apod = null;
 const apodRows = l => l.length ? list(l.map(g => li({ ic: 'users', color: 'orange', title: esc(g.name), sub: [g.kids.length ? 'Apoderado de ' + g.kids.map(esc).join(', ') : g.iv ? IV_TXT[g.iv.status] + (g.iv.status === 'aceptada' ? ' · aún sin pupilos' : '') : 'Vinculado al club', esc(g.email || ''), esc(g.phone || '')].filter(Boolean).join(' · '), on: g.iv ? `A.inviteSheet('${g.iv.id}')` : '', chev: !!g.iv }))) : empty('users', 'Sin apoderados', 'Aparecerán aquí cuando los deportistas del club tengan apoderado.');
 const apodDemo = () => { const c = cid(), ids = clubMembers(c).map(m => m.playerId); return S.guardians.map(g => ({ name: g.name, email: g.email, phone: g.phone, iv: ivFor('apoderado', g.id, c), mine: (g.clubs || []).includes(c), kids: g.kids.filter(k => ids.includes(k.playerId)).map(k => player(k.playerId).name) })).filter(g => g.kids.length || g.mine || (g.iv && g.iv.status !== 'rechazada')); };
+const apodReal = () => [...(_apod || []), ...S.invites.filter(i => i.kind === 'apoderado' && i.clubId === cid() && IV_OPEN.includes(i.status)).map(i => ({ name: i.name, email: i.email, phone: i.phone, kids: [], iv: i }))];
 route('/d/apoderados', {
   title: 'Apoderados', roles: ['directivo'],
-  render: () => `<div id="ap-box">${S.session.real ? (_apod ? apodRows(_apod) : '<p class="center muted small">Cargando…</p>') : apodRows(apodDemo())}</div>`,
-  after: async () => { if (!S.session.real) return; try { _apod = await SB.rpc('club_guardians'); const b = $('#ap-box'); if (b) b.innerHTML = apodRows(_apod); } catch (e) { toast(e.message, 'bad'); } }
+  render: () => `<div id="ap-box">${S.session.real ? (_apod ? apodRows(apodReal()) : '<p class="center muted small">Cargando…</p>') : apodRows(apodDemo())}</div>`,
+  after: async () => { if (!S.session.real) return; try { _apod = await SB.rpc('club_guardians'); const b = $('#ap-box'); if (b) b.innerHTML = apodRows(apodReal()); } catch (e) { toast(e.message, 'bad'); } }
 });
 const clubCoaches = () => { const ids = S.linkRequests.filter(l => l.clubId === cid() && l.status === 'aceptada').map(l => l.accountId); return S.accounts.filter(a => a.role === 'entrenador' && (ids.includes(a.id) || a.clubId === cid())); };
 route('/d/entrenadores', {
@@ -3596,6 +3635,7 @@ function hydrate(d, ui) {
   s.linkRequests = d.links.map(l => ({ id: l.id, accountId: pubId(l.account_id), clubId: l.club_id, date: day(l.created_at), status: l.status, resolvedAt: day(l.resolved_at) }));
   const a = s.accounts.find(x => x.uid === uid_), accepted = s.linkRequests.filter(l => l.accountId === a.id && l.status === 'aceptada').map(l => l.clubId);
   s.guardianLinks = (d.guardian_links || []).map(l => ({ ...l, date: day(l.date) }));
+  s.invites = (d.invites || []).map(i => ({ id: i.id, kind: i.kind, refId: i.player_id || 'iv_' + i.id, clubId: i.club_id, sport: i.sport, email: i.email, name: i.name, phone: i.phone || '', status: i.status, error: i.error, date: day(i.sent_at || i.created_at), done: day(i.resolved_at), sent: i.sent_count }));
   s.notifs = d.notifications.map(n => ({ id: n.id, to: r, text: n.text, date: day(n.created_at), read: n.read, href: n.href, clubId: null }));
   if (type === 'jugador') a.refId = (s.players.find(p => p.accountId === uid_) || {}).id;
   if (type === 'apoderado') { a.refId = 'g_' + a.id; s.guardians = [{ id: a.refId, name: a.name, rut: a.rut, email: a.email, clubs: accepted, kids: [...s.players.filter(p => p.guardianId === uid_).map(p => ({ playerId: p.id, rel: p.rel || 'Apoderado' })), ...s.guardianLinks.filter(l => l.status === 'aceptada' && l.playerId).map(l => ({ playerId: l.playerId, rel: l.rel }))] }]; }
@@ -3670,6 +3710,9 @@ async function enterReal() {
   await SB.rpc('run_monthly').catch(() => { });
   let d = await SB.rpc('my_state'), created = null;
   if (!d.account) {
+    // Invitado por un club: activa su cuenta en #/activar.
+    const iv = await SB.rpc('invite_info').catch(() => null);
+    if (iv) { _act = iv; return 'invite'; }
     const reg = ((SB.s.user || {}).user_metadata || {}).reg;
     if (!reg) throw new Error('Tu cuenta no tiene datos de registro. Regístrate de nuevo.');
     try { created = (await SB.rpc('register_account', { p: reg })).publicId; }
@@ -3680,7 +3723,9 @@ async function enterReal() {
   return created;
 }
 function afterEnter(created) {
-  NAV.length = 0; replaceTo('/inicio');
+  NAV.length = 0;
+  if (created === 'invite') return replaceTo('/activar');
+  replaceTo('/inicio');
   if (created) setTimeout(() => sheet('Registro completado', `<p class="center" style="margin:0">Tu ID de ${typeLabel(acct().type)} es</p><div class="center big mb12" id="new-id">${created}</div>${btn('Entendido', 'closeSheet()')}`), 350);
 }
 const realDo = async (fn, msg) => { try { await _syncing; await fn(); await refreshReal(); if (msg) toast(msg); return true; } catch (e) { toast(e.message, 'bad'); return false; } };
@@ -3845,11 +3890,38 @@ function realHome() {
   return hero;
 }
 
+// --- Socios inscritos por el club (modo real): ver realAdd en la sección de invitaciones ---
+real('addPlayer', async ctx => {
+  const r = cmParse([CM_COLS, ['pl-name', 'pl-rut', 'pl-birth', 'pl-email', 'pl-phone'].map(val)])[0], err = m => { $('#pl-err').textContent = m; };
+  if (!r) return err('Completa nombre, RUT y fecha de nacimiento.');
+  if (r.errs.length) return err(r.errs.join('. ') + '.');
+  const t = ctx === 'coach' ? curTeam() : null, sport = t ? t.sport : val('pl-sport'); if (!sport) return err('Elige el deporte.');
+  try { const x = await realAdd('jugador', t ? t.clubId : cid(), sport, t && t.id, [r]); closeSheet(); toast(`${r.name} agregado`); if (x.ivs[0]) setTimeout(() => inviteSent(x.ivs[0]), 350); }
+  catch (e) { err(e.message.replace(/^Fila 1: /, '')); }
+});
+real('addGuardian', async ctx => {
+  const r = cmParse([CM_COLS_AP, ['ap-name', 'ap-email', 'ap-phone'].map(val)], 'apoderado')[0], err = m => { $('#ap-err').textContent = m; };
+  if (!r) return err('Completa nombre, email y teléfono.');
+  if (r.errs.length) return err(r.errs.join('. ') + '.');
+  try { const x = await realAdd('apoderado', socioTarget(ctx), null, null, [r]); closeSheet(); toast(`${r.name} agregado como apoderado`); if (x.ivs[0]) setTimeout(() => inviteSent(x.ivs[0]), 350); }
+  catch (e) { err(e.message.replace(/^Fila 1: /, '')); }
+});
+real('cmImport', async () => {
+  if (!_cm) return; const kind = _cm.kind || 'jugador', sp = val('cm-sport'), ok = _cm.rows.filter(r => !r.errs.length); if (kind === 'jugador' && !sp) return toast('Elige el deporte', 'warn');
+  try { const x = await realAdd(kind, cid(), kind === 'jugador' ? sp : null, null, ok); _cm = null; NAV.length = 0; replaceTo(kind === 'jugador' ? '/d/jugadores' : '/d/apoderados'); toast(realAddMsg(x, CM[kind].one, CM[kind].many), x.failed ? 'warn' : ''); }
+  catch (e) { toast(e.message, 'bad'); }
+});
+real('inviteResend', async id => {
+  const iv = S.invites.find(x => x.id === id); if (!iv) return; closeSheet();
+  try { const r = await SB.fn('invitar-socios', { ids: [id] }); await refreshReal(); r.failed.length ? toast(r.failed[0].message, 'bad') : toast(`Invitación enviada a ${iv.email}`); }
+  catch (e) { toast(e.message, 'bad'); }
+});
+
 // Solo se ingresan datos con una sesión de una cuenta creada. Quien revisa la app con el usuario demo
 // solo consulta, y en una cuenta real una acción que aún no tiene base de datos avisa: nunca finge guardar.
-const SOLO_VER = new Set('svAdd svDel svDup svType svOpAdd svOpDel svAll back ui homeEdit homeMove homeFlag homeReset login bioOn bioSkip bioLogin cmTpl cmFile cmImport addPlayer addGuardian inviteOpen inviteResend inviteAccept inviteReject fichaSave guardianSend guardianResolve guardianRemove logout completeReg recover newPass linkSearch linkPick linkCheck addCargo regType installHelp openNotif roleSheet setRole demoPick resetDemo doReset time rhClub pickKid addSport sportOther deleteAsk tfUpd certUpd bajaDebt loanType qtLine qtTotal showCom showReceipt playVideo comments claimView chatMenu toggleCh setMethod tpl csvSample delTeamSheet teamSheetEdit newChat newPost resign withdraw baja proposeT bcSport incomeName copyBank partToggle tsCargo tsPayCalc tsDoc'.split(' '));
+const SOLO_VER = new Set('svAdd svDel svDup svType svOpAdd svOpDel svAll back ui homeEdit homeMove homeFlag homeReset login bioOn bioSkip bioLogin cmTpl cmFile cmImport addPlayer addGuardian inviteOpen inviteResend inviteAccept inviteReject activar activarNo activarSalir guardianSend guardianResolve guardianRemove logout completeReg recover newPass linkSearch linkPick linkCheck addCargo regType installHelp openNotif roleSheet setRole demoPick resetDemo doReset time rhClub pickKid addSport sportOther deleteAsk tfUpd certUpd bajaDebt loanType qtLine qtTotal showCom showReceipt playVideo comments claimView chatMenu toggleCh setMethod tpl csvSample delTeamSheet teamSheetEdit newChat newPost resign withdraw baja proposeT bcSport incomeName copyBank partToggle tsCargo tsPayCalc tsDoc'.split(' '));
 // Funciones que solo existen para simular en el demo. La carga masiva crearía deportistas sin cuenta ni apoderado.
-const SOLO_DEMO = new Set('time simLink simReply simJoin simVotes asmSim csvSample csvImport cmImport addPlayer addGuardian inviteResend inviteAccept inviteReject fichaSave resetDemo doReset scan'.split(' '));
+const SOLO_DEMO = new Set('time simLink simReply simJoin simVotes asmSim csvSample csvImport inviteAccept inviteReject resetDemo doReset scan'.split(' '));
 const MSG_CREA_CUENTA = 'Estás en el modo demo: crea una cuenta para ingresar datos.';
 const MSG_SOLO_DEMO = 'Esta función no está disponible en cuentas reales.';
 const soloConsulta = () => HAS_DB && S.session.loggedIn && !S.session.real;
@@ -3884,7 +3956,7 @@ async function boot() {
   save();
   // Enlaces de Supabase (confirmar email o recuperar clave) traen la sesión en el hash.
   const q = new URLSearchParams(location.hash.slice(1));
-  if (HAS_DB && q.get('access_token')) { SB.keep(SB.fromAuth({ access_token: q.get('access_token'), refresh_token: q.get('refresh_token'), expires_at: +q.get('expires_at') || 0, expires_in: +q.get('expires_in') || 3600 })); history.replaceState(null, '', location.pathname + location.search + (q.get('type') === 'recovery' ? '#/nueva-clave' : '#/inicio')); }
+  if (HAS_DB && q.get('access_token')) { SB.keep(SB.fromAuth({ access_token: q.get('access_token'), refresh_token: q.get('refresh_token'), expires_at: +q.get('expires_at') || 0, expires_in: +q.get('expires_in') || 3600 })); history.replaceState(null, '', location.pathname + location.search + (q.get('type') === 'recovery' ? '#/nueva-clave' : q.get('type') === 'invite' ? '#/activar' : '#/inicio')); }
   if (HAS_DB && (SB.s || SB.load())) {
     try { if (!SB.s.user) SB.s.user = await SB.req('/auth/v1/user', { method: 'GET' }); const created = await enterReal(); if (created) setTimeout(() => afterEnter(created), 0); }
     catch (e) { if (!e.offline) SB.keep(null); setTimeout(() => toast(e.message, 'bad'), 300); }
