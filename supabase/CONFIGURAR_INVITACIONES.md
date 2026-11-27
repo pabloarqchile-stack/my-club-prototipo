@@ -11,7 +11,9 @@ Debe terminar sin errores (crea `club_invites` y las funciones `club_add_members
 Edge Functions → Deploy a new function → Via Editor.
 - Nombre: `invitar-socios`
 - Código: pega `supabase/functions/invitar-socios/index.ts`
-- Deja activado "Verify JWT" y despliega.
+- Despliega. Luego, en la pestaña Settings de la función, **apaga "Verify JWT with legacy secret"** y guarda:
+  el proyecto firma las sesiones con la clave nueva (ECC), que ese control rechaza. La función verifica la sesión
+  por su cuenta (`/auth/v1/user`) y usa la clave service_role antigua: no desactives las "legacy API keys".
 
 ## 3. Direcciones permitidas
 Authentication → URL Configuration:
@@ -34,5 +36,5 @@ Authentication → Emails → Templates → Invite user:
 - Body: pega `supabase/plantillas/invitacion.html`
 
 ## 6. Probar
-Ingresa con una cuenta de club real → Deportistas → AGREGAR SOCIO → Apoderado, con un email tuyo.
+Ingresa con una cuenta de club real → Apoderados → AGREGAR, con un email tuyo que no tenga cuenta en My Club.
 Debe llegar el correo; su botón abre la app en "Activar mi cuenta".
